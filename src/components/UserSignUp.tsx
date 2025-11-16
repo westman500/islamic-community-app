@@ -10,6 +10,7 @@ export const UserSignUp: React.FC = () => {
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [role, setRole] = useState<'user' | 'imam' | 'scholar'>('user')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { signUp } = useAuth()
@@ -32,7 +33,7 @@ export const UserSignUp: React.FC = () => {
     setLoading(true)
 
     try {
-      await signUp(email, password, 'user', fullName)
+      await signUp(email, password, role, fullName)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Failed to create account')
@@ -62,6 +63,23 @@ export const UserSignUp: React.FC = () => {
                 placeholder="Enter your full name"
                 required
               />
+            </div>
+
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium mb-2">
+                Account Type
+              </label>
+              <select
+                id="role"
+                value={role}
+                onChange={(e) => setRole(e.target.value as 'user' | 'imam' | 'scholar')}
+                className="w-full px-3 py-2 border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              >
+                <option value="user">Community Member</option>
+                <option value="imam">Imam</option>
+                <option value="scholar">Scholar</option>
+              </select>
             </div>
 
             <div>
