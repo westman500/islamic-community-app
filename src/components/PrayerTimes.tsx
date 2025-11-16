@@ -1,0 +1,156 @@
+import React, { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Button } from './ui/button'
+import { calculatePrayerTimes, getCurrentPrayer, getNextPrayer, type PrayerTimesData } from '../utils/prayerTimes'
+
+export const PrayerTimes: React.FC = () => {
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTimesData | null>(null)
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string>('')
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  // Update current time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  // Get user location and calculate prayer times
+  const getLocationAndPrayerTimes = () => {
+    setLoading(true)
+    setError('')
+
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser')
+      setLoading(false)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords
+        setLocation({ latitude, longitude })
+        const times = calculatePrayerTimes(latitude, longitude)
+        setPrayerTimes(times)
+        setLoading(false)
+      },
+      (err) => {
+        setError(`Error: ${err.message}`)
+        setLoading(false)
+      }
+    )
+  }
+
+  // Auto-load on mount
+  useEffect(() => {
+    getLocationAndPrayerTimes()
+  }, [])
+
+  const currentPrayer = prayerTimes ? getCurrentPrayer(prayerTimes) : null
+  const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes) : null
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit' 
+    })
+  }
+
+  const getTimeUntilNext = () => {
+    if (!nextPrayer) return null
+    const diff = nextPrayer.time.getTime() - currentTime.getTime()
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+    return `${hours}h ${minutes}m ${seconds}s`
+  }
+
+  return (
+    <div className="container mx-auto p-4 max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-center">Prayer Times</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">
+              <p>Loading prayer times...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center space-y-4">
+              <p className="text-destructive">{error}</p>
+              <Button onClick={getLocationAndPrayerTimes}>Try Again</Button>
+            </div>
+          ) : !prayerTimes ? (
+            <div className="text-center space-y-4">
+              <p className="text-muted-foreground">
+                Allow location access to see prayer times
+              </p>
+              <Button onClick={getLocationAndPrayerTimes}>Get Prayer Times</Button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Current time and location */}
+              <div className="text-center space-y-2 p-4 bg-secondary rounded-lg">
+                <p className="text-2xl font-bold">{formatTime(currentTime)}</p>
+                <p className="text-sm text-muted-foreground">
+                  {location ? `${location.latitude.toFixed(4)}°, ${location.longitude.toFixed(4)}°` : ''}
+                </p>
+                <p className="text-sm">
+                  Current: <span className="font-semibold">{currentPrayer}</span>
+                </p>
+                {nextPrayer && (
+                  <p className="text-xs text-muted-foreground">
+                    Next: {nextPrayer.name} in {getTimeUntilNext()}
+                  </p>
+                )}
+              </div>
+
+              {/* Prayer times list */}
+              <div className="space-y-2">
+                {[
+                  { prayer: prayerTimes.fajr, icon: '🌅' },
+                  { prayer: prayerTimes.sunrise, icon: '☀️' },
+                  { prayer: prayerTimes.dhuhr, icon: '🌤️' },
+                  { prayer: prayerTimes.asr, icon: '🌆' },
+                  { prayer: prayerTimes.maghrib, icon: '🌇' },
+                  { prayer: prayerTimes.isha, icon: '🌙' },
+                ].map(({ prayer, icon }) => (
+                  <div
+                    key={prayer.name}
+                    className={`flex items-center justify-between p-4 rounded-lg border ${
+                      currentPrayer === prayer.name
+                        ? 'bg-primary/10 border-primary'
+                        : 'bg-card'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{icon}</span>
+                      <span className="font-semibold">{prayer.name}</span>
+                    </div>
+                    <span className="text-lg">{prayer.displayTime}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Qibla direction */}
+              <div className="text-center p-4 bg-secondary rounded-lg">
+                <p className="text-sm text-muted-foreground">Qibla Direction</p>
+                <p className="text-2xl font-bold">{prayerTimes.qiblaDirection.toFixed(1)}°</p>
+              </div>
+
+              <Button onClick={getLocationAndPrayerTimes} variant="outline" className="w-full">
+                Refresh Prayer Times
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
