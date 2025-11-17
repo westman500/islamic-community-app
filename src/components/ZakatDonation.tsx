@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { usePermissions } from './ProtectedRoute'
 import { Heart, DollarSign } from 'lucide-react'
+import { MobileLayout } from './MobileLayout'
 
 interface Scholar {
   id: string
@@ -121,7 +122,7 @@ export const ZakatDonation: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
+    <MobileLayout title="Zakat & Donations">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -241,6 +242,6 @@ export const ZakatDonation: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </MobileLayout>
   )
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react'
+import { MobileLayout } from './MobileLayout'
 
 interface Ayah {
   number: number
@@ -107,7 +108,7 @@ export const QuranReader: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
+    <MobileLayout title="Quran Reader">
       <Card>
         <CardHeader>
           <CardTitle className="text-center text-2xl">القرآن الكريم - Holy Quran</CardTitle>
@@ -196,6 +197,6 @@ export const QuranReader: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </MobileLayout>
   )
 }

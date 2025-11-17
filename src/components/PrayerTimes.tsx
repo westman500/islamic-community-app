@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { calculatePrayerTimes, getCurrentPrayer, getNextPrayer, type PrayerTimesData } from '../utils/prayerTimes'
+import { MobileLayout } from './MobileLayout'
 
 export const PrayerTimes: React.FC = () => {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimesData | null>(null)
@@ -71,7 +72,7 @@ export const PrayerTimes: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
+    <MobileLayout title="Prayer Times">
       <Card>
         <CardHeader>
           <CardTitle className="text-center">Prayer Times</CardTitle>
@@ -184,6 +185,6 @@ export const PrayerTimes: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </MobileLayout>
   )
 }

@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { usePermissions } from './ProtectedRoute'
 import { Calendar, Clock, MessageSquare } from 'lucide-react'
+import { MobileLayout } from './MobileLayout'
 
 interface Scholar {
   id: string
@@ -157,7 +158,7 @@ export const ConsultationBooking: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
+    <MobileLayout title="Consultations">
       <div className="flex gap-4 mb-4">
         <Button
           variant={!showMyBookings ? 'default' : 'outline'}
@@ -354,6 +355,6 @@ export const ConsultationBooking: React.FC = () => {
           </CardContent>
         </Card>
       )}
-    </div>
+    </MobileLayout>
   )
 }

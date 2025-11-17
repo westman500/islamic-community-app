@@ -1,7 +1,7 @@
 import React from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { Card, CardContent } from './ui/card'
 import { Button } from './ui/button'
 import {
   BookOpen,
@@ -17,8 +17,10 @@ import {
   Settings,
   UtensilsCrossed,
   MapPin,
-  Sparkles
+  Sparkles,
+  LogOut
 } from 'lucide-react'
+import { supabase } from '../utils/supabase/client'
 
 export function Dashboard() {
   const { profile } = useAuth()
@@ -28,6 +30,11 @@ export function Dashboard() {
 
   const isScholar = profile?.role === 'scholar' || profile?.role === 'imam'
   const fullName = profile?.full_name || 'User'
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    navigate('/signin')
+  }
 
   // Update time every second
   React.useEffect(() => {
@@ -261,14 +268,26 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex flex-col items-end space-y-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-emerald-500"
-              onClick={() => navigate('/profile-settings')}
-            >
-              <Settings className="h-6 w-6" />
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-emerald-600 rounded-full bg-emerald-500/40 shadow-lg"
+                onClick={() => navigate('/profile-settings')}
+                title="Settings"
+              >
+                <Settings className="h-6 w-6 drop-shadow-md" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-red-600 rounded-full bg-red-500/40 shadow-lg"
+                onClick={handleSignOut}
+                title="Sign Out"
+              >
+                <LogOut className="h-6 w-6 drop-shadow-md" />
+              </Button>
+            </div>
             <div className="text-right">
               <p className="text-xs text-emerald-100">{location}</p>
               <p className="text-sm font-bold">{formatTime()}</p>
@@ -299,34 +318,26 @@ export function Dashboard() {
         )}
 
         {/* Common Islamic Features */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
           {commonFeatures.map((feature) => {
             const Icon = feature.icon
             return (
-              <Card key={feature.title} className={`${feature.color} border-none shadow-md hover:shadow-lg transition-shadow`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-3 rounded-lg ${feature.color}`}>
-                      <Icon className={`h-8 w-8 ${feature.iconColor}`} />
+              <Card key={feature.title} className={`${feature.color} border-none shadow-md hover:shadow-lg transition-all`}>
+                <CardContent className="p-3">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className={`p-3 rounded-xl shadow-md ${feature.color}`}>
+                      <Icon className={`h-8 w-8 ${feature.iconColor} drop-shadow-md`} />
                     </div>
-                    <div>
-                      <CardTitle className={`text-lg ${feature.iconColor}`}>
-                        {feature.title}
-                      </CardTitle>
-                      <CardDescription className="text-gray-600">
-                        {feature.description}
-                      </CardDescription>
-                    </div>
+                    <h3 className={`text-xs font-bold ${feature.iconColor}`}>
+                      {feature.title}
+                    </h3>
+                    <Button 
+                      className={`w-full ${feature.buttonColor} text-white text-xs h-8 shadow-md hover:shadow-lg`}
+                      onClick={() => navigate(feature.path)}
+                    >
+                      Open
+                    </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-gray-600">{feature.detail}</p>
-                  <Button 
-                    className={`w-full ${feature.buttonColor} text-white`}
-                    onClick={() => navigate(feature.path)}
-                  >
-                    Open
-                  </Button>
                 </CardContent>
               </Card>
             )
@@ -334,34 +345,26 @@ export function Dashboard() {
         </div>
 
         {/* Role-specific Features */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
           {features.map((feature) => {
             const Icon = feature.icon
             return (
-              <Card key={feature.title} className={`${feature.color} border-none shadow-md hover:shadow-lg transition-shadow`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-3 rounded-lg ${feature.color}`}>
-                      <Icon className={`h-8 w-8 ${feature.iconColor}`} />
+              <Card key={feature.title} className={`${feature.color} border-none shadow-md hover:shadow-lg transition-all`}>
+                <CardContent className="p-3">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className={`p-3 rounded-xl shadow-md ${feature.color}`}>
+                      <Icon className={`h-8 w-8 ${feature.iconColor} drop-shadow-md`} />
                     </div>
-                    <div>
-                      <CardTitle className={`text-lg ${feature.iconColor}`}>
-                        {feature.title}
-                      </CardTitle>
-                      <CardDescription className="text-gray-600">
-                        {feature.description}
-                      </CardDescription>
-                    </div>
+                    <h3 className={`text-xs font-bold ${feature.iconColor}`}>
+                      {feature.title}
+                    </h3>
+                    <Button 
+                      className={`w-full ${feature.buttonColor} text-white text-xs h-8 shadow-md hover:shadow-lg`}
+                      onClick={() => navigate(feature.path)}
+                    >
+                      Open
+                    </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-gray-600">{feature.detail}</p>
-                  <Button 
-                    className={`w-full ${feature.buttonColor} text-white`}
-                    onClick={() => navigate(feature.path)}
-                  >
-                    Open
-                  </Button>
                 </CardContent>
               </Card>
             )
@@ -434,10 +437,10 @@ export function Dashboard() {
           ) : (
             <>
               <NavButton icon={Heart} label="Zakat" onClick={() => navigate('/donate')} />
-              <NavButton icon={Calendar} label="Activities" onClick={() => navigate('/dashboard')} />
+              <NavButton icon={Calendar} label="Activities" onClick={() => navigate('/activity-categories')} />
             </>
           )}
-          <NavButton icon={Bell} label="Notices" onClick={() => navigate('/dashboard')} />
+          <NavButton icon={Bell} label="Bookings" onClick={() => navigate('/my-bookings')} />
         </div>
       </div>
     </div>
@@ -459,14 +462,14 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center min-w-[60px] py-1 px-2 rounded-lg transition-colors ${
+      className={`flex flex-col items-center justify-center min-w-[60px] py-2 px-2 rounded-xl transition-all shadow-sm ${
         active 
-          ? 'text-emerald-600' 
-          : 'text-gray-600 hover:text-emerald-600 hover:bg-emerald-50'
+          ? 'text-emerald-600 bg-emerald-100 shadow-md' 
+          : 'text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 hover:shadow-md'
       }`}
     >
-      <Icon className={`h-6 w-6 ${active ? 'text-emerald-600' : ''}`} />
-      <span className="text-xs mt-1 font-medium">{label}</span>
+      <Icon className={`h-7 w-7 drop-shadow-md ${active ? 'text-emerald-600' : ''}`} />
+      <span className="text-xs mt-1 font-bold">{label}</span>
     </button>
   )
 }

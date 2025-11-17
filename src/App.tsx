@@ -35,6 +35,9 @@ import { ConsultationMessaging } from './components/ConsultationMessaging'
 import { ReviewSubmissionForm } from './components/ReviewSubmissionForm'
 import { AccountDeletion } from './components/AccountDeletion'
 import { AvailableScholars } from './components/AvailableScholars'
+import { MyBookings } from './components/MyBookings'
+import { ActivityCategories } from './components/ActivityCategories'
+import { ActivitiesByCategory } from './components/ActivitiesByCategory'
 
 function App() {
   return (
@@ -110,6 +113,30 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/my-bookings"
+              element={
+                <ProtectedRoute>
+                  <MyBookings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activity-categories"
+              element={
+                <ProtectedRoute>
+                  <ActivityCategories />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activities/:categoryId"
+              element={
+                <ProtectedRoute>
+                  <ActivitiesByCategory />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Scholar/Imam-only routes */}
             <Route
@@ -179,6 +206,46 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AccountDeletion />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-bookings"
+              element={
+                <ProtectedRoute>
+                  <MyBookings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activity-categories"
+              element={
+                <ProtectedRoute>
+                  <ActivityCategories />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activities/:categoryId"
+              element={
+                <ProtectedRoute>
+                  <ActivitiesByCategory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/prayer-services"
+              element={
+                <ProtectedRoute>
+                  <UserPrayerServiceViewer />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/available-scholars"
+              element={
+                <ProtectedRoute>
+                  <AvailableScholars />
                 </ProtectedRoute>
               }
             />
