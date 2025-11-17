@@ -10,6 +10,10 @@ import { UserSignUp } from './components/UserSignUp'
 import { Dashboard } from './components/Dashboard'
 import { SplashScreen } from './components/SplashScreen'
 
+// Legal pages
+import { PrivacyPolicy } from './components/PrivacyPolicy'
+import { TermsOfService } from './components/TermsOfService'
+
 // Islamic features (accessible to all authenticated users)
 import { PrayerTimes } from './components/PrayerTimes'
 import { QuranReader } from './components/QuranReader'
@@ -42,6 +46,8 @@ function App() {
             <Route path="/" element={<SplashScreen />} />
             <Route path="/signin" element={<UserSignIn />} />
             <Route path="/signup" element={<UserSignUp />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
 
             {/* Main Dashboard */}
             <Route
