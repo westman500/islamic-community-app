@@ -42,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await fetchProfile(session.user.id)
         } else {
           setProfile(null)
+          setLoading(false)
         }
       }
     )
@@ -50,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const fetchProfile = async (userId: string) => {
+    console.log('Fetching profile for user:', userId)
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -57,19 +59,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .single()
 
-      if (error) throw error
-      setProfile(data)
+      if (error) {
+        console.error('Error fetching profile:', error)
+        // If profile doesn't exist, sign out the user
+        if (error.code === 'PGRST116') {
+          console.error('Profile not found for user:', userId)
+          await supabase.auth.signOut()
+          setProfile(null)
+          setUser(null)
+          setLoading(false)
+          return
+        }
+      }
+      
+      if (data) {
+        console.log('Profile fetched successfully:', data.email)
+        setProfile(data)
+      }
     } catch (error) {
-      console.error('Error fetching profile:', error)
+      console.error('Error in fetchProfile:', error)
     } finally {
       setLoading(false)
     }
   }
 
   const signIn = async (email: string, password: string) => {
+    console.log('SignIn: Starting authentication for', email)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     
     if (error) {
+      console.error('SignIn: Authentication failed', error)
       // Provide user-friendly error messages
       if (error.message.includes('Email not confirmed')) {
         throw new Error('Please verify your email address. Check your inbox for the confirmation link.')
@@ -80,11 +99,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Check if user needs to verify email
-    if (data.user && !data.user.email_confirmed_at) {
-      await supabase.auth.signOut()
-      throw new Error('Please verify your email address before signing in. Check your inbox for the confirmation link.')
+    console.log('SignIn: Authentication successful, checking profile...')
+
+    // Verify profile exists for this user
+    if (data.user) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profileError || !profile) {
+        console.log('SignIn: Profile not found, creating...')
+        // Profile doesn't exist, create it
+        const { error: insertError } = await supabase.from('profiles').insert({
+          id: data.user.id,
+          email: data.user.email!,
+          full_name: data.user.user_metadata?.full_name || email.split('@')[0],
+          role: (data.user.user_metadata?.role as UserRole) || 'user',
+        })
+
+        if (insertError) {
+          console.error('SignIn: Failed to create profile:', insertError)
+          throw new Error('Account setup incomplete. Please contact support.')
+        }
+        console.log('SignIn: Profile created successfully')
+      } else {
+        console.log('SignIn: Profile exists')
+      }
     }
+    console.log('SignIn: Complete')
   }
 
   const signUp = async (email: string, password: string, role: UserRole, fullName: string) => {
@@ -96,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           full_name: fullName,
           role,
         },
-        emailRedirectTo: `${window.location.origin}/signin`,
+        emailRedirectTo: `${window.location.origin}/dashboard`,
       },
     })
 
@@ -108,21 +152,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Create profile
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        email,
-        full_name: fullName,
-        role,
-      })
-
-      if (profileError) throw profileError
-    }
-
-    // Return success message
+    // If there's a session, user is auto-confirmed (likely in development)
+    // If no session but user exists, email confirmation is required
     if (data.user && !data.session) {
       throw new Error('CONFIRMATION_REQUIRED')
+    }
+
+    // If we have a session, the profile should be created by the trigger
+    // but let's verify it exists
+    if (data.session && data.user) {
+      // Wait a moment for the trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Check if profile was created by trigger
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .single()
+
+      // If trigger didn't create profile, create it manually
+      if (!existingProfile) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: data.user.id,
+          email,
+          full_name: fullName,
+          role,
+        })
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError)
+        }
+      }
     }
   }
 

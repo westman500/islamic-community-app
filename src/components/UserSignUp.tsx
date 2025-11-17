@@ -76,14 +76,17 @@ export const UserSignUp: React.FC = () => {
 
     try {
       await signUp(email, password, role, fullName)
-      navigate('/dashboard')
+      // Small delay to ensure session is established
+      setTimeout(() => {
+        navigate('/dashboard')
+        setLoading(false)
+      }, 500)
     } catch (err: any) {
       if (err.message === 'CONFIRMATION_REQUIRED') {
         setSuccess('Account created successfully! Please check your email to verify your account before signing in.')
       } else {
         setError(err.message || 'Failed to create account')
       }
-    } finally {
       setLoading(false)
     }
   }
