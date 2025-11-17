@@ -18,7 +18,11 @@ import {
   UtensilsCrossed,
   MapPin,
   Sparkles,
-  LogOut
+  LogOut,
+  Sunrise,
+  Sun,
+  Sunset,
+  Moon
 } from 'lucide-react'
 import { supabase } from '../utils/supabase/client'
 
@@ -209,37 +213,76 @@ export function Dashboard() {
 
   const activityFeatures = [
     {
-      title: 'Halal Restaurant Directory',
-      description: 'Discover local halal restaurants and dining options in your area.',
-      organizer: 'Organized by Community Partners',
-      location: 'Various Locations',
-      time: 'Available 24/7',
-      icon: UtensilsCrossed,
-      color: 'bg-gradient-to-br from-gray-50 to-gray-100',
-      iconColor: 'text-gray-600',
-      buttonColor: 'bg-green-500 hover:bg-green-600'
+      title: 'Fajr Prayer',
+      description: 'Join the dawn prayer congregation. Start your day with blessings and spiritual connection.',
+      organizer: 'Led by Imam Abdullah',
+      location: 'Main Prayer Hall',
+      time: 'Daily at 5:30 AM',
+      icon: Sunrise,
+      color: 'bg-gradient-to-br from-orange-50 to-amber-50',
+      iconColor: 'text-orange-600',
+      buttonColor: 'bg-orange-500 hover:bg-orange-600',
+      action: 'view'
+    },
+    {
+      title: 'Dhuhr Prayer',
+      description: 'Midday prayer service. Take a break from your day to remember Allah.',
+      organizer: 'Led by Imam Abdullah',
+      location: 'Main Prayer Hall',
+      time: 'Daily at 12:30 PM',
+      icon: Sun,
+      color: 'bg-gradient-to-br from-yellow-50 to-amber-50',
+      iconColor: 'text-yellow-600',
+      buttonColor: 'bg-yellow-500 hover:bg-yellow-600',
+      action: 'view'
+    },
+    {
+      title: 'Asr Prayer',
+      description: 'Afternoon prayer congregation. Strengthen your faith in the middle of the day.',
+      organizer: 'Led by Imam Abdullah',
+      location: 'Main Prayer Hall',
+      time: 'Daily at 3:45 PM',
+      icon: Sun,
+      color: 'bg-gradient-to-br from-amber-50 to-orange-50',
+      iconColor: 'text-amber-600',
+      buttonColor: 'bg-amber-500 hover:bg-amber-600',
+      action: 'view'
+    },
+    {
+      title: 'Maghrib Prayer',
+      description: 'Sunset prayer service. Break your fast and pray as the day transitions to night.',
+      organizer: 'Led by Imam Abdullah',
+      location: 'Main Prayer Hall',
+      time: 'Daily at 6:15 PM',
+      icon: Sunset,
+      color: 'bg-gradient-to-br from-red-50 to-pink-50',
+      iconColor: 'text-red-600',
+      buttonColor: 'bg-red-500 hover:bg-red-600',
+      action: 'view'
+    },
+    {
+      title: 'Isha Prayer',
+      description: 'Night prayer congregation. End your day in worship and reflection.',
+      organizer: 'Led by Imam Abdullah',
+      location: 'Main Prayer Hall',
+      time: 'Daily at 8:00 PM',
+      icon: Moon,
+      color: 'bg-gradient-to-br from-indigo-50 to-purple-50',
+      iconColor: 'text-indigo-600',
+      buttonColor: 'bg-indigo-500 hover:bg-indigo-600',
+      action: 'view'
     },
     {
       title: 'Friday Congregational Prayer (Jummah)',
-      description: 'Join us for the weekly Friday prayer service with khutbah (sermon) delivered in Arabic and English.',
-      organizer: 'Organized by Imam Abdullah',
-      location: 'Main Prayer Hall',
+      description: 'Join us live for the weekly Friday prayer service with khutbah (sermon) delivered in Arabic and English.',
+      organizer: 'Led by Imam Abdullah',
+      location: 'Main Prayer Hall - Live Stream',
       time: 'Every Friday 12:30 PM',
       icon: Users,
       color: 'bg-gradient-to-br from-green-50 to-emerald-50',
       iconColor: 'text-green-600',
-      buttonColor: 'bg-green-500 hover:bg-green-600'
-    },
-    {
-      title: 'Quran Recitation Classes',
-      description: 'Learn proper Quranic recitation with Tajweed from certified instructors.',
-      organizer: 'Organized by Sheikh Muhammad',
-      location: 'Learning Center Room 2',
-      time: 'Saturdays 10:00 AM',
-      icon: BookOpen,
-      color: 'bg-gradient-to-br from-blue-50 to-indigo-50',
-      iconColor: 'text-blue-600',
-      buttonColor: 'bg-green-500 hover:bg-green-600'
+      buttonColor: 'bg-green-500 hover:bg-green-600',
+      action: 'livestream'
     }
   ]
 
@@ -408,8 +451,11 @@ export function Dashboard() {
                             </div>
                           </div>
 
-                          <Button className={`${activity.buttonColor} text-white w-full`}>
-                            Book Now
+                          <Button 
+                            className={`${activity.buttonColor} text-white w-full`}
+                            onClick={() => activity.action === 'livestream' ? navigate('/livestreams') : navigate('/prayer-times')}
+                          >
+                            {activity.action === 'livestream' ? 'Join Now' : 'View Times'}
                           </Button>
                         </div>
                       </div>
