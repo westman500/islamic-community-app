@@ -1,3 +1,4 @@
+import React from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
@@ -9,7 +10,6 @@ import {
   Wallet,
   Video,
   Calendar,
-  MessageCircle,
   Bell,
   Users,
   GraduationCap,
@@ -23,9 +23,53 @@ import {
 export function Dashboard() {
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const [currentTime, setCurrentTime] = React.useState(new Date())
+  const [location, setLocation] = React.useState('Loading...')
 
   const isScholar = profile?.role === 'scholar' || profile?.role === 'imam'
   const fullName = profile?.full_name || 'User'
+
+  // Update time every second
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Get location
+  React.useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
+            )
+            const data = await response.json()
+            setLocation(data.address?.city || data.address?.town || data.address?.county || 'Unknown Location')
+          } catch {
+            setLocation('Location Unknown')
+          }
+        },
+        () => setLocation('Location Unavailable')
+      )
+    }
+  }, [])
+
+  // Islamic greeting based on time of day
+  const getIslamicGreeting = () => {
+    const hour = currentTime.getHours()
+    if (hour < 12) return 'صباح الخير - Good Morning'
+    if (hour < 18) return 'مساء الخير - Good Afternoon'
+    return 'مساء الخير - Good Evening'
+  }
+
+  const formatTime = () => {
+    return currentTime.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    })
+  }
 
   // Feature cards configuration
   const commonFeatures = [
@@ -53,9 +97,9 @@ export function Dashboard() {
 
   const userFeatures = [
     {
-      title: 'Live Streams',
-      description: 'Start or join streams',
-      detail: 'Host prayers & lectures or join existing streams',
+      title: 'Join Live Streams',
+      description: 'Watch prayers & lectures',
+      detail: 'Join existing streams from scholars and imams',
       icon: Video,
       color: 'bg-red-50',
       iconColor: 'text-red-600',
@@ -63,29 +107,29 @@ export function Dashboard() {
       path: '/livestreams'
     },
     {
-      title: 'Scholar Consultation',
-      description: 'Manage consultations',
-      detail: 'Manage incoming consultation requests and sessions',
-      icon: MessageCircle,
+      title: 'Find Scholars',
+      description: 'Book consultations',
+      detail: 'Browse available scholars and book consultation sessions',
+      icon: GraduationCap,
       color: 'bg-blue-50',
       iconColor: 'text-blue-600',
       buttonColor: 'bg-blue-500 hover:bg-blue-600',
       path: '/book-consultation'
     },
     {
-      title: 'Community Chat',
-      description: 'Connect with Muslims',
-      detail: 'Join discussions with the Muslim community',
-      icon: Users,
+      title: 'My Bookings',
+      description: 'View your consultations',
+      detail: 'Manage your consultation bookings and chat with scholars',
+      icon: Calendar,
       color: 'bg-purple-50',
       iconColor: 'text-purple-600',
       buttonColor: 'bg-purple-500 hover:bg-purple-600',
-      path: '/livestreams'
+      path: '/book-consultation'
     },
     {
       title: 'Zakat & Donations',
       description: 'Support our community',
-      detail: 'View earnings from consultations and Zakat received during streams',
+      detail: 'Give Zakat and support community initiatives',
       icon: Heart,
       color: 'bg-green-50',
       iconColor: 'text-green-600',
@@ -97,8 +141,8 @@ export function Dashboard() {
   const scholarFeatures = [
     {
       title: 'Start Live Stream',
-      description: 'Begin prayer broadcast',
-      detail: 'Start streaming live prayer service',
+      description: 'Begin broadcasting',
+      detail: 'Start streaming live prayer service or lecture',
       icon: Video,
       color: 'bg-red-50',
       iconColor: 'text-red-600',
@@ -106,39 +150,9 @@ export function Dashboard() {
       path: '/start-stream'
     },
     {
-      title: 'Scholar Dashboard',
-      description: 'Manage your services',
-      detail: 'View consultations and manage earnings',
-      icon: BarChart3,
-      color: 'bg-amber-50',
-      iconColor: 'text-amber-600',
-      buttonColor: 'bg-amber-500 hover:bg-amber-600',
-      path: '/manage-consultations'
-    },
-    {
-      title: 'Live Streams',
-      description: 'Start or join streams',
-      detail: 'Host prayers & lectures or join existing streams',
-      icon: Video,
-      color: 'bg-red-50',
-      iconColor: 'text-red-600',
-      buttonColor: 'bg-red-500 hover:bg-red-600',
-      path: '/livestreams'
-    },
-    {
-      title: 'Scholar Consultation',
-      description: 'Manage consultations',
-      detail: 'Manage incoming consultation requests and sessions',
-      icon: GraduationCap,
-      color: 'bg-blue-50',
-      iconColor: 'text-blue-600',
-      buttonColor: 'bg-blue-500 hover:bg-blue-600',
-      path: '/manage-consultations'
-    },
-    {
       title: 'Manage Bookings',
       description: 'Consultation requests',
-      detail: 'View and respond to consultation requests',
+      detail: 'View and respond to consultation requests, chat with members',
       icon: Calendar,
       color: 'bg-violet-50',
       iconColor: 'text-violet-600',
@@ -146,9 +160,9 @@ export function Dashboard() {
       path: '/manage-consultations'
     },
     {
-      title: 'Wallet',
-      description: 'Manage earnings',
-      detail: 'View earnings from consultations and Zakat received during streams',
+      title: 'Manage Zakat',
+      description: 'Earnings & donations',
+      detail: 'View earnings from consultations and Zakat received',
       icon: Wallet,
       color: 'bg-green-50',
       iconColor: 'text-green-600',
@@ -156,14 +170,14 @@ export function Dashboard() {
       path: '/manage-consultations'
     },
     {
-      title: 'Community Chat',
-      description: 'Connect with Muslims',
-      detail: 'Join discussions with the Muslim community',
-      icon: MessageCircle,
-      color: 'bg-purple-50',
-      iconColor: 'text-purple-600',
-      buttonColor: 'bg-purple-500 hover:bg-purple-600',
-      path: '/livestreams'
+      title: 'Scholar Dashboard',
+      description: 'Analytics & insights',
+      detail: 'View your performance metrics and statistics',
+      icon: BarChart3,
+      color: 'bg-amber-50',
+      iconColor: 'text-amber-600',
+      buttonColor: 'bg-amber-500 hover:bg-amber-600',
+      path: '/manage-consultations'
     }
   ]
 
@@ -228,19 +242,32 @@ export function Dashboard() {
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-24">
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-6 shadow-lg">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Masjid</h1>
-            <p className="text-emerald-100 text-sm mt-1">Welcome, {fullName}</p>
+        <div className="flex justify-between items-start">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <img src="/crescent-logo.svg" alt="Islamic Crescent" className="h-14 w-14 drop-shadow-lg" />
+              <div className="absolute -top-1 -right-1 h-3 w-3 bg-yellow-400 rounded-full animate-pulse"></div>
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold tracking-wider" style={{ fontFamily: '"Amiri", "Arabic Typesetting", serif', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>مسجد</h1>
+              <p className="text-xs text-emerald-100 mt-0.5">{getIslamicGreeting()}</p>
+              <p className="text-emerald-200 text-sm font-semibold mt-1">As-salamu alaykum, {fullName}</p>
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-emerald-500"
-            onClick={() => navigate('/profile-settings')}
-          >
-            <Settings className="h-6 w-6" />
-          </Button>
+          <div className="flex flex-col items-end space-y-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-emerald-500"
+              onClick={() => navigate('/profile-settings')}
+            >
+              <Settings className="h-6 w-6" />
+            </Button>
+            <div className="text-right">
+              <p className="text-xs text-emerald-100">{location}</p>
+              <p className="text-sm font-bold">{formatTime()}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -335,68 +362,76 @@ export function Dashboard() {
           })}
         </div>
 
-        {/* Community Activities Section */}
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Community Activities</h2>
-          <p className="text-gray-600 mb-6">
-            Discover prayers, education, restaurants, services, and community events
-          </p>
+        {/* Community Activities Section - Only for Members */}
+        {!isScholar && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Community Activities</h2>
+            <p className="text-gray-600 mb-6">
+              Discover prayers, education, restaurants, services, and community events
+            </p>
 
-          <div className="space-y-4">
-            {activityFeatures.map((activity) => {
-              const Icon = activity.icon
-              return (
-                <Card key={activity.title} className={`${activity.color} border-none shadow-md hover:shadow-lg transition-shadow`}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start space-x-4">
-                      <div className={`p-4 rounded-xl ${activity.color}`}>
-                        <Icon className={`h-8 w-8 ${activity.iconColor}`} />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">{activity.title}</h3>
-                        <p className="text-gray-600 mb-4">{activity.description}</p>
-                        
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <GraduationCap className="h-4 w-4 mr-2" />
-                            <span>{activity.organizer}</span>
-                          </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <MapPin className="h-4 w-4 mr-2" />
-                            <span>{activity.location}</span>
-                          </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            <span>{activity.time}</span>
-                          </div>
+            <div className="space-y-4">
+              {activityFeatures.map((activity) => {
+                const Icon = activity.icon
+                return (
+                  <Card key={activity.title} className={`${activity.color} border-none shadow-md hover:shadow-lg transition-shadow`}>
+                    <CardContent className="p-6">
+                      <div className="flex items-start space-x-4">
+                        <div className={`p-4 rounded-xl ${activity.color}`}>
+                          <Icon className={`h-8 w-8 ${activity.iconColor}`} />
                         </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-gray-800 mb-2">{activity.title}</h3>
+                          <p className="text-gray-600 mb-4">{activity.description}</p>
+                          
+                          <div className="space-y-2 mb-4">
+                            <div className="flex items-center text-sm text-gray-600">
+                              <GraduationCap className="h-4 w-4 mr-2" />
+                              <span>{activity.organizer}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              <span>{activity.location}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              <span>{activity.time}</span>
+                            </div>
+                          </div>
 
-                        <Button className={`${activity.buttonColor} text-white w-full`}>
-                          Book Now
-                        </Button>
+                          <Button className={`${activity.buttonColor} text-white w-full`}>
+                            Book Now
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Bottom Navigation - Fixed at bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
         <div className="flex justify-around items-center py-2 px-2 max-w-2xl mx-auto">
           <NavButton icon={MapPin} label="Masjid" active onClick={() => navigate('/dashboard')} />
-          <NavButton icon={Video} label="Live" onClick={() => navigate('/livestreams')} />
+          <NavButton icon={Video} label="Live" onClick={() => isScholar ? navigate('/start-stream') : navigate('/livestreams')} />
           <NavButton icon={BookOpen} label="Quran" onClick={() => navigate('/quran')} />
           <NavButton icon={Compass} label="Qibla" onClick={() => navigate('/qibla')} />
-          <NavButton icon={Heart} label="Zakat" onClick={() => navigate('/donate')} />
-          {isScholar && (
-            <NavButton icon={Wallet} label="Wallet" onClick={() => navigate('/manage-consultations')} />
+          {isScholar ? (
+            <>
+              <NavButton icon={Wallet} label="Zakat" onClick={() => navigate('/manage-consultations')} />
+              <NavButton icon={Calendar} label="Bookings" onClick={() => navigate('/manage-consultations')} />
+            </>
+          ) : (
+            <>
+              <NavButton icon={Heart} label="Zakat" onClick={() => navigate('/donate')} />
+              <NavButton icon={Calendar} label="Activities" onClick={() => navigate('/dashboard')} />
+            </>
           )}
-          <NavButton icon={Calendar} label="Activities" onClick={() => navigate('/dashboard')} />
-          <NavButton icon={Bell} label="Notifications" onClick={() => navigate('/dashboard')} />
+          <NavButton icon={Bell} label="Notices" onClick={() => navigate('/dashboard')} />
         </div>
       </div>
     </div>

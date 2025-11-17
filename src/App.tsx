@@ -18,7 +18,6 @@ import { QiblaDirection } from './components/QiblaDirection'
 // Member-only components
 import { UserPrayerServiceViewer } from './components/UserPrayerServiceViewer'
 import { ZakatDonation } from './components/ZakatDonation'
-import { ConsultationBooking } from './components/ConsultationBooking'
 
 // Scholar/Imam-only components
 import { ScholarLiveStream } from './components/ScholarLiveStream'
@@ -31,6 +30,7 @@ import { ScholarProfileViewer } from './components/ScholarProfileViewer'
 import { ConsultationMessaging } from './components/ConsultationMessaging'
 import { ReviewSubmissionForm } from './components/ReviewSubmissionForm'
 import { AccountDeletion } from './components/AccountDeletion'
+import { AvailableScholars } from './components/AvailableScholars'
 
 function App() {
   return (
@@ -100,7 +100,7 @@ function App() {
               path="/book-consultation"
               element={
                 <ProtectedRoute allowedRoles={['user']}>
-                  <ConsultationBooking />
+                  <AvailableScholars />
                 </ProtectedRoute>
               }
             />

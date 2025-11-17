@@ -111,31 +111,64 @@ export const PrayerTimes: React.FC = () => {
                 )}
               </div>
 
-              {/* Prayer times list */}
-              <div className="space-y-2">
+              {/* Prayer times list - Islamic styled */}
+              <div className="space-y-3">
                 {[
-                  { prayer: prayerTimes.fajr, icon: '🌅' },
-                  { prayer: prayerTimes.sunrise, icon: '☀️' },
-                  { prayer: prayerTimes.dhuhr, icon: '🌤️' },
-                  { prayer: prayerTimes.asr, icon: '🌆' },
-                  { prayer: prayerTimes.maghrib, icon: '🌇' },
-                  { prayer: prayerTimes.isha, icon: '🌙' },
-                ].map(({ prayer, icon }) => (
-                  <div
-                    key={prayer.name}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
-                      currentPrayer === prayer.name
-                        ? 'bg-primary/10 border-primary'
-                        : 'bg-card'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{icon}</span>
-                      <span className="font-semibold">{prayer.name}</span>
+                  { prayer: prayerTimes.fajr, icon: '🌅', arabic: 'الفجر', description: 'Dawn Prayer' },
+                  { prayer: prayerTimes.sunrise, icon: '☀️', arabic: 'الشروق', description: 'Sunrise' },
+                  { prayer: prayerTimes.dhuhr, icon: '🌤️', arabic: 'الظهر', description: 'Noon Prayer' },
+                  { prayer: prayerTimes.asr, icon: '🌆', arabic: 'العصر', description: 'Afternoon Prayer' },
+                  { prayer: prayerTimes.maghrib, icon: '🌇', arabic: 'المغرب', description: 'Sunset Prayer' },
+                  { prayer: prayerTimes.isha, icon: '🌙', arabic: 'العشاء', description: 'Night Prayer' },
+                ].map(({ prayer, icon, arabic, description }) => {
+                  const isCurrent = currentPrayer === prayer.name
+                  const isNext = nextPrayer?.name === prayer.name
+                  
+                  return (
+                    <div
+                      key={prayer.name}
+                      className={`relative flex items-center justify-between p-4 rounded-lg border-2 transition-all ${
+                        isCurrent
+                          ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-500 shadow-lg scale-105'
+                          : isNext
+                          ? 'bg-amber-50 border-amber-400'
+                          : 'bg-card border-gray-200'
+                      }`}
+                    >
+                      {isCurrent && (
+                        <div className="absolute top-2 right-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-emerald-600 text-white animate-pulse">
+                            Current Prayer
+                          </span>
+                        </div>
+                      )}
+                      {isNext && !isCurrent && (
+                        <div className="absolute top-2 right-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-amber-600 text-white">
+                            Next: {getTimeUntilNext()}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl">{icon}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-bold ${isCurrent ? 'text-emerald-700 text-lg' : 'text-base'}`}>
+                              {prayer.name}
+                            </span>
+                            <span className="text-sm text-muted-foreground">{description}</span>
+                          </div>
+                          <p className={`font-arabic text-lg ${isCurrent ? 'text-emerald-600' : 'text-gray-500'}`}>
+                            {arabic}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-xl font-mono ${isCurrent ? 'text-emerald-700 font-bold' : ''}`}>
+                        {prayer.displayTime}
+                      </span>
                     </div>
-                    <span className="text-lg">{prayer.displayTime}</span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Qibla direction */}
