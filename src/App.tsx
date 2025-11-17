@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
@@ -8,6 +8,7 @@ import { UserSignUp } from './components/UserSignUp'
 
 // Dashboard
 import { Dashboard } from './components/Dashboard'
+import { SplashScreen } from './components/SplashScreen'
 
 // Islamic features (accessible to all authenticated users)
 import { PrayerTimes } from './components/PrayerTimes'
@@ -38,7 +39,7 @@ function App() {
         <div className="min-h-screen bg-background">
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<Navigate to="/signin" replace />} />
+            <Route path="/" element={<SplashScreen />} />
             <Route path="/signin" element={<UserSignIn />} />
             <Route path="/signup" element={<UserSignUp />} />
 
