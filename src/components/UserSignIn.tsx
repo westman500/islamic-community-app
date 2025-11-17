@@ -115,8 +115,21 @@ export const UserSignIn: React.FC = () => {
             </div>
 
             {error && (
-              <div className="p-3 bg-destructive/10 border border-destructive rounded-md">
-                <p className="text-sm text-destructive">{error}</p>
+              <div className="p-4 bg-destructive/10 border border-destructive rounded-md">
+                <p className="text-sm text-destructive font-medium mb-2">❌ {error}</p>
+                {error.includes('verify your email') && (
+                  <div className="mt-3 text-xs text-gray-700 bg-white p-3 rounded border border-gray-200">
+                    <p className="font-semibold mb-1">Next steps:</p>
+                    <ol className="list-decimal list-inside space-y-1">
+                      <li>Check your email inbox for the confirmation link</li>
+                      <li>Click the confirmation link in the email</li>
+                      <li>Return here and sign in with your credentials</li>
+                    </ol>
+                    <p className="mt-2 text-emerald-700">
+                      📧 Check your spam folder if you don't see the email
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

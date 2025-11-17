@@ -67,8 +67,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    
+    if (error) {
+      // Provide user-friendly error messages
+      if (error.message.includes('Email not confirmed')) {
+        throw new Error('Please verify your email address. Check your inbox for the confirmation link.')
+      } else if (error.message.includes('Invalid login credentials')) {
+        throw new Error('Invalid email or password. Please check your credentials and try again.')
+      } else {
+        throw new Error(error.message)
+      }
+    }
+
+    // Check if user needs to verify email
+    if (data.user && !data.user.email_confirmed_at) {
+      await supabase.auth.signOut()
+      throw new Error('Please verify your email address before signing in. Check your inbox for the confirmation link.')
+    }
   }
 
   const signUp = async (email: string, password: string, role: UserRole, fullName: string) => {
@@ -80,10 +96,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           full_name: fullName,
           role,
         },
+        emailRedirectTo: `${window.location.origin}/signin`,
       },
     })
 
-    if (error) throw error
+    if (error) {
+      if (error.message.includes('User already registered')) {
+        throw new Error('This email is already registered. Please sign in or use a different email.')
+      } else {
+        throw new Error(error.message)
+      }
+    }
 
     // Create profile
     if (data.user) {
@@ -95,6 +118,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
 
       if (profileError) throw profileError
+    }
+
+    // Return success message
+    if (data.user && !data.session) {
+      throw new Error('CONFIRMATION_REQUIRED')
     }
   }
 

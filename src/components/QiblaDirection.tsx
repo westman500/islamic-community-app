@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
-import { Compass, ArrowLeft } from 'lucide-react'
+import { Compass, ArrowLeft, Navigation } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface Location {
@@ -15,11 +15,14 @@ export const QiblaDirection: React.FC = () => {
   const [deviceHeading, setDeviceHeading] = useState<number>(0)
   const [error, setError] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [permissionGranted, setPermissionGranted] = useState(false)
+  const compassRef = useRef<number>(0)
+  const smoothingFactor = 0.1 // Lower = smoother but slower response
 
-  // Kaaba coordinates
-  const KAABA = { latitude: 21.4225, longitude: 39.8262 }
+  // Kaaba coordinates (precise location)
+  const KAABA = { latitude: 21.422487, longitude: 39.826206 }
 
-  // Calculate Qibla direction
+  // Calculate Qibla direction using accurate formula
   const calculateQibla = (lat: number, lon: number): number => {
     const lat1 = (lat * Math.PI) / 180
     const lon1 = (lon * Math.PI) / 180
@@ -37,6 +40,21 @@ export const QiblaDirection: React.FC = () => {
     bearing = (bearing + 360) % 360
 
     return bearing
+  }
+
+  // Calculate distance to Makkah using Haversine formula
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371 // Earth's radius in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180
+    const dLon = ((lon2 - lon1) * Math.PI) / 180
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
   }
 
   // Get user location
@@ -65,36 +83,68 @@ export const QiblaDirection: React.FC = () => {
     )
   }
 
-  // Watch device orientation
+  // Watch device orientation with smoothing
   useEffect(() => {
+    if (!permissionGranted) return
+
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.alpha !== null) {
-        // alpha is the compass heading
-        setDeviceHeading(360 - event.alpha)
+        // Get compass heading (alpha)
+        let heading = event.alpha
+        
+        // On Android, alpha is measured from magnetic north
+        // On iOS, it's from true north
+        // Adjust for magnetic declination if needed
+        
+        // Convert to 0-360 range
+        heading = (360 - heading) % 360
+        
+        // Apply exponential smoothing to reduce jitter
+        compassRef.current = compassRef.current + smoothingFactor * (heading - compassRef.current)
+        
+        setDeviceHeading(compassRef.current)
+      }
+    }
+
+    const handleAbsoluteOrientation = (event: DeviceOrientationEvent) => {
+      // Use absolute orientation if available (provides true north on supported devices)
+      if (event.absolute && event.alpha !== null) {
+        let heading = (360 - event.alpha) % 360
+        compassRef.current = compassRef.current + smoothingFactor * (heading - compassRef.current)
+        setDeviceHeading(compassRef.current)
       }
     }
 
     if (window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', handleOrientation)
+      window.addEventListener('deviceorientation', handleOrientation, true)
+      window.addEventListener('deviceorientationabsolute', handleAbsoluteOrientation as any, true)
     }
 
     return () => {
-      window.removeEventListener('deviceorientation', handleOrientation)
+      window.removeEventListener('deviceorientation', handleOrientation, true)
+      window.removeEventListener('deviceorientationabsolute', handleAbsoluteOrientation as any, true)
     }
-  }, [])
+  }, [permissionGranted])
 
   // Request device orientation permission (iOS 13+)
   const requestPermission = async () => {
+    setError('')
+    
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
       try {
         const permission = await (DeviceOrientationEvent as any).requestPermission()
         if (permission === 'granted') {
+          setPermissionGranted(true)
           getLocation()
+        } else {
+          setError('Compass permission denied. Please enable motion & orientation access in your device settings.')
         }
       } catch (err) {
-        setError('Permission denied for device orientation')
+        setError('Unable to access device compass. Please check your browser settings.')
       }
     } else {
+      // Android and other devices that don't require permission
+      setPermissionGranted(true)
       getLocation()
     }
   }
@@ -161,65 +211,98 @@ export const QiblaDirection: React.FC = () => {
           ) : (
             <div className="space-y-6">
               {/* Compass Display */}
-              <div className="relative w-64 h-64 mx-auto">
-                {/* Compass background */}
+              <div className="relative w-72 h-72 mx-auto">
+                {/* Compass ring with cardinal directions */}
                 <div
-                  className="absolute inset-0 rounded-full border-4 border-primary bg-gradient-to-br from-primary/20 to-primary/5"
+                  className="absolute inset-0 rounded-full border-8 border-emerald-600 bg-gradient-to-br from-emerald-50 to-white shadow-xl"
                   style={{
                     transform: `rotate(${-deviceHeading}deg)`,
-                    transition: 'transform 0.1s ease-out',
+                    transition: 'transform 0.05s linear',
                   }}
                 >
                   {/* Cardinal directions */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 text-sm font-bold">
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 text-lg font-bold text-red-600">
                     N
                   </div>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-sm font-bold">
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-bold text-gray-600">
                     E
                   </div>
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-sm font-bold">
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-base font-bold text-gray-600">
                     S
                   </div>
-                  <div className="absolute left-2 top-1/2 -translate-y-1/2 text-sm font-bold">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-bold text-gray-600">
                     W
                   </div>
+                  
+                  {/* Degree markers */}
+                  {[...Array(36)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute top-2 left-1/2 -translate-x-1/2 origin-bottom h-32"
+                      style={{
+                        transform: `translateX(-50%) rotate(${i * 10}deg)`,
+                      }}
+                    >
+                      <div className={`w-0.5 ${i % 3 === 0 ? 'h-3 bg-emerald-600' : 'h-2 bg-emerald-400'}`} />
+                    </div>
+                  ))}
                 </div>
 
-                {/* Qibla arrow */}
+                {/* Qibla direction arrow (green arrow pointing to Makkah) */}
                 <div
                   className="absolute inset-0 flex items-center justify-center"
                   style={{
                     transform: `rotate(${relativeQibla}deg)`,
-                    transition: 'transform 0.3s ease-out',
+                    transition: 'transform 0.05s linear',
                   }}
                 >
-                  <Compass className="h-24 w-24 text-primary" />
+                  <div className="relative">
+                    <Navigation className="h-28 w-28 text-emerald-600 drop-shadow-lg" fill="currentColor" />
+                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      <span className="text-xs font-bold text-emerald-700 bg-white px-2 py-1 rounded shadow">
+                        Qibla
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Center dot */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-emerald-600 shadow-lg border-2 border-white" />
               </div>
 
               {/* Information */}
-              <div className="text-center space-y-2">
-                <p className="text-lg font-semibold">
-                  Qibla Direction: {qiblaDirection.toFixed(1)}°
-                </p>
+              <div className="text-center space-y-3 mt-6">
+                <div className="bg-emerald-50 p-4 rounded-lg">
+                  <p className="text-2xl font-bold text-emerald-800">
+                    {qiblaDirection.toFixed(1)}°
+                  </p>
+                  <p className="text-sm text-emerald-600">Qibla Direction from North</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="bg-gray-50 p-3 rounded">
+                    <p className="font-semibold text-gray-700">Your Heading</p>
+                    <p className="text-gray-600">{deviceHeading.toFixed(1)}°</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded">
+                    <p className="font-semibold text-gray-700">Distance</p>
+                    <p className="text-gray-600">{Math.round(calculateDistance(location.latitude, location.longitude, KAABA.latitude, KAABA.longitude))} km</p>
+                  </div>
+                </div>
+                
                 <p className="text-sm text-muted-foreground">
-                  Your Location: {location.latitude.toFixed(4)}°,{' '}
-                  {location.longitude.toFixed(4)}°
+                  📍 {location.latitude.toFixed(4)}°, {location.longitude.toFixed(4)}°
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Device Heading: {deviceHeading.toFixed(1)}°
-                </p>
-                <p className="text-xs text-muted-foreground mt-4">
-                  Point your device in the direction of the compass arrow to face the Kaaba in
-                  Makkah
-                </p>
+                
+                <div className="bg-blue-50 p-3 rounded-lg mt-4">
+                  <p className="text-sm font-medium text-blue-800">
+                    🧭 Rotate your device until the green arrow points upward
+                  </p>
+                </div>
               </div>
 
-              <Button onClick={requestPermission} variant="outline" className="w-full">
-                Recalibrate
+              <Button onClick={requestPermission} variant="outline" className="w-full mt-4">
+                Recalibrate Compass
               </Button>
             </div>
           )}

@@ -12,7 +12,9 @@ export const UserSignUp: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState<'user' | 'imam' | 'scholar'>('user')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [location, setLocation] = useState('Loading...')
   const { signUp } = useAuth()
@@ -53,6 +55,12 @@ export const UserSignUp: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
+
+    if (!agreedToTerms) {
+      setError('Please agree to the Privacy Policy and Terms of Service')
+      return
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
@@ -70,7 +78,11 @@ export const UserSignUp: React.FC = () => {
       await signUp(email, password, role, fullName)
       navigate('/dashboard')
     } catch (err: any) {
-      setError(err.message || 'Failed to create account')
+      if (err.message === 'CONFIRMATION_REQUIRED') {
+        setSuccess('Account created successfully! Please check your email to verify your account before signing in.')
+      } else {
+        setError(err.message || 'Failed to create account')
+      }
     } finally {
       setLoading(false)
     }
@@ -179,10 +191,41 @@ export const UserSignUp: React.FC = () => {
               </div>
             )}
 
+            {success && (
+              <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-md">
+                <p className="text-sm text-emerald-800 font-medium mb-2">✅ {success}</p>
+                <p className="text-xs text-emerald-700">
+                  📧 Check your spam folder if you don't see the email within a few minutes.
+                </p>
+              </div>
+            )}
+
+            {/* Privacy Policy Agreement */}
+            <div className="flex items-start space-x-2 p-3 bg-gray-50 rounded-lg">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+                required
+              />
+              <label htmlFor="terms" className="text-xs text-gray-700">
+                I agree to the{' '}
+                <a href="/privacy-policy" target="_blank" className="text-emerald-600 hover:underline font-medium">
+                  Privacy Policy
+                </a>{' '}
+                and{' '}
+                <a href="/terms-of-service" target="_blank" className="text-emerald-600 hover:underline font-medium">
+                  Terms of Service
+                </a>
+              </label>
+            </div>
+
             <Button 
               type="submit" 
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-12 text-base font-semibold" 
-              disabled={loading}
+              disabled={loading || !agreedToTerms}
             >
               {loading ? 'Creating account...' : 'Sign Up'}
             </Button>
