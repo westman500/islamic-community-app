@@ -49,15 +49,22 @@ export const UserSignIn: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('UserSignIn: Form submitted')
     setError('')
     setLoading(true)
 
     try {
+      console.log('UserSignIn: Calling signIn...')
       await signIn(email, password)
+      console.log('UserSignIn: signIn completed, navigating...')
+      // Navigate immediately - the AuthContext will handle the session
       navigate('/dashboard')
+      console.log('UserSignIn: Navigation called')
     } catch (err: any) {
+      console.error('UserSignIn: Sign in error:', err)
       setError(err.message || 'Failed to sign in')
     } finally {
+      console.log('UserSignIn: Resetting loading state')
       setLoading(false)
     }
   }
