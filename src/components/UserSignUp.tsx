@@ -43,14 +43,15 @@ export const UserSignUp: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-md min-h-screen flex items-center">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Join our Islamic community platform</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white overflow-y-auto">
+      <div className="container mx-auto p-4 max-w-md py-8">
+        <Card className="w-full shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-t-lg">
+            <CardTitle className="text-2xl">Create Account</CardTitle>
+            <CardDescription className="text-emerald-100">Join our Islamic community platform</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium mb-2">
                 Full Name
@@ -130,19 +131,27 @@ export const UserSignUp: React.FC = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-12 text-base font-semibold" 
+              disabled={loading}
+            >
               {loading ? 'Creating account...' : 'Sign Up'}
             </Button>
 
-            <div className="text-center text-sm text-muted-foreground">
+            <div className="text-center text-sm text-muted-foreground pt-2">
               Already have an account?{' '}
-              <a href="/signin" className="text-primary hover:underline">
+              <a href="/signin" className="text-emerald-600 hover:underline font-medium">
                 Sign In
               </a>
             </div>
           </form>
         </CardContent>
-      </Card>
+        </Card>
+        
+        {/* Bottom padding to ensure button is always visible above keyboard */}
+        <div className="h-32"></div>
+      </div>
     </div>
   )
 }

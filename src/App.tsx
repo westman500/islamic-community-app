@@ -1,10 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 // Auth components
 import { UserSignIn } from './components/UserSignIn'
 import { UserSignUp } from './components/UserSignUp'
+
+// Dashboard
+import { Dashboard } from './components/Dashboard'
 
 // Islamic features (accessible to all authenticated users)
 import { PrayerTimes } from './components/PrayerTimes'
@@ -38,6 +41,16 @@ function App() {
             <Route path="/" element={<Navigate to="/signin" replace />} />
             <Route path="/signin" element={<UserSignIn />} />
             <Route path="/signup" element={<UserSignUp />} />
+
+            {/* Main Dashboard */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Islamic features - All authenticated users */}
             <Route
@@ -163,16 +176,6 @@ function App() {
               }
             />
 
-            {/* Dashboard redirect based on role */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardRedirect />
-                </ProtectedRoute>
-              }
-            />
-
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -180,17 +183,6 @@ function App() {
       </AuthProvider>
     </BrowserRouter>
   )
-}
-
-// Helper component to redirect to role-specific dashboard
-function DashboardRedirect() {
-  const { profile } = useAuth()
-
-  if (profile?.role === 'scholar' || profile?.role === 'imam') {
-    return <Navigate to="/start-stream" replace />
-  } else {
-    return <Navigate to="/watch-stream" replace />
-  }
 }
 
 // 404 page
