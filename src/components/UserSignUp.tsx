@@ -13,8 +13,42 @@ export const UserSignUp: React.FC = () => {
   const [role, setRole] = useState<'user' | 'imam' | 'scholar'>('user')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [location, setLocation] = useState('Loading...')
   const { signUp } = useAuth()
   const navigate = useNavigate()
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  React.useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
+            )
+            const data = await response.json()
+            setLocation(data.address?.city || data.address?.town || 'Your Location')
+          } catch {
+            setLocation('Unknown')
+          }
+        },
+        () => setLocation('Unavailable')
+      )
+    }
+  }, [])
+
+  const formatTime = () => {
+    return currentTime.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +79,20 @@ export const UserSignUp: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white overflow-y-auto">
       <div className="container mx-auto p-4 max-w-md py-8">
+        {/* Islamic Greeting Banner */}
+        <div className="mb-6 text-center">
+          <div className="flex justify-center mb-3">
+            <img src="/crescent-logo.svg" alt="Islamic Crescent" className="h-16 w-16" />
+          </div>
+          <h2 className="text-2xl font-bold text-emerald-800 mb-1" style={{ fontFamily: '"Amiri", serif' }}>
+            مرحبا
+          </h2>
+          <p className="text-sm text-emerald-600 font-semibold">Marhaban - Welcome</p>
+          <div className="flex items-center justify-center space-x-4 mt-2 text-xs text-gray-600">
+            <span>📍 {location}</span>
+            <span>🕐 {formatTime()}</span>
+          </div>
+        </div>
         <Card className="w-full shadow-lg">
           <CardHeader className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-t-lg">
             <CardTitle className="text-2xl">Create Account</CardTitle>

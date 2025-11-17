@@ -44,39 +44,56 @@ export const LivestreamDiscovery: React.FC = () => {
 
   const fetchActiveStreams = async () => {
     try {
+      setError('') // Clear previous errors
+      
       // Fetch active streams with scholar info
       const { data: streamsData, error: streamsError } = await supabase
         .from('streams')
         .select(`
           *,
-          scholar:profiles!scholar_id(full_name, role)
+          scholar:profiles!scholar_id(full_name, role, certificate_verified)
         `)
         .eq('is_active', true)
         .order('started_at', { ascending: false })
 
-      if (streamsError) throw streamsError
+      if (streamsError) {
+        console.error('Streams error:', streamsError)
+        throw new Error('Unable to load streams. Please check your internet connection.')
+      }
 
-      if (!streamsData) {
+      if (!streamsData || streamsData.length === 0) {
         setStreams([])
+        setLoading(false)
         return
       }
 
-      // Fetch user's reactions for these streams
+      // Fetch user's reactions for these streams (optional - don't fail if this errors)
       const streamIds = streamsData.map(s => s.id)
       
-      const { data: reactionsData } = await supabase
-        .from('stream_reactions')
-        .select('stream_id, reaction_type')
-        .eq('user_id', profile?.id || '')
-        .in('stream_id', streamIds)
+      let reactionsData = null
+      let accessData = null
+      
+      if (profile?.id && streamIds.length > 0) {
+        try {
+          const { data: reactions } = await supabase
+            .from('stream_reactions')
+            .select('stream_id, reaction_type')
+            .eq('user_id', profile.id)
+            .in('stream_id', streamIds)
+          reactionsData = reactions
 
-      // Fetch user's access to paid streams
-      const { data: accessData } = await supabase
-        .from('stream_access')
-        .select('stream_id, payment_status')
-        .eq('user_id', profile?.id || '')
-        .in('stream_id', streamIds)
-        .eq('payment_status', 'completed')
+          // Fetch user's access to paid streams
+          const { data: access } = await supabase
+            .from('stream_access')
+            .select('stream_id, payment_status')
+            .eq('user_id', profile.id)
+            .in('stream_id', streamIds)
+            .eq('payment_status', 'completed')
+          accessData = access
+        } catch (optionalError) {
+          console.warn('Optional data fetch failed:', optionalError)
+        }
+      }
 
       // Combine data
       const enrichedStreams = streamsData.map(stream => ({
@@ -89,7 +106,8 @@ export const LivestreamDiscovery: React.FC = () => {
       setLoading(false)
     } catch (err: any) {
       console.error('Error fetching streams:', err)
-      setError(err.message)
+      setError(err.message || 'Failed to load streams. Please try again.')
+      setStreams([]) // Clear streams on error
       setLoading(false)
     }
   }
