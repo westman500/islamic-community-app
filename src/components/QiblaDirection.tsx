@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
-import { Compass } from 'lucide-react'
+import { Compass, ArrowLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface Location {
   latitude: number
@@ -98,10 +99,27 @@ export const QiblaDirection: React.FC = () => {
     }
   }
 
+  const navigate = useNavigate()
   const relativeQibla = qiblaDirection - deviceHeading
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-20">
+      {/* Header with back button */}
+      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 sticky top-0 z-10 shadow-lg">
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white hover:bg-emerald-500 mr-2"
+            onClick={() => navigate('/dashboard')}
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
+          <h1 className="text-xl font-bold">Qibla Direction</h1>
+        </div>
+      </div>
+      
+      <div className="p-4 max-w-2xl mx-auto">
       <Card>
         <CardHeader>
           <CardTitle className="text-center">Qibla Direction</CardTitle>
@@ -109,13 +127,36 @@ export const QiblaDirection: React.FC = () => {
         <CardContent>
           {!location ? (
             <div className="text-center space-y-4">
+              <div className="flex justify-center mb-4">
+                <Compass className="h-16 w-16 text-primary" />
+              </div>
               <p className="text-muted-foreground">
-                Allow location access to find the Qibla direction
+                Click the button below and allow location access when prompted
               </p>
-              <Button onClick={requestPermission} disabled={loading}>
-                {loading ? 'Getting Location...' : 'Find Qibla Direction'}
+              <Button 
+                onClick={requestPermission} 
+                disabled={loading}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {loading ? 'Getting Location...' : 'Show Compass'}
               </Button>
-              {error && <p className="text-destructive text-sm">{error}</p>}
+              {error && (
+                <div className="p-4 bg-destructive/10 border border-destructive rounded-md">
+                  <p className="text-destructive text-sm font-medium">{error}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Make sure you allow location access in your browser settings
+                  </p>
+                </div>
+              )}
+              <div className="mt-6 text-left bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm font-semibold mb-2">📍 Tips:</p>
+                <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                  <li>Click "Allow" when browser asks for location permission</li>
+                  <li>Make sure location services are enabled on your device</li>
+                  <li>Works best on mobile devices with compass sensor</li>
+                  <li>On desktop, you'll see the calculated direction only</li>
+                </ul>
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
@@ -184,6 +225,7 @@ export const QiblaDirection: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }
