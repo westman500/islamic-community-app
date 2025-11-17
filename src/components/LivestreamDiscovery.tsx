@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
 import { ThumbsUp, ThumbsDown, Users, DollarSign, Video, AlertCircle, Ban } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { MobileLayout } from './MobileLayout'
 
 interface Stream {
   id: string
@@ -245,9 +246,7 @@ export const LivestreamDiscovery: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Live Streams</h1>
-      
+    <MobileLayout title="Live Streams">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {streams.map((stream) => (
           <Card key={stream.id} className="hover:shadow-lg transition-shadow">
@@ -354,6 +353,6 @@ export const LivestreamDiscovery: React.FC = () => {
           </Card>
         ))}
       </div>
-    </div>
+    </MobileLayout>
   )
 }

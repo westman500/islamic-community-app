@@ -7,6 +7,7 @@ import { usePermissions } from './ProtectedRoute'
 import { AgoraService } from '../utils/agora'
 import { supabase } from '../utils/supabase/client'
 import { Video, VideoOff, Mic, MicOff, Users, StopCircle } from 'lucide-react'
+import { MobileLayout } from './MobileLayout'
 
 export const ScholarLiveStream: React.FC = () => {
   const { profile } = useAuth()
@@ -211,7 +212,7 @@ export const ScholarLiveStream: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
+    <MobileLayout title={isStreaming ? '🔴 Live Stream' : 'Start Live Stream'}>
       <Card>
         <CardHeader>
           <CardTitle>
@@ -317,6 +318,6 @@ export const ScholarLiveStream: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </MobileLayout>
   )
 }

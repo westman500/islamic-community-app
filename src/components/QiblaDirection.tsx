@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
-import { Compass, ArrowLeft, Navigation } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Compass } from 'lucide-react'
+import { MobileLayout } from './MobileLayout'
 
 interface Location {
   latitude: number
@@ -149,27 +149,10 @@ export const QiblaDirection: React.FC = () => {
     }
   }
 
-  const navigate = useNavigate()
   const relativeQibla = qiblaDirection - deviceHeading
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-20">
-      {/* Header with back button */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 sticky top-0 z-10 shadow-lg">
-        <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-emerald-500 mr-2"
-            onClick={() => navigate('/dashboard')}
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
-          <h1 className="text-xl font-bold">Qibla Direction</h1>
-        </div>
-      </div>
-      
-      <div className="p-4 max-w-2xl mx-auto">
+    <MobileLayout title="Qibla Direction">
       <Card>
         <CardHeader>
           <CardTitle className="text-center">Qibla Direction</CardTitle>
@@ -248,7 +231,7 @@ export const QiblaDirection: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Qibla direction arrow (green arrow pointing to Makkah) */}
+                {/* Qibla direction with Kaaba icon pointing to Makkah */}
                 <div
                   className="absolute inset-0 flex items-center justify-center"
                   style={{
@@ -257,10 +240,55 @@ export const QiblaDirection: React.FC = () => {
                   }}
                 >
                   <div className="relative">
-                    <Navigation className="h-28 w-28 text-emerald-600 drop-shadow-lg" fill="currentColor" />
-                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                      <span className="text-xs font-bold text-emerald-700 bg-white px-2 py-1 rounded shadow">
-                        Qibla
+                    {/* Kaaba/Mosque Icon SVG */}
+                    <svg
+                      width="120"
+                      height="120"
+                      viewBox="0 0 120 120"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="drop-shadow-2xl"
+                    >
+                      {/* Arrow pointing upward */}
+                      <path
+                        d="M60 10 L80 40 L70 40 L70 70 L50 70 L50 40 L40 40 Z"
+                        fill="#10b981"
+                        stroke="#059669"
+                        strokeWidth="2"
+                      />
+                      {/* Kaaba cube */}
+                      <rect
+                        x="40"
+                        y="75"
+                        width="40"
+                        height="30"
+                        fill="#1f2937"
+                        stroke="#374151"
+                        strokeWidth="2"
+                      />
+                      {/* Gold band on Kaaba */}
+                      <rect
+                        x="40"
+                        y="85"
+                        width="40"
+                        height="8"
+                        fill="#fbbf24"
+                        opacity="0.8"
+                      />
+                      {/* Door */}
+                      <rect
+                        x="52"
+                        y="92"
+                        width="16"
+                        height="13"
+                        fill="#78350f"
+                        stroke="#92400e"
+                        strokeWidth="1"
+                      />
+                    </svg>
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      <span className="text-xs font-bold text-emerald-700 bg-white px-3 py-1 rounded-full shadow-lg">
+                        🕋 Makkah
                       </span>
                     </div>
                   </div>
@@ -308,7 +336,6 @@ export const QiblaDirection: React.FC = () => {
           )}
         </CardContent>
       </Card>
-      </div>
-    </div>
+    </MobileLayout>
   )
 }

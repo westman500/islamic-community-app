@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
 import { Star, Award, CheckCircle, Users, Calendar, MessageCircle } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { MobileLayout } from './MobileLayout'
 
 interface Review {
   id: string
@@ -165,7 +166,7 @@ export const ScholarProfileViewer: React.FC = () => {
   const isOwnProfile = profile?.id === scholarId
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 space-y-6">
+    <MobileLayout title="Scholar Profile">
       {/* Profile Header */}
       <Card>
         <CardHeader>
@@ -385,6 +386,6 @@ export const ScholarProfileViewer: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </MobileLayout>
   )
 }
