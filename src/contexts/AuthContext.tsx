@@ -149,11 +149,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     console.log('SignIn: Starting authentication for', email)
+    
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     
     if (error) {
       console.error('SignIn: Authentication failed', error)
-      // Provide user-friendly error messages
       if (error.message.includes('Email not confirmed')) {
         throw new Error('Please verify your email address. Check your inbox for the confirmation link.')
       } else if (error.message.includes('Invalid login credentials')) {
@@ -163,12 +163,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    console.log('SignIn: Authentication successful')
-    
-    // The auth state listener will handle profile fetching
-    // Just verify the user exists
     if (!data.user) {
       throw new Error('Authentication failed. Please try again.')
+    }
+    
+    console.log('SignIn: Authentication successful, waiting for profile...')
+    
+    // Wait for profile to be fetched by the auth listener
+    const maxWait = 5000 // 5 seconds max
+    const startTime = Date.now()
+    
+    while (!profile && (Date.now() - startTime) < maxWait) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    
+    if (!profile) {
+      console.warn('SignIn: Profile not loaded yet, but allowing sign in')
+    } else {
+      console.log('SignIn: Profile loaded successfully')
     }
     
     console.log('SignIn: Complete')

@@ -52,44 +52,51 @@ export class AgoraService {
 
   async createLocalTracks(): Promise<LocalTracks> {
     try {
-      console.log('Requesting camera and microphone access...')
+      console.log('→ Requesting device access...')
       
-      // Create tracks with specific constraints for better compatibility
+      // Use simpler config for better compatibility
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
         {
-          // Audio config
-          AEC: true, // Acoustic Echo Cancellation
-          AGC: true, // Auto Gain Control
-          ANS: true, // Automatic Noise Suppression
+          // Audio settings
+          AEC: true,
+          AGC: true,
+          ANS: true,
         },
         {
-          // Video config
-          encoderConfig: {
-            width: 640,
-            height: 480,
-            frameRate: 15,
-            bitrateMin: 400,
-            bitrateMax: 1000,
-          },
-          optimizationMode: 'motion', // Better for streaming
+          // Video settings - optimized for mobile
+          encoderConfig: '480p_1',
+          facingMode: 'user',
         }
       )
       
-      console.log('Camera and microphone access granted')
+      console.log('→ Devices accessed successfully')
+      console.log('  Audio track:', audioTrack.getTrackLabel())
+      console.log('  Video track:', videoTrack.getTrackLabel())
+      
+      // Verify tracks are active
+      if (!audioTrack.enabled) {
+        console.warn('Audio track not enabled, enabling...')
+        await audioTrack.setEnabled(true)
+      }
+      if (!videoTrack.enabled) {
+        console.warn('Video track not enabled, enabling...')
+        await videoTrack.setEnabled(true)
+      }
+      
       this.localTracks = { audioTrack, videoTrack }
       return this.localTracks
     } catch (error: any) {
-      console.error('Error creating local tracks:', error)
+      console.error('→ Device access failed:', error)
       
-      // Provide more specific error information
-      if (error.name === 'NotAllowedError') {
+      // Specific error handling
+      if (error.name === 'NotAllowedError' || error.code === 'PERMISSION_DENIED') {
         throw new Error('Permission denied for camera or microphone')
-      } else if (error.name === 'NotFoundError') {
+      } else if (error.name === 'NotFoundError' || error.code === 'DEVICE_NOT_FOUND') {
         throw new Error('Camera or microphone not found')
-      } else if (error.name === 'NotReadableError') {
+      } else if (error.name === 'NotReadableError' || error.code === 'DEVICE_BUSY') {
         throw new Error('Camera or microphone is already in use')
       } else {
-        throw error
+        throw new Error(error.message || 'Failed to access camera/microphone')
       }
     }
   }
