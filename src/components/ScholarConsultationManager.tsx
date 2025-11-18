@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import { usePermissions } from './ProtectedRoute'
-import { Calendar, Clock, MessageSquare, CheckCircle, XCircle } from 'lucide-react'
+import { Calendar, Clock, MessageSquare, CheckCircle, XCircle, MessageCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { MobileLayout } from './MobileLayout'
 
 interface ConsultationBooking {
   id: string
@@ -21,6 +23,7 @@ interface ConsultationBooking {
 export const ScholarConsultationManager: React.FC = () => {
   const { profile } = useAuth()
   const permissions = usePermissions()
+  const navigate = useNavigate()
   const [bookings, setBookings] = useState<ConsultationBooking[]>([])
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'completed'>('all')
   const [loading, setLoading] = useState(false)
@@ -157,6 +160,7 @@ export const ScholarConsultationManager: React.FC = () => {
   }
 
   return (
+    <MobileLayout title="Manage Consultations">
     <div className="container mx-auto p-4 max-w-6xl">
       <Card>
         <CardHeader>
@@ -294,6 +298,13 @@ export const ScholarConsultationManager: React.FC = () => {
                       <>
                         <Button
                           size="sm"
+                          onClick={() => navigate(`/consultation/${booking.id}/messages`)}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-1" />
+                          Chat
+                        </Button>
+                        <Button
+                          size="sm"
                           onClick={() => completeBooking(booking.id)}
                           disabled={loading}
                         >
@@ -319,5 +330,6 @@ export const ScholarConsultationManager: React.FC = () => {
         </CardContent>
       </Card>
     </div>
+    </MobileLayout>
   )
 }

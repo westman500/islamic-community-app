@@ -24,6 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session ? 'Session found' : 'No session')
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
@@ -35,10 +36,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event, session ? 'Session exists' : 'No session')
+        
         setSession(session)
         setUser(session?.user ?? null)
+        
         if (session?.user) {
+          // Set loading before fetching profile
+          setLoading(true)
           await fetchProfile(session.user.id)
         } else {
           setProfile(null)
@@ -50,8 +56,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe()
   }, [])
 
-  const fetchProfile = async (userId: string) => {
-    console.log('Fetching profile for user:', userId)
+  const fetchProfile = async (userId: string, retryCount = 0) => {
+    const maxRetries = 3
+    console.log('Fetching profile for user:', userId, 'attempt:', retryCount + 1)
+    
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -61,7 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching profile:', error)
-        // If profile doesn't exist, try to create it instead of signing out
+        
+        // If profile doesn't exist, try to create it
         if (error.code === 'PGRST116') {
           console.log('Profile not found, attempting to create...')
           
@@ -78,10 +87,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (insertError) {
               console.error('Failed to create profile:', insertError)
+              
+              // Retry if profile creation failed
+              if (retryCount < maxRetries) {
+                console.log('Retrying profile creation...')
+                await new Promise(resolve => setTimeout(resolve, 500))
+                return fetchProfile(userId, retryCount + 1)
+              }
             } else {
               console.log('Profile created successfully, refetching...')
+              // Wait a bit for database to process
+              await new Promise(resolve => setTimeout(resolve, 300))
+              
               // Try fetching again
-              const { data: newProfile } = await supabase
+              const { data: newProfile, error: refetchError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
@@ -90,12 +109,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (newProfile) {
                 console.log('New profile fetched successfully')
                 setProfile(newProfile)
+                setLoading(false)
+                return
+              } else if (refetchError && retryCount < maxRetries) {
+                console.log('Retry fetching new profile...')
+                await new Promise(resolve => setTimeout(resolve, 500))
+                return fetchProfile(userId, retryCount + 1)
               }
             }
           }
-          setLoading(false)
-          return
+        } else if (retryCount < maxRetries) {
+          // For other errors, retry
+          console.log('Retrying due to error...')
+          await new Promise(resolve => setTimeout(resolve, 500))
+          return fetchProfile(userId, retryCount + 1)
         }
+        
+        setLoading(false)
+        return
       }
       
       if (data) {
@@ -104,6 +135,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error in fetchProfile:', error)
+      
+      // Retry on exception
+      if (retryCount < maxRetries) {
+        console.log('Retrying after exception...')
+        await new Promise(resolve => setTimeout(resolve, 500))
+        return fetchProfile(userId, retryCount + 1)
+      }
     } finally {
       setLoading(false)
     }
@@ -125,35 +163,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    console.log('SignIn: Authentication successful, checking profile...')
-
-    // Verify profile exists for this user
-    if (data.user) {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .single()
-
-      if (profileError || !profile) {
-        console.log('SignIn: Profile not found, creating...')
-        // Profile doesn't exist, create it
-        const { error: insertError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          email: data.user.email!,
-          full_name: data.user.user_metadata?.full_name || email.split('@')[0],
-          role: (data.user.user_metadata?.role as UserRole) || 'user',
-        })
-
-        if (insertError) {
-          console.error('SignIn: Failed to create profile:', insertError)
-          throw new Error('Account setup incomplete. Please contact support.')
-        }
-        console.log('SignIn: Profile created successfully')
-      } else {
-        console.log('SignIn: Profile exists')
-      }
+    console.log('SignIn: Authentication successful')
+    
+    // The auth state listener will handle profile fetching
+    // Just verify the user exists
+    if (!data.user) {
+      throw new Error('Authentication failed. Please try again.')
     }
+    
     console.log('SignIn: Complete')
   }
 

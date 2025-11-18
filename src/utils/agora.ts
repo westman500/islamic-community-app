@@ -52,12 +52,45 @@ export class AgoraService {
 
   async createLocalTracks(): Promise<LocalTracks> {
     try {
-      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks()
+      console.log('Requesting camera and microphone access...')
+      
+      // Create tracks with specific constraints for better compatibility
+      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+        {
+          // Audio config
+          AEC: true, // Acoustic Echo Cancellation
+          AGC: true, // Auto Gain Control
+          ANS: true, // Automatic Noise Suppression
+        },
+        {
+          // Video config
+          encoderConfig: {
+            width: 640,
+            height: 480,
+            frameRate: 15,
+            bitrateMin: 400,
+            bitrateMax: 1000,
+          },
+          optimizationMode: 'motion', // Better for streaming
+        }
+      )
+      
+      console.log('Camera and microphone access granted')
       this.localTracks = { audioTrack, videoTrack }
       return this.localTracks
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating local tracks:', error)
-      throw error
+      
+      // Provide more specific error information
+      if (error.name === 'NotAllowedError') {
+        throw new Error('Permission denied for camera or microphone')
+      } else if (error.name === 'NotFoundError') {
+        throw new Error('Camera or microphone not found')
+      } else if (error.name === 'NotReadableError') {
+        throw new Error('Camera or microphone is already in use')
+      } else {
+        throw error
+      }
     }
   }
 
