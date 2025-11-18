@@ -22,7 +22,8 @@ import {
   Sunrise,
   Sun,
   Sunset,
-  Moon
+  Moon,
+  MessageSquare
 } from 'lucide-react'
 import { supabase } from '../utils/supabase/client'
 
@@ -470,23 +471,22 @@ export function Dashboard() {
 
       {/* Bottom Navigation - Fixed at bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="flex justify-around items-center py-2 px-2 max-w-2xl mx-auto">
+        <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl mx-auto gap-0.5">
           <NavButton icon={MapPin} label="Masjid" active onClick={() => navigate('/dashboard')} />
           <NavButton icon={Video} label="Live" onClick={() => isScholar ? navigate('/start-stream') : navigate('/livestreams')} />
           <NavButton icon={BookOpen} label="Quran" onClick={() => navigate('/quran')} />
           <NavButton icon={Compass} label="Qibla" onClick={() => navigate('/qibla')} />
           {isScholar ? (
             <>
-              <NavButton icon={Wallet} label="Zakat" onClick={() => navigate('/manage-consultations')} />
-              <NavButton icon={Calendar} label="Bookings" onClick={() => navigate('/manage-consultations')} />
+              <NavButton icon={MessageSquare} label="Manage" onClick={() => navigate('/manage-consultations')} />
             </>
           ) : (
             <>
               <NavButton icon={Heart} label="Zakat" onClick={() => navigate('/donate')} />
               <NavButton icon={Calendar} label="Activities" onClick={() => navigate('/activity-categories')} />
+              <NavButton icon={Bell} label="Bookings" onClick={() => navigate('/my-bookings')} />
             </>
           )}
-          <NavButton icon={Bell} label="Bookings" onClick={() => navigate('/my-bookings')} />
         </div>
       </div>
     </div>
@@ -508,14 +508,14 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center min-w-[60px] py-2 px-2 rounded-xl transition-all shadow-sm ${
+      className={`flex flex-col items-center justify-center flex-1 min-w-0 py-1 px-0.5 rounded-lg transition-all ${
         active 
-          ? 'text-emerald-600 bg-emerald-100 shadow-md' 
-          : 'text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 hover:shadow-md'
+          ? 'text-emerald-600 bg-emerald-100' 
+          : 'text-gray-600 hover:text-emerald-600 hover:bg-emerald-50'
       }`}
     >
-      <Icon className={`h-7 w-7 drop-shadow-md ${active ? 'text-emerald-600' : ''}`} />
-      <span className="text-xs mt-1 font-bold">{label}</span>
+      <Icon className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${active ? 'text-emerald-600' : ''}`} />
+      <span className="text-[9px] sm:text-[10px] mt-0.5 font-semibold leading-tight text-center truncate w-full">{label}</span>
     </button>
   )
 }

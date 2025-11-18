@@ -33,33 +33,6 @@ export const ScholarLiveStream: React.FC = () => {
     }
   }, [])
 
-  const requestMediaPermissions = async (): Promise<boolean> => {
-    try {
-      // Request camera and microphone permissions
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      })
-      
-      // Stop the test stream (we just needed to get permission)
-      stream.getTracks().forEach(track => track.stop())
-      
-      return true
-    } catch (err: any) {
-      console.error('Permission denied:', err)
-      
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setError('Camera and microphone access denied. Please allow permissions in your browser settings.')
-      } else if (err.name === 'NotFoundError') {
-        setError('No camera or microphone found. Please connect devices and try again.')
-      } else {
-        setError(`Media error: ${err.message}`)
-      }
-      
-      return false
-    }
-  }
-
   const startStream = async () => {
     if (!streamTitle.trim()) {
       setError('Please enter a stream title')
@@ -74,9 +47,9 @@ export const ScholarLiveStream: React.FC = () => {
     setError('')
 
     try {
-      // Step 1: Request media permissions
-      const hasPermissions = await requestMediaPermissions()
-      if (!hasPermissions) {
+      // Check for camera and microphone availability first
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('Camera and microphone are not supported on this device')
         return
       }
 
@@ -84,10 +57,13 @@ export const ScholarLiveStream: React.FC = () => {
       const channel = `stream_${profile?.id}_${Date.now()}`
       setChannelName(channel)
 
+      console.log('Starting stream with channel:', channel)
+
       // Initialize Agora service
       agoraService.current = new AgoraService()
 
       // Join channel as host (with token generation)
+      console.log('Joining channel...')
       await agoraService.current.joinChannel({
         appId: import.meta.env.VITE_AGORA_APP_ID || '',
         channel,
@@ -95,14 +71,19 @@ export const ScholarLiveStream: React.FC = () => {
         uid: profile?.id || '',
       }, 'host') // Specify role as 'host'
 
-      // Create and publish local tracks
+      // Create and publish local tracks (this will trigger permission request)
+      console.log('Creating local tracks (will request permissions)...')
       const tracks = await agoraService.current.createLocalTracks()
+      
+      console.log('Tracks created successfully:', tracks)
       
       // Display local video
       if (tracks.videoTrack && localVideoRef.current) {
+        console.log('Playing local video...')
         tracks.videoTrack.play(localVideoRef.current)
       }
 
+      console.log('Publishing tracks...')
       await agoraService.current.publishTracks()
 
       // Listen for viewer joins/leaves
@@ -140,7 +121,33 @@ export const ScholarLiveStream: React.FC = () => {
 
     } catch (err: any) {
       console.error('Error starting stream:', err)
-      setError(err.message || 'Failed to start stream')
+      
+      // Clean up on error
+      if (agoraService.current) {
+        try {
+          await agoraService.current.leaveChannel()
+        } catch (cleanupErr) {
+          console.error('Error during cleanup:', cleanupErr)
+        }
+        agoraService.current = null
+      }
+      
+      // Provide better error messages
+      if (err.message?.includes('token') || err.message?.includes('Token')) {
+        setError('Failed to generate streaming token. Please check your internet connection and try again.')
+      } else if (err.message?.includes('fetch') || err.message?.includes('network')) {
+        setError('Network error. Please check your internet connection and try again.')
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError('Camera and microphone access denied. Please allow permissions and try again.')
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setError('No camera or microphone found. Please check your devices and try again.')
+      } else if (err.message?.includes('constraint') || err.message?.includes('OverconstrainedError')) {
+        setError('Camera or microphone is not compatible. Please try another device.')
+      } else if (err.message?.includes('already in use')) {
+        setError('Camera or microphone is already in use by another app. Please close other apps and try again.')
+      } else {
+        setError(err.message || 'Failed to start stream. Please try again.')
+      }
     }
   }
 
