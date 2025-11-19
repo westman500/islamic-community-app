@@ -8,6 +8,7 @@ import { AgoraService } from '../utils/agora'
 import { supabase } from '../utils/supabase/client'
 import { Video, VideoOff, Mic, MicOff, Users, StopCircle } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
+import { Capacitor } from '@capacitor/core'
 
 export const ScholarLiveStream: React.FC = () => {
   const { profile } = useAuth()
@@ -33,6 +34,34 @@ export const ScholarLiveStream: React.FC = () => {
     }
   }, [])
 
+  // Request camera and microphone permissions on native
+  const requestNativePermissions = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      return true // Web doesn't need explicit permission request
+    }
+
+    try {
+      console.log('🔐 Requesting native camera and microphone permissions...')
+      
+      // Request camera permission
+      const cameraPermission = await (navigator as any).permissions.query({ name: 'camera' })
+      console.log('Camera permission:', cameraPermission.state)
+      
+      // Request microphone permission
+      const micPermission = await (navigator as any).permissions.query({ name: 'microphone' })
+      console.log('Microphone permission:', micPermission.state)
+      
+      if (cameraPermission.state === 'denied' || micPermission.state === 'denied') {
+        throw new Error('Camera or microphone permission denied. Please enable in device settings.')
+      }
+      
+      return true
+    } catch (err) {
+      console.warn('Permission query not supported, will request during stream start:', err)
+      return true // Continue anyway, getUserMedia will request
+    }
+  }
+
   const startStream = async () => {
     if (!streamTitle.trim()) {
       setError('Please enter a stream title')
@@ -52,6 +81,9 @@ export const ScholarLiveStream: React.FC = () => {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera and microphone are not supported on this device')
       }
+
+      // Request permissions first on native platforms
+      await requestNativePermissions()
 
       // Create channel name
       const channel = `stream_${profile?.id}_${Date.now()}`

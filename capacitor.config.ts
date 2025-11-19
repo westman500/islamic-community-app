@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    cleartext: false, // Set to false for production security
+    cleartext: false,
     allowNavigation: [
       'jtmmeumzjcldqukpqcfi.supabase.co',
       '*.supabase.co'
@@ -15,7 +15,9 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: false // Set to false for production
+    webContentsDebuggingEnabled: false,
+    // Prevent reload on resume
+    backgroundColor: '#059669'
   },
   plugins: {
     SplashScreen: {
