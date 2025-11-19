@@ -162,9 +162,9 @@ export function Dashboard() {
       path: '/start-stream'
     },
     {
-      title: 'Manage Bookings',
-      description: 'Consultation requests',
-      detail: 'View and respond to consultation requests, chat with members',
+      title: 'Manage Consultations',
+      description: 'Consultation & Activities',
+      detail: 'View consultation bookings, activities, and chat with members',
       icon: Calendar,
       color: 'bg-violet-50',
       iconColor: 'text-violet-600',
@@ -172,24 +172,24 @@ export function Dashboard() {
       path: '/manage-consultations'
     },
     {
-      title: 'Manage Zakat',
-      description: 'Earnings & donations',
-      detail: 'View earnings from consultations and Zakat received',
-      icon: Wallet,
-      color: 'bg-green-50',
-      iconColor: 'text-green-600',
-      buttonColor: 'bg-green-500 hover:bg-green-600',
-      path: '/manage-consultations'
-    },
-    {
-      title: 'Scholar Dashboard',
-      description: 'Analytics & insights',
-      detail: 'View your performance metrics and statistics',
+      title: 'Scholar Analytics',
+      description: 'Performance & Insights',
+      detail: 'View consultation history, earnings analytics, and statistics',
       icon: BarChart3,
       color: 'bg-amber-50',
       iconColor: 'text-amber-600',
       buttonColor: 'bg-amber-500 hover:bg-amber-600',
-      path: '/manage-consultations'
+      path: '/scholar-dashboard'
+    },
+    {
+      title: 'Manage Zakat',
+      description: 'Donations & Earnings',
+      detail: 'Track Zakat received and consultation earnings',
+      icon: Wallet,
+      color: 'bg-green-50',
+      iconColor: 'text-green-600',
+      buttonColor: 'bg-green-500 hover:bg-green-600',
+      path: '/scholar-dashboard'
     }
   ]
 
@@ -208,7 +208,8 @@ export function Dashboard() {
       color: 'bg-gradient-to-br from-cyan-50 to-blue-50',
       iconColor: 'text-cyan-600',
       buttonColor: 'bg-cyan-500 hover:bg-cyan-600',
-      buttonText: 'Open'
+      buttonText: 'Open',
+      path: '/activities/restaurant'
     }
   ]
 
@@ -351,7 +352,10 @@ export function Dashboard() {
                     <div className="flex-1">
                       <p className="text-sm text-gray-700 font-medium">{feature.title}</p>
                     </div>
-                    <Button className={`${feature.buttonColor} text-white ml-4`}>
+                    <Button 
+                      className={`${feature.buttonColor} text-white ml-4`}
+                      onClick={() => feature.path && navigate(feature.path)}
+                    >
                       {feature.buttonText}
                     </Button>
                   </div>
@@ -473,12 +477,16 @@ export function Dashboard() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
         <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl mx-auto gap-0.5">
           <NavButton icon={MapPin} label="Masjid" active onClick={() => navigate('/dashboard')} />
-          <NavButton icon={Video} label="Live" onClick={() => isScholar ? navigate('/start-stream') : navigate('/livestreams')} />
+          <NavButton 
+            icon={Video} 
+            label={isScholar ? 'Stream' : 'Live'} 
+            onClick={() => isScholar ? navigate('/start-stream') : navigate('/livestreams')} 
+          />
           <NavButton icon={BookOpen} label="Quran" onClick={() => navigate('/quran')} />
           <NavButton icon={Compass} label="Qibla" onClick={() => navigate('/qibla')} />
           {isScholar ? (
             <>
-              <NavButton icon={MessageSquare} label="Manage" onClick={() => navigate('/manage-consultations')} />
+              <NavButton icon={Calendar} label="Manage" onClick={() => navigate('/manage-consultations')} />
             </>
           ) : (
             <>

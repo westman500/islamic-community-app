@@ -26,6 +26,7 @@ import { ZakatDonation } from './components/ZakatDonation'
 // Scholar/Imam-only components
 import { ScholarLiveStream } from './components/ScholarLiveStream'
 import { ScholarConsultationManager } from './components/ScholarConsultationManager'
+import { ScholarDashboard } from './components/ScholarDashboard'
 
 // New components
 import { LivestreamDiscovery } from './components/LivestreamDiscovery'
@@ -152,6 +153,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['scholar', 'imam']}>
                   <ScholarConsultationManager />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/scholar-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['scholar', 'imam']}>
+                  <ScholarDashboard />
                 </ProtectedRoute>
               }
             />
