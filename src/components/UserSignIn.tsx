@@ -58,8 +58,9 @@ export const UserSignIn: React.FC = () => {
       await signIn(email, password)
       console.log('UserSignIn: signIn completed successfully, navigating...')
       
-      // Navigate - the AuthContext and ProtectedRoute will handle the rest
+      // Navigate immediately - the AuthContext and ProtectedRoute will handle the rest
       navigate('/dashboard', { replace: true })
+      // Keep loading true to prevent double submission
     } catch (err: any) {
       console.error('UserSignIn: Sign in error:', err)
       setError(err.message || 'Failed to sign in')

@@ -185,18 +185,26 @@ export const generateAgoraToken = async (
 ): Promise<{ token: string; uid: string }> => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   
-  // Get auth token from Supabase
-  const { createClient } = await import('@supabase/supabase-js')
-  const supabase = createClient(
-    supabaseUrl,
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-  )
+  // Import supabase client directly
+  const { supabase } = await import('./supabase/client')
   
-  const { data: { session } } = await supabase.auth.getSession()
+  // Get current session with retry
+  let session = null
+  for (let i = 0; i < 3; i++) {
+    const { data } = await supabase.auth.getSession()
+    if (data.session) {
+      session = data.session
+      break
+    }
+    // Wait a bit before retry
+    await new Promise(resolve => setTimeout(resolve, 300))
+  }
   
   if (!session) {
-    throw new Error('Not authenticated')
+    throw new Error('Authentication required. Please sign in and try again.')
   }
+  
+  console.log('Generating Agora token with session:', session.user.id)
 
   // Call backend function to generate token
   const response = await fetch(

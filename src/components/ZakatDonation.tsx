@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { usePermissions } from './ProtectedRoute'
 import { Heart, DollarSign } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 
@@ -14,7 +13,6 @@ interface Scholar {
 }
 
 export const ZakatDonation: React.FC = () => {
-  const permissions = usePermissions()
   const [scholars, setScholars] = useState<Scholar[]>([])
   const [selectedScholar, setSelectedScholar] = useState<Scholar | null>(null)
   const [amount, setAmount] = useState('')
@@ -51,13 +49,8 @@ export const ZakatDonation: React.FC = () => {
   }
 
   const handleDonate = async () => {
-    if (!permissions.canDonate) {
-      setError('Only members can make donations')
-      return
-    }
-
     if (!selectedScholar) {
-      setError('Please select a scholar')
+      setError('Please select a scholar/imam to support')
       return
     }
 
@@ -104,23 +97,6 @@ export const ZakatDonation: React.FC = () => {
     }
   }
 
-  if (!permissions.canDonate) {
-    return (
-      <div className="container mx-auto p-4 max-w-2xl">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-destructive mb-2">
-              Access Denied: Only members can make Zakat donations.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Scholars and imams cannot donate. They can receive donations from members.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <MobileLayout title="Zakat & Donations">
       <Card>
@@ -130,7 +106,7 @@ export const ZakatDonation: React.FC = () => {
             Zakat & Donations
           </CardTitle>
           <CardDescription>
-            Support our scholars and imams with your Zakat and voluntary donations
+            Support scholars with zakat from all sources (livestreams, non-livestreams) and charitable donations - separate from consultation booking fees
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -217,10 +193,10 @@ export const ZakatDonation: React.FC = () => {
               <div className="p-4 bg-secondary rounded-lg">
                 <h4 className="font-semibold mb-2 text-sm">About Zakat & Donations</h4>
                 <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>• 100% of your donation goes to the selected scholar</li>
+                  <li>• 100% goes directly to the scholar/imam</li>
+                  <li>• Includes: livestream tips, non-livestream zakat, and charitable donations</li>
+                  <li>• Does NOT include consultation booking fees (handled separately in Wallet)</li>
                   <li>• Secure payment processing via Paystack</li>
-                  <li>• Tax receipts available upon request</li>
-                  <li>• Zakat eligible donations are clearly marked</li>
                 </ul>
               </div>
 

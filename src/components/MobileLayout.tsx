@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from './ui/button'
-import { ArrowLeft, BookOpen, Compass, Heart, Video, MapPin, Calendar, Bell, Wallet } from 'lucide-react'
+import { ArrowLeft, BookOpen, Compass, Video, MapPin, Calendar, Bell, Wallet } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 interface MobileLayoutProps {
@@ -48,7 +48,7 @@ export function MobileLayout({
       {/* Bottom Navigation */}
       {showBottomNav && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-          <div className="flex justify-around items-center py-2 px-2 max-w-2xl mx-auto">
+          <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl mx-auto gap-0.5">
             <NavButton 
               icon={MapPin} 
               label="Masjid" 
@@ -57,7 +57,7 @@ export function MobileLayout({
             <NavButton 
               icon={Video} 
               label="Live" 
-              onClick={() => navigate('/livestreams')} 
+              onClick={() => isScholar ? navigate('/start-stream') : navigate('/livestreams')} 
             />
             <NavButton 
               icon={BookOpen} 
@@ -69,28 +69,38 @@ export function MobileLayout({
               label="Qibla" 
               onClick={() => navigate('/qibla')} 
             />
-            <NavButton 
-              icon={Heart} 
-              label="Zakat" 
-              onClick={() => navigate('/donate')} 
-            />
-            {isScholar && (
-              <NavButton 
-                icon={Wallet} 
-                label="Wallet" 
-                onClick={() => navigate('/manage-consultations')} 
-              />
+            {isScholar ? (
+              <>
+                <NavButton 
+                  icon={Calendar} 
+                  label="Manage" 
+                  onClick={() => navigate('/manage-consultations')} 
+                />
+                <NavButton 
+                  icon={Wallet} 
+                  label="Wallet" 
+                  onClick={() => navigate('/wallet')} 
+                />
+              </>
+            ) : (
+              <>
+                <NavButton 
+                  icon={Wallet} 
+                  label="Wallet" 
+                  onClick={() => navigate('/coin-wallet')} 
+                />
+                <NavButton 
+                  icon={Calendar} 
+                  label="Activities" 
+                  onClick={() => navigate('/activity-categories')} 
+                />
+                <NavButton 
+                  icon={Bell} 
+                  label="Bookings" 
+                  onClick={() => navigate('/my-bookings')} 
+                />
+              </>
             )}
-            <NavButton 
-              icon={Calendar} 
-              label="Activities" 
-              onClick={() => navigate('/dashboard')} 
-            />
-            <NavButton 
-              icon={Bell} 
-              label="Notif" 
-              onClick={() => navigate('/dashboard')} 
-            />
           </div>
         </div>
       )}
@@ -110,10 +120,10 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center justify-center min-w-[60px] py-1 px-2 rounded-lg transition-colors text-gray-600 hover:text-emerald-600 hover:bg-emerald-50"
+      className="flex flex-col items-center justify-center flex-1 min-w-0 py-1 px-0.5 rounded-lg transition-all text-gray-600 hover:text-emerald-600 hover:bg-emerald-50"
     >
-      <Icon className="h-6 w-6" />
-      <span className="text-xs mt-1 font-medium">{label}</span>
+      <Icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+      <span className="text-[9px] sm:text-[10px] mt-0.5 font-semibold leading-tight text-center truncate w-full">{label}</span>
     </button>
   )
 }

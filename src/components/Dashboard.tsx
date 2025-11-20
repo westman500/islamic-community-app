@@ -22,8 +22,7 @@ import {
   Sunrise,
   Sun,
   Sunset,
-  Moon,
-  MessageSquare
+  Moon
 } from 'lucide-react'
 import { supabase } from '../utils/supabase/client'
 
@@ -109,6 +108,16 @@ export function Dashboard() {
 
   const userFeatures = [
     {
+      title: 'Masjid Coin Wallet',
+      description: 'Digital currency',
+      detail: 'Deposit funds and use coins for streams, consultations, and donations',
+      icon: Wallet,
+      color: 'bg-amber-50',
+      iconColor: 'text-amber-600',
+      buttonColor: 'bg-amber-500 hover:bg-amber-600',
+      path: '/coin-wallet'
+    },
+    {
       title: 'Join Live Streams',
       description: 'Watch prayers & lectures',
       detail: 'Join existing streams from scholars and imams',
@@ -182,14 +191,14 @@ export function Dashboard() {
       path: '/scholar-dashboard'
     },
     {
-      title: 'Manage Zakat',
-      description: 'Donations & Earnings',
-      detail: 'Track Zakat received and consultation earnings',
-      icon: Wallet,
+      title: 'Manage Zakat and Donations',
+      description: 'Zakat & Charitable Giving',
+      detail: 'Manage zakat from livestreams and donations, view history, and withdraw funds',
+      icon: Heart,
       color: 'bg-green-50',
       iconColor: 'text-green-600',
       buttonColor: 'bg-green-500 hover:bg-green-600',
-      path: '/scholar-dashboard'
+      path: '/wallet'
     }
   ]
 
@@ -487,10 +496,11 @@ export function Dashboard() {
           {isScholar ? (
             <>
               <NavButton icon={Calendar} label="Manage" onClick={() => navigate('/manage-consultations')} />
+              <NavButton icon={Wallet} label="Wallet" onClick={() => navigate('/wallet')} />
             </>
           ) : (
             <>
-              <NavButton icon={Heart} label="Zakat" onClick={() => navigate('/donate')} />
+              <NavButton icon={Wallet} label="Wallet" onClick={() => navigate('/coin-wallet')} />
               <NavButton icon={Calendar} label="Activities" onClick={() => navigate('/activity-categories')} />
               <NavButton icon={Bell} label="Bookings" onClick={() => navigate('/my-bookings')} />
             </>

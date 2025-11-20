@@ -22,11 +22,13 @@ import { QiblaDirection } from './components/QiblaDirection'
 // Member-only components
 import { UserPrayerServiceViewer } from './components/UserPrayerServiceViewer'
 import { ZakatDonation } from './components/ZakatDonation'
+import { MasjidCoin } from './components/MasjidCoin'
 
 // Scholar/Imam-only components
 import { ScholarLiveStream } from './components/ScholarLiveStream'
 import { ScholarConsultationManager } from './components/ScholarConsultationManager'
 import { ScholarDashboard } from './components/ScholarDashboard'
+import { ScholarWallet } from './components/ScholarWallet'
 
 // New components
 import { LivestreamDiscovery } from './components/LivestreamDiscovery'
@@ -101,8 +103,16 @@ function App() {
             <Route
               path="/donate"
               element={
-                <ProtectedRoute allowedRoles={['user']}>
+                <ProtectedRoute>
                   <ZakatDonation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/coin-wallet"
+              element={
+                <ProtectedRoute allowedRoles={['user']}>
+                  <MasjidCoin />
                 </ProtectedRoute>
               }
             />
@@ -161,6 +171,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['scholar', 'imam']}>
                   <ScholarDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wallet"
+              element={
+                <ProtectedRoute allowedRoles={['scholar', 'imam']}>
+                  <ScholarWallet />
                 </ProtectedRoute>
               }
             />

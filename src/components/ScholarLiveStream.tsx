@@ -92,6 +92,11 @@ export const ScholarLiveStream: React.FC = () => {
     console.log('=== STARTING LIVESTREAM ===')
 
     try {
+      // Verify authentication first
+      if (!profile?.id) {
+        throw new Error('Profile not loaded. Please refresh the page and try again.')
+      }
+
       // Check for media devices support
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera and microphone are not supported on this device')
@@ -103,21 +108,22 @@ export const ScholarLiveStream: React.FC = () => {
       console.log('✅ Permissions granted, proceeding with stream setup')
 
       // Create channel name
-      const channel = `stream_${profile?.id}_${Date.now()}`
+      const channel = `stream_${profile.id}_${Date.now()}`
       setChannelName(channel)
       console.log('Channel:', channel)
+      console.log('User ID:', profile.id)
 
       // Initialize Agora
       console.log('1. Initializing Agora service...')
       agoraService.current = new AgoraService()
 
-      // Join channel first
-      console.log('2. Joining channel as host...')
+      // Join channel first (this will generate token with authentication)
+      console.log('2. Joining channel as host with user ID:', profile.id)
       await agoraService.current.joinChannel({
         appId: import.meta.env.VITE_AGORA_APP_ID || '',
         channel,
         token: null,
-        uid: profile?.id || '',
+        uid: profile.id,
       }, 'host')
       console.log('✓ Channel joined')
 
@@ -188,7 +194,9 @@ export const ScholarLiveStream: React.FC = () => {
       }
       
       // Provide better error messages
-      if (err.message?.includes('token') || err.message?.includes('Token')) {
+      if (err.message?.includes('Authentication required') || err.message?.includes('Not authenticated')) {
+        setError('Authentication error. Please sign out and sign back in, then try again.')
+      } else if (err.message?.includes('token') || err.message?.includes('Token')) {
         setError('Failed to generate streaming token. Please check your internet connection and try again.')
       } else if (err.message?.includes('fetch') || err.message?.includes('network')) {
         setError('Network error. Please check your internet connection and try again.')
