@@ -20,6 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
     // Get initial session
@@ -31,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchProfile(session.user.id)
       } else {
         setLoading(false)
+        setInitialized(true)
       }
     })
 
@@ -39,16 +41,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, session) => {
         console.log('Auth state changed:', event, session ? 'Session exists' : 'No session')
         
+        // Don't show loading screen for TOKEN_REFRESHED events
+        const shouldShowLoading = event !== 'TOKEN_REFRESHED' && !initialized
+        
         setSession(session)
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          // Set loading before fetching profile
-          setLoading(true)
+          // Only set loading for initial sign-in, not for refreshes
+          if (shouldShowLoading) setLoading(true)
           await fetchProfile(session.user.id)
-        } else {
+        } else if (event === 'SIGNED_OUT') {
           setProfile(null)
           setLoading(false)
+          setInitialized(false)
         }
       }
     )
@@ -144,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } finally {
       setLoading(false)
+      setInitialized(true)
     }
   }
 
@@ -167,23 +174,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('Authentication failed. Please try again.')
     }
     
-    console.log('SignIn: Authentication successful, waiting for profile...')
-    
-    // Wait for profile to be fetched by the auth listener
-    const maxWait = 5000 // 5 seconds max
-    const startTime = Date.now()
-    
-    while (!profile && (Date.now() - startTime) < maxWait) {
-      await new Promise(resolve => setTimeout(resolve, 100))
-    }
-    
-    if (!profile) {
-      console.warn('SignIn: Profile not loaded yet, but allowing sign in')
-    } else {
-      console.log('SignIn: Profile loaded successfully')
-    }
-    
-    console.log('SignIn: Complete')
+    console.log('SignIn: Authentication successful')
+    // The auth state listener will handle profile fetching
+    // No need to wait here, navigation will happen immediately
   }
 
   const signUp = async (email: string, password: string, role: UserRole, fullName: string) => {
