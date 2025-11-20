@@ -34,31 +34,46 @@ export const ScholarLiveStream: React.FC = () => {
     }
   }, [])
 
-  // Request camera and microphone permissions on native
-  const requestNativePermissions = async () => {
-    if (!Capacitor.isNativePlatform()) {
-      return true // Web doesn't need explicit permission request
-    }
-
+  // Request camera and microphone permissions explicitly
+  const requestMediaPermissions = async () => {
     try {
-      console.log('🔐 Requesting native camera and microphone permissions...')
+      console.log('🔐 Requesting camera and microphone access...')
       
-      // Request camera permission
-      const cameraPermission = await (navigator as any).permissions.query({ name: 'camera' })
-      console.log('Camera permission:', cameraPermission.state)
+      // Request actual access to camera and microphone
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }, 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      })
       
-      // Request microphone permission
-      const micPermission = await (navigator as any).permissions.query({ name: 'microphone' })
-      console.log('Microphone permission:', micPermission.state)
+      console.log('✅ Camera and microphone access granted')
+      console.log('Video track:', stream.getVideoTracks()[0]?.label)
+      console.log('Audio track:', stream.getAudioTracks()[0]?.label)
       
-      if (cameraPermission.state === 'denied' || micPermission.state === 'denied') {
-        throw new Error('Camera or microphone permission denied. Please enable in device settings.')
-      }
+      // Stop the test stream - Agora will create its own
+      stream.getTracks().forEach(track => track.stop())
+      console.log('Test stream stopped, ready for Agora')
       
       return true
-    } catch (err) {
-      console.warn('Permission query not supported, will request during stream start:', err)
-      return true // Continue anyway, getUserMedia will request
+    } catch (err: any) {
+      console.error('❌ Permission error:', err)
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        throw new Error('📷 Camera/microphone permission denied. Please allow access and try again.')
+      } else if (err.name === 'NotFoundError') {
+        throw new Error('📷 No camera or microphone found on this device.')
+      } else if (err.name === 'NotReadableError') {
+        throw new Error('⚠️ Camera or microphone is already in use by another app.')
+      } else {
+        throw new Error(err.message || 'Failed to access camera/microphone')
+      }
     }
   }
 
@@ -82,8 +97,10 @@ export const ScholarLiveStream: React.FC = () => {
         throw new Error('Camera and microphone are not supported on this device')
       }
 
-      // Request permissions first on native platforms
-      await requestNativePermissions()
+      // Request camera and microphone permissions first
+      console.log('Step 0: Requesting permissions...')
+      await requestMediaPermissions()
+      console.log('✅ Permissions granted, proceeding with stream setup')
 
       // Create channel name
       const channel = `stream_${profile?.id}_${Date.now()}`

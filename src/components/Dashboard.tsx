@@ -479,7 +479,7 @@ export function Dashboard() {
           <NavButton icon={MapPin} label="Masjid" active onClick={() => navigate('/dashboard')} />
           <NavButton 
             icon={Video} 
-            label={isScholar ? 'Stream' : 'Live'} 
+            label="Live" 
             onClick={() => isScholar ? navigate('/start-stream') : navigate('/livestreams')} 
           />
           <NavButton icon={BookOpen} label="Quran" onClick={() => navigate('/quran')} />
