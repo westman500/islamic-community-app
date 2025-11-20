@@ -1,65 +1,97 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Agora Token Generation
-// Based on: https://github.com/AgoraIO/Tools/tree/master/DynamicKey/AgoraDynamicKey
+// Proper HMAC SHA256 implementation for Agora token
+async function hmacSha256(key: string, message: string): Promise<ArrayBuffer> {
+  const encoder = new TextEncoder()
+  const keyData = encoder.encode(key)
+  const messageData = encoder.encode(message)
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  
+  return await crypto.subtle.sign('HMAC', cryptoKey, messageData)
+}
+
+// Pack uint16 to bytes
+function packUint16(num: number): Uint8Array {
+  const buffer = new Uint8Array(2)
+  buffer[0] = (num >> 8) & 0xFF
+  buffer[1] = num & 0xFF
+  return buffer
+}
+
+// Pack uint32 to bytes
+function packUint32(num: number): Uint8Array {
+  const buffer = new Uint8Array(4)
+  buffer[0] = (num >> 24) & 0xFF
+  buffer[1] = (num >> 16) & 0xFF
+  buffer[2] = (num >> 8) & 0xFF
+  buffer[3] = num & 0xFF
+  return buffer
+}
+
+// Agora Token Builder with proper implementation
 class AgoraTokenBuilder {
-  static buildToken(
+  static async buildToken(
     appId: string,
     appCertificate: string,
     channelName: string,
-    uid: string | number,
+    uid: number,
     role: number,
     privilegeExpiredTs: number
-  ): string {
-    const version = '007'
-    const randomInt = Math.floor(Math.random() * 0xFFFFFFFF)
-    const salt = randomInt
+  ): Promise<string> {
+    const salt = Math.floor(Math.random() * 0xFFFFFFFF)
     const ts = Math.floor(Date.now() / 1000) + 24 * 3600
 
-    const message = {
-      salt,
-      ts,
-      messages: {
-        1: privilegeExpiredTs, // joinChannel privilege
-        2: privilegeExpiredTs, // publishAudioStream privilege  
-        3: privilegeExpiredTs, // publishVideoStream privilege
-        4: privilegeExpiredTs, // publishDataStream privilege
-      }
-    }
-
-    const uidStr = uid === 0 ? '' : String(uid)
-    const signature = this.generateSignature(
-      appId,
-      appCertificate,
-      channelName,
-      uidStr,
-      message
-    )
-
-    return `${version}${appId}${signature}`
-  }
-
-  private static generateSignature(
-    appId: string,
-    appCertificate: string,
-    channelName: string,
-    uid: string,
-    message: any
-  ): string {
-    // Simplified signature generation
-    // In production, use the official Agora token library
-    const content = `${appId}${channelName}${uid}${message.salt}${message.ts}`
-    return this.hmacSha256(appCertificate, content)
-  }
-
-  private static hmacSha256(key: string, message: string): string {
-    const encoder = new TextEncoder()
-    const keyData = encoder.encode(key)
-    const messageData = encoder.encode(message)
+    // Build message
+    const messageArray: number[] = []
     
-    // Simplified - use crypto.subtle in production
-    return btoa(String.fromCharCode(...messageData)).substring(0, 32)
+    // Add salt (4 bytes)
+    const saltBytes = packUint32(salt)
+    messageArray.push(...saltBytes)
+    
+    // Add timestamp (4 bytes)
+    const tsBytes = packUint32(ts)
+    messageArray.push(...tsBytes)
+    
+    // Add privilege map (simplified - just expiration time)
+    const privBytes = packUint32(privilegeExpiredTs)
+    messageArray.push(...privBytes)
+
+    const message = new Uint8Array(messageArray)
+    
+    // Create signature base
+    const encoder = new TextEncoder()
+    const channelBytes = encoder.encode(channelName)
+    const uidBytes = packUint32(uid)
+    
+    const signingArray: number[] = []
+    signingArray.push(...channelBytes)
+    signingArray.push(...uidBytes)
+    signingArray.push(...message)
+    
+    const signingMessage = new Uint8Array(signingArray)
+    
+    // Generate signature using HMAC-SHA256
+    const signatureBuffer = await hmacSha256(appCertificate, new TextDecoder().decode(signingMessage))
+    const signature = new Uint8Array(signatureBuffer)
+    
+    // Build final token
+    const tokenArray: number[] = []
+    tokenArray.push(...message)
+    tokenArray.push(...signature)
+    
+    const tokenBytes = new Uint8Array(tokenArray)
+    const tokenBase64 = btoa(String.fromCharCode(...tokenBytes))
+    
+    // Return version 007 token format
+    return `007${appId}${tokenBase64}`
   }
 }
 
@@ -125,16 +157,18 @@ serve(async (req) => {
       throw new Error('Agora credentials not configured')
     }
 
-    const uid = user.id.substring(0, 8) // Use first 8 chars of UUID
+    // Generate numeric UID from user ID (Agora requires numeric UID)
+    const uidNumber = parseInt(user.id.replace(/\D/g, '').substring(0, 9)) || Math.floor(Math.random() * 1000000)
+    
     const expirationTimeInSeconds = 3600 // 1 hour
     const currentTimestamp = Math.floor(Date.now() / 1000)
     const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds
 
-    const token = AgoraTokenBuilder.buildToken(
+    const token = await AgoraTokenBuilder.buildToken(
       appId,
       appCertificate,
       channelName,
-      uid,
+      uidNumber,
       agoraRole,
       privilegeExpiredTs
     )
@@ -142,7 +176,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         token,
-        uid,
+        uid: String(uidNumber),
         channelName,
         expiresAt: privilegeExpiredTs,
       }),
