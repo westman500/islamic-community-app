@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agora Connection Test</title>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
+</head>
+<body>
+    <h1>Agora Connection Test</h1>
+    <div id="status">Testing...</div>
+    <button id="testBtn">Test Connection</button>
+    
+    <script>
+        const APP_ID = '195fe587a4b84053aa0eff6ae05150b1';
+        const statusDiv = document.getElementById('status');
+        
+        async function testConnection() {
+            try {
+                statusDiv.innerHTML = 'Creating client...';
+                
+                // Enable debug logging
+                AgoraRTC.enableLogUpload();
+                AgoraRTC.setLogLevel(0);
+                
+                // Configure region for North America
+                AgoraRTC.setArea({
+                    areaCode: 'NORTH_AMERICA',
+                    excludedArea: 'CHINA'
+                });
+                console.log('Region set to: NORTH_AMERICA');
+                
+                const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+                
+                statusDiv.innerHTML = 'Testing App ID only mode...';
+                
+                try {
+                    // Test joining with null token (testing mode)
+                    await client.join(APP_ID, 'test-channel-' + Date.now(), null, 0);
+                    statusDiv.innerHTML = '✅ SUCCESS! App ID only mode working.';
+                    await client.leave();
+                    return;
+                } catch (testError) {
+                    console.log('App ID only mode failed, trying with hardcoded token...');
+                    statusDiv.innerHTML = 'App ID only failed, testing with token...';
+                }
+                
+                // Try with the provided token
+                const token = '007eJxTYHgqyP/Dzfzapm0SJ51VpjgxMs+8L2+17nKk8tfH72LyrrxWYDBMNE5Oskg1SjE0NDdJSTGwNE9NSU42tjAxM7O0ME40cGRRyGwIZGQwrdjBzMgAgSA+L4NvYnFWZopCbn5SZk4qAwMAWnsh1A==';
+                await client.join(APP_ID, 'test-channel-' + Date.now(), token, 0);
+                
+                statusDiv.innerHTML = '✅ SUCCESS! Token mode working. Your Agora project requires secure authentication.';
+                
+                // Clean up
+                await client.leave();
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                statusDiv.innerHTML = `❌ ERROR: ${error.message}<br>Code: ${error.code}`;
+                
+                if (error.code === 'INVALID_VENDOR_KEY' || error.code === 'ERR_INVALID_APP_ID') {
+                    statusDiv.innerHTML += '<br><br>Solution: Check your Agora App ID';
+                } else if (error.code === 'CAN_NOT_GET_GATEWAY_SERVER') {
+                    if (error.message && error.message.includes('dynamic use static key')) {
+                        statusDiv.innerHTML += '<br><br>Solution: Your Agora project requires tokens. The app will use token generation service.';
+                    } else {
+                        statusDiv.innerHTML += '<br><br>Solution: Check internet connection';
+                    }
+                } else if (error.code === 'INVALID_OPERATION') {
+                    statusDiv.innerHTML += '<br><br>Solution: Check Agora project authentication settings';
+                }
+            }
+        }
+        
+        document.getElementById('testBtn').onclick = testConnection;
+        
+        // Auto-test on load
+        testConnection();
+    </script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Generate Fresh Agora Token</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        .info {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        .copy-section {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        code {
+            background: #263238;
+            color: #aed581;
+            padding: 10px;
+            display: block;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Generate Fresh Agora Token</h1>
+        
+        <div class="info">
+            <strong>📋 Follow These Steps:</strong><br><br>
+            
+            <strong>1. Go to Agora Token Builder:</strong><br>
+            <a href="https://webdemo.agora.io/token-builder/" target="_blank">
+                https://webdemo.agora.io/token-builder/
+            </a><br><br>
+            
+            <strong>2. Enter these EXACT values:</strong>
+        </div>
+
+        <div class="copy-section">
+            <strong>App ID:</strong>
+            <code id="appId">6bc4256e9b5349f38d791a3c86b535a7</code>
+            
+            <strong>App Certificate:</strong>
+            <code id="cert">6d62c804c0374603995e7167d8379622</code>
+            
+            <strong>Channel Name:</strong>
+            <code id="channel">stream_test_123</code>
+            
+            <strong>UID:</strong>
+            <code>0</code>
+            
+            <strong>Expiration Time (seconds):</strong>
+            <code>3600</code>
+        </div>
+
+        <div class="info">
+            <strong>3. Click "Generate Token" button</strong><br><br>
+            
+            <strong>4. Copy the generated token</strong><br><br>
+            
+            <strong>5. Paste it below and test:</strong>
+        </div>
+
+        <div class="input-group">
+            <label>Paste Generated Token Here:</label>
+            <input type="text" id="tokenInput" placeholder="Paste the token from Agora Token Builder">
+        </div>
+
+        <button onclick="testWithNewToken()" style="background: #4caf50; color: white; border: none; padding: 15px 40px; font-size: 18px; border-radius: 5px; cursor: pointer; margin: 20px 0;">
+            🧪 Test This Token
+        </button>
+
+        <div id="result"></div>
+    </div>
+
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.24.1.js"></script>
+    <script>
+        async function testWithNewToken() {
+            const token = document.getElementById('tokenInput').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!token) {
+                resultDiv.innerHTML = '<div style="background: #ffebee; padding: 15px; border-radius: 5px; color: #c62828;">Please paste a token first!</div>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<div style="background: #fff3e0; padding: 15px; border-radius: 5px;">⏳ Testing connection...</div>';
+
+            try {
+                AgoraRTC.setArea({
+                    areaCode: 'NORTH_AMERICA',
+                    excludedArea: 'CHINA'
+                });
+
+                const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
+                await client.setClientRole('host');
+                
+                const uid = await client.join(
+                    '6bc4256e9b5349f38d791a3c86b535a7',
+                    'stream_test_123',
+                    token,
+                    0
+                );
+
+                resultDiv.innerHTML = `
+                    <div style="background: #e8f5e9; padding: 20px; border-radius: 5px; color: #2e7d32;">
+                        <h2>🎉 SUCCESS!</h2>
+                        <p><strong>✅ Token is VALID!</strong></p>
+                        <p>✅ Connected with UID: ${uid}</p>
+                        <p>✅ Your App ID and Certificate are correct!</p>
+                        <hr>
+                        <p><strong>Next Step:</strong> Now we know the token format works!<br>
+                        The problem is our edge function token generation.<br>
+                        We need to fix the token builder code to match this format.</p>
+                    </div>
+                `;
+
+                await client.leave();
+
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div style="background: #ffebee; padding: 20px; border-radius: 5px; color: #c62828;">
+                        <h2>❌ Failed</h2>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Code:</strong> ${error.code}</p>
+                        <hr>
+                        <p>Make sure:</p>
+                        <ul>
+                            <li>Channel name is exactly: <code>stream_test_123</code></li>
+                            <li>UID is: <code>0</code></li>
+                            <li>Token was just generated (not expired)</li>
+                        </ul>
+                    </div>
+                `;
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

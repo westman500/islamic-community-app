@@ -21,6 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
+  void initialized
 
   useEffect(() => {
     // Get initial session
@@ -36,25 +37,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     })
 
+    // Check and enforce 30-day inactivity logout
+    const checkSessionExpiry = () => {
+      const lastActivity = localStorage.getItem('masjid-last-activity')
+      if (lastActivity) {
+        const lastActivityDate = new Date(lastActivity)
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        
+        if (lastActivityDate < thirtyDaysAgo) {
+          console.log('Session expired due to 30 days inactivity, signing out...')
+          supabase.auth.signOut()
+          localStorage.removeItem('masjid-last-activity')
+          return false
+        }
+      }
+      // Update last activity timestamp
+      localStorage.setItem('masjid-last-activity', new Date().toISOString())
+      return true
+    }
+    
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session ? 'Session exists' : 'No session')
         
-        // Don't show loading screen for TOKEN_REFRESHED events
-        const shouldShowLoading = event !== 'TOKEN_REFRESHED' && !initialized
+        // Check session expiry on any auth state change
+        if (session && !checkSessionExpiry()) {
+          return // Session expired, will be signed out
+        }
         
         setSession(session)
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          // Only set loading for initial sign-in, not for refreshes
-          if (shouldShowLoading) setLoading(true)
-          await fetchProfile(session.user.id)
+          // Fetch profile in background without blocking
+          fetchProfile(session.user.id).catch(err => {
+            console.error('Background profile fetch failed:', err)
+          })
         } else if (event === 'SIGNED_OUT') {
           setProfile(null)
           setLoading(false)
           setInitialized(false)
+          localStorage.removeItem('masjid-last-activity')
         }
       }
     )
@@ -138,23 +163,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data) {
         console.log('Profile fetched successfully:', data.email)
         setProfile(data)
+        setLoading(false)
+        setInitialized(true)
+      } else {
+        setLoading(false)
+        setInitialized(true)
       }
     } catch (error) {
       console.error('Error in fetchProfile:', error)
       
-      // Retry on exception
+      // Quick retry on exception
       if (retryCount < maxRetries) {
         console.log('Retrying after exception...')
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 200))
         return fetchProfile(userId, retryCount + 1)
       }
-    } finally {
+      
       setLoading(false)
       setInitialized(true)
     }
   }
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<void> => {
     console.log('SignIn: Starting authentication for', email)
     
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -175,8 +205,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     console.log('SignIn: Authentication successful')
-    // The auth state listener will handle profile fetching
-    // No need to wait here, navigation will happen immediately
+    
+    // Update session immediately
+    setSession(data.session)
+    setUser(data.user)
+    
+    // Fetch profile in background
+    fetchProfile(data.user.id).catch(err => {
+      console.error('Profile fetch failed during sign-in:', err)
+      // Don't block sign-in if profile fetch fails
+    })
+    
+    console.log('SignIn: Sign-in complete')
   }
 
   const signUp = async (email: string, password: string, role: UserRole, fullName: string) => {

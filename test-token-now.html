@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Agora Token NOW</title>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.24.1.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+        button:hover { background: #45a049; }
+        #log {
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        .success { color: #4caf50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Test Agora Token Authentication</h1>
+        <p>This will fetch a token from your Supabase Edge Function and test connection to Agora.</p>
+        
+        <button onclick="testTokenFlow()">🚀 Test Full Token Flow</button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        const APP_ID = '6bc4256e9b5349f38d791a3c86b535a7';
+        const SUPABASE_URL = 'https://jtmmeumzjcldqukpqcfi.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0bW1ldW16amNsZHF1a3BxY2ZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzMjU3NTUsImV4cCI6MjA3ODkwMTc1NX0.Bp-7JF66UIVuzKtVmilxovkEwe-TSXHMT_eqETHVPLo';
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function testTokenFlow() {
+            logDiv.innerHTML = '';
+            log('=== TESTING TOKEN AUTHENTICATION ===');
+            log('');
+            
+            const testChannel = 'token_test_' + Date.now();
+            let client = null;
+
+            try {
+                // Step 1: Get user session (simulated - you need to be signed in)
+                log('Step 1: Checking authentication...');
+                
+                // For this test, we'll use the anon key directly
+                // In production, this would use a real user session
+                const sessionToken = SUPABASE_ANON_KEY;
+                
+                if (!sessionToken) {
+                    throw new Error('No session token available. Please sign in first.');
+                }
+                log('✅ Session token available', 'success');
+                log('');
+
+                // Step 2: Fetch token from edge function
+                log('Step 2: Fetching Agora token from Edge Function...');
+                log(`URL: ${SUPABASE_URL}/functions/v1/generate-agora-token`);
+                log(`Channel: ${testChannel}`);
+                
+                const tokenResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-agora-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`,
+                        'apikey': SUPABASE_ANON_KEY
+                    },
+                    body: JSON.stringify({
+                        channelName: testChannel,
+                        uid: 0,
+                        role: 1,
+                        expirationTimeInSeconds: 3600
+                    })
+                });
+
+                if (!tokenResponse.ok) {
+                    const errorText = await tokenResponse.text();
+                    throw new Error(`Token fetch failed: ${tokenResponse.status} - ${errorText}`);
+                }
+
+                const tokenData = await tokenResponse.json();
+                const token = tokenData.token;
+                
+                log('✅ Token received!', 'success');
+                log(`Token length: ${token.length} characters`);
+                log(`Token preview: ${token.substring(0, 30)}...`);
+                log(`App ID from response: ${tokenData.appId}`);
+                log('');
+
+                // Step 3: Create Agora client
+                log('Step 3: Creating Agora RTC client...');
+                
+                // Configure region for North America
+                AgoraRTC.setArea({
+                    areaCode: 'NORTH_AMERICA',
+                    excludedArea: 'CHINA'
+                });
+                log('✅ Region set to: NORTH_AMERICA', 'success');
+                
+                client = AgoraRTC.createClient({ 
+                    mode: 'live',
+                    codec: 'vp8' 
+                });
+                log('✅ Client created', 'success');
+                log('');
+
+                // Step 4: Join channel with token
+                log('Step 4: Joining Agora channel with token...');
+                log(`App ID: ${APP_ID}`);
+                log(`Channel: ${testChannel}`);
+                log(`Token: ${token.substring(0, 20)}...`);
+                log('');
+                log('⏳ Connecting...');
+
+                await client.setClientRole('host');
+                const uid = await client.join(APP_ID, testChannel, token, 0);
+
+                log('');
+                log('🎉🎉🎉 SUCCESS! 🎉🎉🎉', 'success');
+                log('', 'success');
+                log('✅ Token authentication WORKS!', 'success');
+                log('✅ Connected to Agora successfully!', 'success');
+                log(`✅ Your UID: ${uid}`, 'success');
+                log('');
+                log('=== LIVESTREAM IS READY ===', 'success');
+                log('Your configuration is now correct:', 'success');
+                log('• App ID: Valid ✓', 'success');
+                log('• Certificate: Valid ✓', 'success');
+                log('• Token generation: Working ✓', 'success');
+                log('• Agora connection: Working ✓', 'success');
+                log('');
+                log('You can now start livestreaming in your app!', 'success');
+
+                // Clean up
+                await client.leave();
+                log('');
+                log('Test completed. Disconnected from channel.');
+
+            } catch (error) {
+                log('');
+                log('❌ TEST FAILED', 'error');
+                log(`Error: ${error.message}`, 'error');
+                log('');
+                
+                if (error.message.includes('Unauthorized')) {
+                    log('⚠️ ISSUE: Authentication failed', 'error');
+                    log('You need to sign in to your app first before testing.', 'error');
+                    log('Go to http://localhost:5173/ and sign in, then try again.');
+                } else if (error.message.includes('CAN_NOT_GET_GATEWAY_SERVER')) {
+                    log('⚠️ ISSUE: Agora project configuration', 'error');
+                    log('The certificate might not have propagated yet.', 'error');
+                    log('Wait 1-2 minutes and try again.');
+                } else {
+                    log('Unexpected error. Check console for details.', 'error');
+                }
+                
+                console.error(error);
+            } finally {
+                if (client) {
+                    try {
+                        await client.leave();
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+            }
+        }
+
+        log('Ready to test. Click the button above.');
+        log('');
+        log('⚠️ NOTE: You must be signed in to your app first.');
+        log('If you get authentication errors, sign in at:');
+        log('http://localhost:5173/');
+    </script>
+</body>
+</html>

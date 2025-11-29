@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { useAuth } from '../contexts/AuthContext'
+// Removed unused import
 import { Heart, DollarSign, TrendingUp, ArrowDownToLine, Eye, EyeOff } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 
@@ -15,7 +15,7 @@ interface ZakatTransaction {
 }
 
 export const ScholarWallet: React.FC = () => {
-  const { profile } = useAuth()
+  // Removed unused destructure to clear diagnostics
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState<ZakatTransaction[]>([])
   const [withdrawAmount, setWithdrawAmount] = useState('')

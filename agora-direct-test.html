@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Agora Direct Connection Test</title>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.24.1.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #f44336;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #4caf50;
+            color: #2e7d32;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #log {
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Agora Direct Connection Test</h1>
+        <p>This test attempts to connect DIRECTLY to Agora using ONLY your App ID (no token).</p>
+        
+        <div class="info">
+            <strong>⚠️ CRITICAL CHECK:</strong><br>
+            In your Agora Console, go to your project settings and verify:<br>
+            1. <strong>Authentication Mode</strong> - What is it set to?<br>
+            &nbsp;&nbsp;&nbsp;• "App ID" (no token) - easiest for testing<br>
+            &nbsp;&nbsp;&nbsp;• "App ID + Token" - requires valid tokens<br>
+            2. <strong>Project Status</strong> - Is it "Active" or "Disabled"?<br>
+            3. <strong>Primary Certificate</strong> - Note if certificate is enabled
+        </div>
+
+        <div class="input-group">
+            <label>App ID (from Agora Console):</label>
+            <input type="text" id="appIdInput" value="6bc4256e9b5349f38d791a3c86b535a7" placeholder="Enter your 32-character App ID">
+        </div>
+
+        <button onclick="testWithoutToken()">Test 1: Connect WITHOUT Token (App ID only)</button>
+        <button onclick="testProjectInfo()">Test 2: Verify App ID Format</button>
+        
+        <div id="results"></div>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        const logDiv = document.getElementById('log');
+        
+        let client = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : '📝';
+            logDiv.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function showResult(message, isError = false) {
+            resultsDiv.innerHTML = `<div class="${isError ? 'error' : 'success'}">${message}</div>`;
+        }
+
+        async function testProjectInfo() {
+            const appId = document.getElementById('appIdInput').value.trim();
+            logDiv.textContent = '';
+            resultsDiv.innerHTML = '';
+            
+            log('=== APP ID VALIDATION TEST ===');
+            log(`App ID: ${appId}`);
+            log(`Length: ${appId.length} characters (expected: 32)`);
+            
+            // Validation checks
+            const checks = [];
+            
+            if (appId.length === 32) {
+                checks.push('✅ Length is correct (32 characters)');
+            } else {
+                checks.push(`❌ Length is WRONG (${appId.length} characters, expected 32)`);
+            }
+            
+            if (/^[a-f0-9]{32}$/i.test(appId)) {
+                checks.push('✅ Format is valid (32 hexadecimal characters)');
+            } else {
+                checks.push('❌ Format is INVALID (should only contain 0-9 and a-f)');
+            }
+            
+            checks.forEach(check => log(check));
+            
+            log('\n=== NEXT STEPS ===');
+            log('1. Go to https://console.agora.io/');
+            log('2. Click on "Project Management" in sidebar');
+            log('3. Find your project and verify:');
+            log('   • App ID matches: ' + appId);
+            log('   • Status shows: Active (not Disabled)');
+            log('   • Authentication mode (see below)');
+            
+            showResult(checks.join('<br>'), checks.some(c => c.includes('❌')));
+        }
+
+        async function testWithoutToken() {
+            const appId = document.getElementById('appIdInput').value.trim();
+            logDiv.textContent = '';
+            resultsDiv.innerHTML = '';
+            
+            if (!appId || appId.length !== 32) {
+                showResult('❌ Invalid App ID. Must be 32 characters.', true);
+                return;
+            }
+            
+            log('=== TESTING CONNECTION WITHOUT TOKEN ===');
+            log('This test checks if your Agora project allows "App ID only" authentication');
+            log('');
+            log(`App ID: ${appId}`);
+            log('SDK Version: ' + AgoraRTC.VERSION);
+            log('Browser: ' + navigator.userAgent);
+            log('');
+            
+            try {
+                // Clean up any existing client
+                if (client) {
+                    log('Cleaning up previous client...');
+                    await client.leave();
+                    client = null;
+                }
+                
+                // Create new client
+                log('Creating Agora client...');
+                client = AgoraRTC.createClient({ 
+                    mode: 'live',
+                    codec: 'vp8' 
+                });
+                
+                log('✅ Client created successfully', 'success');
+                
+                // Set role
+                await client.setClientRole('host');
+                log('✅ Role set to: host', 'success');
+                
+                // Test channel
+                const testChannel = 'direct_test_' + Date.now();
+                log(`Attempting to join channel: ${testChannel}`);
+                log('Using: NO TOKEN (App ID only)');
+                log('');
+                log('⏳ Connecting to Agora servers...');
+                
+                // Try to join WITHOUT token
+                const uid = await client.join(appId, testChannel, null, 0);
+                
+                log('');
+                log('🎉 SUCCESS! Connected to Agora!', 'success');
+                log(`Your UID: ${uid}`);
+                log('');
+                log('=== DIAGNOSIS ===');
+                log('✅ Your App ID is VALID and ACTIVE');
+                log('✅ Your project allows "App ID only" authentication');
+                log('✅ No token is required for this project');
+                log('');
+                log('🔧 SOLUTION:');
+                log('Your app is trying to use tokens, but your Agora project');
+                log('is set to "App ID only" mode. You have two options:');
+                log('');
+                log('OPTION 1 (Recommended): Change Agora project to "App ID + Token" mode');
+                log('  1. Go to https://console.agora.io/');
+                log('  2. Project Management → Your Project → Configure');
+                log('  3. Enable "Primary Certificate" or set to "Secured mode"');
+                log('  4. Save and redeploy your edge function');
+                log('');
+                log('OPTION 2 (Quick test): Disable token authentication in your app');
+                log('  (Not recommended for production)');
+                
+                showResult(`
+                    <strong>✅ CONNECTION SUCCESSFUL!</strong><br><br>
+                    Your Agora App ID is <strong>VALID and WORKING</strong>.<br><br>
+                    <strong>Problem Found:</strong> Your project is set to "App ID only" mode,<br>
+                    but your application is trying to use token authentication.<br><br>
+                    <strong>Solution:</strong> Change your Agora project to "Secured mode" (App ID + Token)<br>
+                    in the Agora Console, or disable token authentication in your app.
+                `);
+                
+                // Leave channel
+                await client.leave();
+                log('Disconnected from test channel');
+                
+            } catch (error) {
+                log('', 'error');
+                log('❌ CONNECTION FAILED', 'error');
+                log(`Error: ${error.message}`, 'error');
+                log(`Code: ${error.code || 'N/A'}`, 'error');
+                log('');
+                
+                if (error.code === 'INVALID_VENDOR_KEY' || error.message.includes('invalid vendor key') || error.message.includes('can not find appid')) {
+                    log('=== DIAGNOSIS ===', 'error');
+                    log('❌ Your App ID does NOT exist in Agora\'s system', 'error');
+                    log('');
+                    log('POSSIBLE CAUSES:');
+                    log('1. App ID was typed incorrectly');
+                    log('2. Project was deleted from Agora Console');
+                    log('3. Using App ID from a different Agora account');
+                    log('4. Project is disabled/suspended');
+                    log('');
+                    log('🔧 SOLUTION:');
+                    log('1. Go to https://console.agora.io/');
+                    log('2. Sign in with the CORRECT account');
+                    log('3. Go to Project Management');
+                    log('4. Verify your project exists and is Active');
+                    log('5. Copy the EXACT App ID from that project');
+                    log('6. If no projects exist, create a new one');
+                    
+                    showResult(`
+                        <strong>❌ APP ID NOT FOUND</strong><br><br>
+                        This App ID does not exist in Agora's system:<br>
+                        <code>${appId}</code><br><br>
+                        <strong>Next Steps:</strong><br>
+                        1. Verify you're logged into the correct Agora account<br>
+                        2. Check if the project still exists in Agora Console<br>
+                        3. Copy the correct App ID from your active project<br>
+                        4. If needed, create a new project in Agora Console
+                    `, true);
+                } else {
+                    log('Unexpected error occurred. Check console for details.', 'error');
+                    showResult(`❌ Error: ${error.message}`, true);
+                }
+            }
+        }
+
+        // Initial info
+        log('Ready to test. Click a button above to begin.');
+        log('');
+        log('💡 TIP: If connection fails, check your Agora Console:');
+        log('   https://console.agora.io/projects');
+    </script>
+</body>
+</html>

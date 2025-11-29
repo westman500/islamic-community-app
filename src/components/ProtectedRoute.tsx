@@ -16,6 +16,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { user, profile, loading } = useAuth()
   const [showContent, setShowContent] = React.useState(false)
+  void showContent
 
   // Show content immediately if we have user/profile, even while loading updates
   React.useEffect(() => {

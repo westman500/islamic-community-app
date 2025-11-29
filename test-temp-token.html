@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Compare Agora Tokens</title>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.24.1.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; margin-top: 0; }
+        h2 { color: #666; border-bottom: 2px solid #2196F3; padding-bottom: 10px; }
+        .input-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover { background: #1976D2; }
+        button.success { background: #4caf50; }
+        button.success:hover { background: #45a049; }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .warning {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9800;
+        }
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #f44336;
+            color: #c62828;
+        }
+        .success-box {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #4caf50;
+            color: #2e7d32;
+        }
+        #log {
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        .token-compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .token-box {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            border: 2px solid #ddd;
+        }
+        .token-box h3 {
+            margin-top: 0;
+            color: #666;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Agora Token Comparison Test</h1>
+        
+        <div class="info">
+            <strong>📋 Instructions:</strong><br>
+            1. Go to <a href="https://webdemo.agora.io/token-builder/" target="_blank">Agora Token Builder</a><br>
+            2. Enter your App ID and Certificate<br>
+            3. Enter any channel name (e.g., "test_channel")<br>
+            4. Generate a temporary token<br>
+            5. Paste it below and test if it works
+        </div>
+
+        <h2>Step 1: Test Agora's Official Temp Token</h2>
+        
+        <div class="input-group">
+            <label>Your App ID:</label>
+            <input type="text" id="appId" value="6bc4256e9b5349f38d791a3c86b535a7" placeholder="32-character App ID">
+        </div>
+
+        <div class="input-group">
+            <label>Channel Name:</label>
+            <input type="text" id="channelName" value="test_channel" placeholder="Any channel name">
+        </div>
+
+        <div class="input-group">
+            <label>Temporary Token from Agora (paste from token builder):</label>
+            <textarea id="tempToken" placeholder="Paste the token you generated from https://webdemo.agora.io/token-builder/"></textarea>
+        </div>
+
+        <button onclick="testAgoraTempToken()" class="success">🧪 Test Agora's Temp Token</button>
+
+        <div class="warning">
+            <strong>⚠️ If this test SUCCEEDS:</strong><br>
+            • Your App ID and Certificate are VALID<br>
+            • Your project is in "Secured mode" (App ID + Token)<br>
+            • The problem is in OUR token generation code<br><br>
+            
+            <strong>⚠️ If this test FAILS with "invalid vendor key":</strong><br>
+            • Your App ID doesn't exist in Agora's system<br>
+            • You need to get the correct App ID from Agora Console<br>
+            • Go to <a href="https://console.agora.io/projects" target="_blank">Agora Console</a> and verify
+        </div>
+
+        <h2>Step 2: Test Our Generated Token</h2>
+        
+        <div class="input-group">
+            <label>Your Certificate:</label>
+            <input type="text" id="certificate" value="6d62c804c0374603995e7167d8379622" placeholder="32-character Certificate">
+        </div>
+
+        <button onclick="testOurToken()">🔧 Generate & Test Our Token</button>
+
+        <div id="results"></div>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        const resultsDiv = document.getElementById('results');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : '📝';
+            logDiv.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function testAgoraTempToken() {
+            const appId = document.getElementById('appId').value.trim();
+            const channel = document.getElementById('channelName').value.trim();
+            const token = document.getElementById('tempToken').value.trim();
+
+            logDiv.textContent = '';
+            resultsDiv.innerHTML = '';
+
+            if (!appId || appId.length !== 32) {
+                resultsDiv.innerHTML = '<div class="error">❌ Invalid App ID. Must be 32 characters.</div>';
+                return;
+            }
+
+            if (!channel) {
+                resultsDiv.innerHTML = '<div class="error">❌ Channel name is required.</div>';
+                return;
+            }
+
+            if (!token) {
+                resultsDiv.innerHTML = '<div class="error">❌ Please paste a token from Agora Token Builder.</div>';
+                return;
+            }
+
+            log('=== TESTING AGORA\'S OFFICIAL TEMP TOKEN ===');
+            log('');
+            log(`App ID: ${appId}`);
+            log(`Channel: ${channel}`);
+            log(`Token length: ${token.length} characters`);
+            log(`Token preview: ${token.substring(0, 30)}...`);
+            log('');
+
+            try {
+                // Configure region
+                AgoraRTC.setArea({
+                    areaCode: 'NORTH_AMERICA',
+                    excludedArea: 'CHINA'
+                });
+                log('✅ Region set to: NORTH_AMERICA', 'success');
+
+                // Create client
+                const client = AgoraRTC.createClient({ 
+                    mode: 'live',
+                    codec: 'vp8' 
+                });
+                log('✅ Client created', 'success');
+
+                // Set role
+                await client.setClientRole('host');
+                log('✅ Role set to: host', 'success');
+
+                // Join with Agora's temp token
+                log('');
+                log('⏳ Joining channel with Agora temp token...');
+                const uid = await client.join(appId, channel, token, 0);
+
+                log('');
+                log('🎉🎉🎉 SUCCESS! 🎉🎉🎉', 'success');
+                log('', 'success');
+                log('✅ Agora temp token WORKS!', 'success');
+                log(`✅ Connected with UID: ${uid}`, 'success');
+                log('');
+                log('=== DIAGNOSIS ===', 'success');
+                log('✅ Your App ID is VALID', 'success');
+                log('✅ Your Certificate is VALID', 'success');
+                log('✅ Your project is in "Secured mode"', 'success');
+                log('✅ Token authentication is working', 'success');
+                log('');
+                log('📌 Next step: Fix our token generation to match Agora format');
+
+                resultsDiv.innerHTML = `
+                    <div class="success-box">
+                        <strong>✅ TEMP TOKEN WORKS!</strong><br><br>
+                        Your Agora credentials are VALID:<br>
+                        • App ID: <code>${appId}</code> ✓<br>
+                        • Certificate: Valid ✓<br>
+                        • Project mode: Secured (App ID + Token) ✓<br><br>
+                        <strong>Problem:</strong> Our token generation needs fixing.<br>
+                        Now test "Generate & Test Our Token" below to compare.
+                    </div>
+                `;
+
+                await client.leave();
+                log('Disconnected from channel');
+
+            } catch (error) {
+                log('');
+                log('❌ TEST FAILED', 'error');
+                log(`Error: ${error.message}`, 'error');
+                log(`Code: ${error.code || 'N/A'}`, 'error');
+                log('');
+
+                if (error.message.includes('invalid vendor key') || error.message.includes('can not find appid')) {
+                    log('=== DIAGNOSIS ===', 'error');
+                    log('❌ Your App ID does NOT exist in Agora system', 'error');
+                    log('');
+                    log('SOLUTION:', 'error');
+                    log('1. Go to https://console.agora.io/projects');
+                    log('2. Verify your App ID matches EXACTLY');
+                    log('3. If project is deleted, create a new one');
+                    log('4. Copy the correct App ID and Certificate');
+
+                    resultsDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ TEMP TOKEN FAILED</strong><br><br>
+                            Your App ID <code>${appId}</code> does not exist in Agora's system.<br><br>
+                            <strong>Next Steps:</strong><br>
+                            1. Go to <a href="https://console.agora.io/projects" target="_blank">Agora Console</a><br>
+                            2. Verify your App ID or create a new project<br>
+                            3. Copy the EXACT App ID from the console
+                        </div>
+                    `;
+                } else {
+                    log('Unexpected error occurred', 'error');
+                    resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                }
+
+                console.error(error);
+            }
+        }
+
+        async function testOurToken() {
+            resultsDiv.innerHTML = '<div class="warning">⏳ Feature coming soon - will test our Edge Function token generation...</div>';
+            log('Our token generation test not yet implemented');
+        }
+
+        log('Ready to test. Follow the instructions above.');
+        log('');
+        log('💡 TIP: Make sure to generate the temp token from:');
+        log('   https://webdemo.agora.io/token-builder/');
+    </script>
+</body>
+</html>
