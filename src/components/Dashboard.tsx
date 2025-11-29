@@ -24,10 +24,11 @@ import {
   Sunset,
   Moon
 } from 'lucide-react'
-import { supabase } from '../utils/supabase/client'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Removed unused import to clear diagnostics
 
 export function Dashboard() {
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [currentTime, setCurrentTime] = React.useState(new Date())
   const [location, setLocation] = React.useState('Loading...')
@@ -36,8 +37,12 @@ export function Dashboard() {
   const fullName = profile?.full_name || 'User'
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    navigate('/signin')
+    try {
+      await signOut()
+      navigate('/signin')
+    } catch (error) {
+      console.error('Sign out error:', error)
+    }
   }
 
   // Update time every second

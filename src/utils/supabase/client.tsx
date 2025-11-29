@@ -10,7 +10,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     storageKey: 'masjid-auth',
     storage: window.localStorage,
-    flowType: 'pkce'
+    flowType: 'pkce',
+    // Session expires after 30 days of inactivity
+    // Supabase will auto-refresh tokens to keep session alive
+    // After 30 days without refresh, user must log in again
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'masjid-app'
+    }
   }
 })
 

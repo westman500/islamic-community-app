@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test New App ID (No Certificate)</title>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.24.1.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+        button:hover { background: #45a049; }
+        #log {
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        .success { color: #4caf50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Test New App ID (No Certificate)</h1>
+        <p><strong>App ID:</strong> <code>195fe587a4b84053aa0eff6ae05150b1</code></p>
+        <p><strong>Mode:</strong> App ID Only (Testing Mode - No Token)</p>
+        
+        <button onclick="testNewAppId()">🚀 Test Connection NOW</button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const APP_ID = '195fe587a4b84053aa0eff6ae05150b1';
+        const TEST_CHANNEL = 'quick_test_' + Date.now();
+        const logDiv = document.getElementById('log');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function testNewAppId() {
+            logDiv.innerHTML = '';
+            log('=== TESTING NEW APP ID (NO CERTIFICATE) ===');
+            log('');
+            log(`App ID: ${APP_ID}`);
+            log(`Channel: ${TEST_CHANNEL}`);
+            log('Token: NULL (App ID only mode)');
+            log('Mode: Testing Mode (No certificate required)');
+            log('');
+
+            try {
+                // Configure region
+                log('Configuring region: NORTH_AMERICA...');
+                AgoraRTC.setArea({
+                    areaCode: 'NORTH_AMERICA',
+                    excludedArea: 'CHINA'
+                });
+                log('✅ Region configured', 'success');
+
+                // Create client
+                log('Creating Agora client...');
+                const client = AgoraRTC.createClient({ 
+                    mode: 'live',
+                    codec: 'vp8' 
+                });
+                log('✅ Client created', 'success');
+
+                // Set role
+                log('Setting role to host...');
+                await client.setClientRole('host');
+                log('✅ Role set to host', 'success');
+
+                // Join WITHOUT token
+                log('');
+                log('⏳ Joining channel WITHOUT token...');
+                log('This should work immediately if App ID is valid!');
+                log('');
+                
+                const uid = await client.join(APP_ID, TEST_CHANNEL, null, 0);
+
+                log('');
+                log('🎉🎉🎉 SUCCESS! 🎉🎉🎉', 'success');
+                log('', 'success');
+                log('✅ CONNECTED TO AGORA!', 'success');
+                log(`✅ Assigned UID: ${uid}`, 'success');
+                log('✅ App ID is VALID and WORKING!', 'success');
+                log('', 'success');
+                log('=== LIVESTREAM IS READY! ===', 'success');
+                log('Your new App ID works perfectly!', 'success');
+                log('No token/certificate needed!', 'success');
+                log('', 'success');
+                log('📌 NEXT STEPS:', 'success');
+                log('1. Restart your dev server', 'success');
+                log('2. Sign in and go to "Start Live Stream"', 'success');
+                log('3. Click "Start Live Stream" button', 'success');
+                log('4. It should work immediately!', 'success');
+
+                // Leave channel
+                await client.leave();
+                log('');
+                log('Disconnected from test channel');
+
+            } catch (error) {
+                log('');
+                log('❌ CONNECTION FAILED', 'error');
+                log(`Error: ${error.message}`, 'error');
+                log(`Code: ${error.code}`, 'error');
+                log('');
+
+                if (error.message.includes('invalid vendor key')) {
+                    log('=== ERROR ===', 'error');
+                    log('This App ID also doesn\'t exist in Agora system', 'error');
+                    log('Double-check the App ID you copied', 'error');
+                } else {
+                    log('Unexpected error. See details above.', 'error');
+                }
+
+                console.error(error);
+            }
+        }
+
+        log('Ready to test new App ID (no certificate).');
+        log('Click the button above to test connection.');
+    </script>
+</body>
+</html>

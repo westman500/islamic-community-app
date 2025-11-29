@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test App ID Only Mode</title>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.24.1.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        .warning {
+            background: #fff3e0;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9800;
+        }
+        button {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+        button:hover { background: #f57c00; }
+        #log {
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        .success { color: #4caf50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔓 Test App ID Only Mode (No Token)</h1>
+        
+        <div class="warning">
+            <strong>⚠️ IMPORTANT:</strong><br><br>
+            
+            <strong>Before clicking the button below:</strong><br><br>
+            
+            1. Go to <a href="https://console.agora.io/projects" target="_blank">Agora Console</a><br>
+            2. Find your project with App ID: <code>6bc4256e9b5349f38d791a3c86b535a7</code><br>
+            3. Click "Configure" or "Edit"<br>
+            4. Find "Primary Certificate"<br>
+            5. <strong>DISABLE it</strong> (turn OFF secured mode)<br>
+            6. Save changes<br>
+            7. Wait 1-2 minutes for changes to propagate<br>
+            8. Then click the test button below
+        </div>
+
+        <button onclick="testAppIdOnly()">🧪 Test Connection WITHOUT Token</button>
+
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const APP_ID = '6bc4256e9b5349f38d791a3c86b535a7';
+        const TEST_CHANNEL = 'no_token_test_' + Date.now();
+        const logDiv = document.getElementById('log');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function testAppIdOnly() {
+            logDiv.innerHTML = '';
+            log('=== TESTING APP ID ONLY MODE (NO TOKEN) ===');
+            log('');
+            log(`App ID: ${APP_ID}`);
+            log(`Channel: ${TEST_CHANNEL}`);
+            log('Token: NULL (not using any token)');
+            log('');
+            log('⚠️ Make sure you DISABLED the certificate in Agora Console!');
+            log('');
+
+            try {
+                // Configure region
+                log('Configuring region: NORTH_AMERICA...');
+                AgoraRTC.setArea({
+                    areaCode: 'NORTH_AMERICA',
+                    excludedArea: 'CHINA'
+                });
+                log('✅ Region configured', 'success');
+
+                // Create client
+                log('Creating Agora client...');
+                const client = AgoraRTC.createClient({ 
+                    mode: 'live',
+                    codec: 'vp8' 
+                });
+                log('✅ Client created', 'success');
+
+                // Set role
+                log('Setting role to host...');
+                await client.setClientRole('host');
+                log('✅ Role set to host', 'success');
+
+                // Join WITHOUT token
+                log('');
+                log('⏳ Joining channel WITHOUT token (App ID only)...');
+                log('This will work if:');
+                log('  1. Certificate is DISABLED in Agora Console');
+                log('  2. Project is in "Testing mode"');
+                log('  3. Free tier supports this mode');
+                log('');
+                
+                const uid = await client.join(APP_ID, TEST_CHANNEL, null, 0);
+
+                log('');
+                log('🎉🎉🎉 SUCCESS! 🎉🎉🎉', 'success');
+                log('', 'success');
+                log('✅ Connected WITHOUT token!', 'success');
+                log(`✅ Assigned UID: ${uid}`, 'success');
+                log('', 'success');
+                log('=== SOLUTION FOUND ===', 'success');
+                log('✅ Your free tier WORKS with App ID only mode', 'success');
+                log('✅ Certificate/token authentication is NOT needed', 'success');
+                log('', 'success');
+                log('📌 NEXT STEPS:', 'success');
+                log('1. Keep certificate DISABLED in Agora Console', 'success');
+                log('2. Update your app to NOT use tokens', 'success');
+                log('3. Remove edge function token generation', 'success');
+                log('4. Join channels with just App ID + null token', 'success');
+
+                // Leave channel
+                await client.leave();
+                log('');
+                log('Disconnected from test channel');
+
+            } catch (error) {
+                log('');
+                log('❌ CONNECTION FAILED', 'error');
+                log(`Error: ${error.message}`, 'error');
+                log(`Code: ${error.code}`, 'error');
+                log('');
+
+                if (error.message.includes('dynamic use static key')) {
+                    log('=== ERROR: dynamic use static key ===', 'error');
+                    log('This means certificate is STILL ENABLED', 'error');
+                    log('');
+                    log('SOLUTION:', 'error');
+                    log('1. Go back to Agora Console', 'error');
+                    log('2. Make sure to DISABLE the certificate', 'error');
+                    log('3. Save and wait 1-2 minutes', 'error');
+                    log('4. Try again', 'error');
+                } else if (error.message.includes('invalid vendor key')) {
+                    log('=== ERROR: invalid vendor key ===', 'error');
+                    log('App ID still not recognized', 'error');
+                    log('Double-check the App ID in Agora Console', 'error');
+                } else {
+                    log('Unexpected error. See details above.', 'error');
+                }
+
+                console.error(error);
+            }
+        }
+
+        log('Ready to test App ID only mode (no token).');
+        log('');
+        log('⚠️ REMEMBER: Disable certificate in Agora Console FIRST!');
+        log('Then click the button above.');
+    </script>
+</body>
+</html>

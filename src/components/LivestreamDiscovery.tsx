@@ -19,6 +19,7 @@ interface Stream {
   likes_count: number
   dislikes_count: number
   started_at: string
+  ended_at?: string | null
   scholar: {
     full_name: string
     role: string
@@ -31,6 +32,7 @@ export const LivestreamDiscovery: React.FC = () => {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const [streams, setStreams] = useState<Stream[]>([])
+  const [endedStreams, setEndedStreams] = useState<Stream[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -62,6 +64,8 @@ export const LivestreamDiscovery: React.FC = () => {
         throw new Error('Unable to load streams. Please check your internet connection.')
       }
 
+      console.log(`Found ${streamsData?.length || 0} active streams`)
+      
       if (!streamsData || streamsData.length === 0) {
         setStreams([])
         setLoading(false)
@@ -104,13 +108,60 @@ export const LivestreamDiscovery: React.FC = () => {
       }))
 
       setStreams(enrichedStreams as Stream[])
+      console.log('Active streams loaded:', enrichedStreams.map(s => ({ id: s.id, title: s.title, is_active: s.is_active })))
       setLoading(false)
+      
+      // Fetch recently ended streams (last 24 hours)
+      fetchEndedStreams()
     } catch (err: any) {
       console.error('Error fetching streams:', err)
       setError(err.message || 'Failed to load streams. Please try again.')
       setStreams([]) // Clear streams on error
       setLoading(false)
     }
+  }
+
+  const fetchEndedStreams = async () => {
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      
+      const { data: endedData, error: endedError } = await supabase
+        .from('streams')
+        .select(`
+          *,
+          scholar:profiles!scholar_id(full_name, role)
+        `)
+        .eq('is_active', false)
+        .not('ended_at', 'is', null)
+        .gte('ended_at', twentyFourHoursAgo)
+        .order('ended_at', { ascending: false })
+        .limit(5)
+
+      if (endedError) {
+        console.error('Error fetching ended streams:', endedError)
+        return
+      }
+
+      console.log(`Found ${endedData?.length || 0} ended streams`)
+      setEndedStreams((endedData || []) as Stream[])
+    } catch (err) {
+      console.error('Error fetching ended streams:', err)
+    }
+  }
+
+  const formatDuration = (startedAt: string, endedAt: string | null | undefined) => {
+    if (!endedAt) return 'Unknown duration'
+    const start = new Date(startedAt)
+    const end = new Date(endedAt)
+    const durationMs = end.getTime() - start.getTime()
+    const minutes = Math.floor(durationMs / 60000)
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    
+    if (hours > 0) {
+      return `${hours}h ${mins}m`
+    }
+    return `${mins}m`
   }
 
   const handleReaction = async (streamId: string, reactionType: 'like' | 'dislike') => {
@@ -146,6 +197,16 @@ export const LivestreamDiscovery: React.FC = () => {
 
   const handleJoinStream = async (stream: Stream) => {
     try {
+      console.log('Attempting to join stream:', stream)
+      console.log('Channel name:', stream.channel)
+      
+      // Validate channel name exists
+      if (!stream.channel) {
+        console.error('❌ Stream has no channel!', stream)
+        alert('Unable to join stream - invalid channel information. Please try again.')
+        return
+      }
+      
       // Check if stream is paid and user doesn't have access
       if (!stream.is_free && !stream.has_access) {
         // Navigate to payment page
@@ -169,7 +230,8 @@ export const LivestreamDiscovery: React.FC = () => {
       }
 
       // Navigate to stream viewer
-      navigate(`/watch-stream/${stream.channel_name}`)
+      console.log('✅ Navigating to:', `/watch-stream/${stream.channel}`)
+      navigate(`/watch-stream/${stream.channel}`)
     } catch (err: any) {
       console.error('Error joining stream:', err)
     }
@@ -227,28 +289,25 @@ export const LivestreamDiscovery: React.FC = () => {
 
   if (error) {
     return (
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardContent className="p-6">
-          <p className="text-red-500">{error}</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (streams.length === 0) {
-    return (
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardContent className="p-6">
-          <p className="text-gray-500">No active streams at the moment. Check back later!</p>
-        </CardContent>
-      </Card>
+      <MobileLayout title="Live Streams">
+        <Card className="w-full max-w-4xl mx-auto">
+          <CardContent className="p-6">
+            <p className="text-red-500">{error}</p>
+          </CardContent>
+        </Card>
+      </MobileLayout>
     )
   }
 
   return (
     <MobileLayout title="Live Streams">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {streams.map((stream) => (
+      <div className="space-y-6">
+        {/* Active Streams Section */}
+        {streams.length > 0 ? (
+          <div>
+            <h2 className="text-xl font-bold mb-4">Live Now</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {streams.map((stream) => (
           <Card key={stream.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -351,7 +410,66 @@ export const LivestreamDiscovery: React.FC = () => {
               </div>
             </CardFooter>
           </Card>
-        ))}
+              ))}
+            </div>
+          </div>
+        ) : (
+          <Card className="w-full">
+            <CardContent className="p-6">
+              <p className="text-gray-500 text-center">No active streams at the moment. Check back later!</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recently Ended Streams Section */}
+        {endedStreams.length > 0 && (
+          <div>
+            <h2 className="text-xl font-bold mb-4 text-gray-600">Recently Ended</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {endedStreams.map((stream) => (
+                <Card key={stream.id} className="opacity-75">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg text-gray-700">{stream.title}</CardTitle>
+                        <p className="text-sm text-gray-600 mt-1">
+                          by {stream.scholar.full_name}
+                        </p>
+                        <span className="inline-block px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded-full mt-2">
+                          ENDED
+                        </span>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-600">
+                        <strong>Duration:</strong> {formatDuration(stream.started_at, stream.ended_at)}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <strong>Peak viewers:</strong> {stream.viewer_count}
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <ThumbsUp className="w-4 h-4" />
+                          {stream.likes_count}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <ThumbsDown className="w-4 h-4" />
+                          {stream.dislikes_count}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Ended {new Date(stream.ended_at || '').toLocaleString()}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </MobileLayout>
   )

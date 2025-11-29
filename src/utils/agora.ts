@@ -7,7 +7,7 @@ import AgoraRTC, {
   type IRemoteAudioTrack,
 } from 'agora-rtc-sdk-ng'
 
-const APP_ID = import.meta.env.VITE_AGORA_APP_ID || ''
+const APP_ID: string | undefined = import.meta.env.VITE_AGORA_APP_ID
 
 export interface AgoraConfig {
   appId: string
@@ -27,37 +27,227 @@ export class AgoraService {
     videoTrack: null,
     audioTrack: null,
   }
+  // Cache tokens per channel+uid to avoid repeated function calls in quick succession
+  private tokenCache: Map<string, { token: string; appId: string; fetchedAt: number }> = new Map()
+  // Default token validity window (seconds) for cache reuse; can be tuned
+  private readonly tokenCacheTTL = 240 // 4 minutes reuse inside 1h token
+  private tokenListenersAttached = false
 
   constructor() {
-    this.client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' })
+    // Enable debug logging for troubleshooting
+    AgoraRTC.enableLogUpload()
+    AgoraRTC.setLogLevel(0) // 0 = DEBUG, 1 = INFO, 2 = WARNING, 3 = ERROR
+    
+    // Configure Agora to use North America data center
+    AgoraRTC.setArea({
+      areaCode: 'NORTH_AMERICA',
+      excludedArea: 'CHINA'
+    })
+    
+    console.log('AgoraRTC SDK version:', AgoraRTC.VERSION)
+    console.log('Browser check:', AgoraRTC.checkSystemRequirements())
+    console.log('Region configured: NORTH_AMERICA')
+    
+    this.client = AgoraRTC.createClient({ 
+      mode: 'live', // Changed to 'live' for broadcasting
+      codec: 'vp8',
+      role: 'host' // Default role
+    })
+    
+    console.log('Agora client created successfully')
+    
+    // Add event listeners for better debugging
+    this.client.on('connection-state-change', (curState, revState) => {
+      console.log(`Agora connection state changed from ${revState} to ${curState}`)
+    })
+    
+    this.client.on('network-quality', (stats) => {
+      console.log('Network quality:', stats)
+    })
+    
+    this.client.on('exception', (evt) => {
+      console.error('Agora exception:', evt)
+    })
   }
 
   async joinChannel(config: AgoraConfig, role: 'host' | 'audience' = 'audience'): Promise<void> {
     if (!this.client) throw new Error('Client not initialized')
 
-    // Generate token from backend (or use null for testing)
-    const { token, uid } = await generateAgoraToken(
-      config.channel,
-      String(config.uid),
-      role
-    )
+    console.log('→ Joining Agora channel:', config.channel)
 
-    // Use null token if empty string is returned (for testing without token service)
-    const finalToken = token === '' ? null : token
+    let appId = config.appId || APP_ID
+    let uid: string | number = config.uid || 0
 
-    await this.client.join(
-      config.appId || APP_ID,
-      config.channel,
-      finalToken,
-      uid
-    )
+    console.log('→ App ID:', appId)
+    console.log('→ Channel:', config.channel)
+    console.log('→ UID:', uid)
+    console.log('→ Role:', role)
+    console.log('→ Environment:', window.location.hostname)
+    console.log('→ Secure Context:', window.isSecureContext)
+
+    // App ID validation
+    if (!appId || typeof appId !== 'string' || appId.length !== 32 || !/^[a-f0-9]{32}$/i.test(appId)) {
+      throw new Error(`Invalid App ID provided: ${appId}`)
+    }
+    console.log('✅ App ID validation passed')
+
+    // Set client role
+    try {
+      await this.client.setClientRole(role === 'host' ? 'host' : 'audience')
+      console.log(`→ Client role set to ${role}`)
+    } catch (roleError: any) {
+      console.warn('Failed to set client role:', roleError.message)
+    }
+
+    console.log('→ Joining channel WITHOUT TOKEN (App ID only mode)...')
+    console.log('  - SDK version:', AgoraRTC.VERSION)
+    console.log('  - Browser supported:', AgoraRTC.checkSystemRequirements())
+
+    if (!navigator.onLine) {
+      throw new Error('Offline: Please reconnect to the internet before starting the stream.')
+    }
+
+    // NO TOKEN MODE - Just use App ID
+    console.log('→ Using App ID only mode (no token/certificate)')
+    console.time('agora_join_no_token')
+    try {
+      await this.client.join(appId, config.channel, null, uid)
+      console.timeEnd('agora_join_no_token')
+      console.log('✅ Joined channel successfully (no token)')
+      return
+    } catch (joinError: any) {
+      console.timeEnd('agora_join_no_token')
+      console.error('❌ Join failed:', joinError)
+
+      // Specific known error patterns
+      const msg = joinError?.message || ''
+      if (msg.includes('CAN_NOT_GET_GATEWAY_SERVER') || msg.includes('dynamic use static key')) {
+        throw new Error('Streaming authentication failed: Project requires token (certificate enabled) but valid token was not accepted. Verify token generation server and project security mode match.')
+      }
+      if (msg.includes('NETWORK_TIMEOUT') || msg.includes('NETWORK_ERROR')) {
+        throw new Error('Network instability prevented connecting to Agora. Please check DNS/firewall and retry.')
+      }
+      throw new Error(`Unable to connect to Agora: ${msg}`)
+    }
+  }
+
+  private async getOrFetchToken(appId: string, channel: string, uid: string | number, role: 'host' | 'audience', bypassCache = false): Promise<string> {
+    const cacheKey = `${channel}::${uid}`
+    const cached = this.tokenCache.get(cacheKey)
+    const now = Date.now()
+    if (!bypassCache && cached && (now - cached.fetchedAt) / 1000 < this.tokenCacheTTL) {
+      console.log('→ Reusing cached token (age seconds):', Math.floor((now - cached.fetchedAt)/1000))
+      return cached.token
+    }
+
+    console.log('→ Fetching token from Edge Function (with retry)...')
+    const maxAttempts = 3
+    const baseDelay = 600
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const timeoutMs = attempt === 1 ? 8000 : 4000
+      let timeoutHandle: any
+      try {
+        const { supabase } = await import('../utils/supabase/client')
+        
+        // Check session before making request
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          console.error('❌ No active session found')
+          throw new Error('Not authenticated. Please sign in and try again.')
+        }
+        console.log('✅ Session active, user:', session.user.id)
+        
+        const fetchPromise = supabase.functions.invoke('generate-agora-token', {
+          body: {
+            channelName: channel,
+            uid: uid,
+            role: role === 'host' ? 1 : 2,
+            expirationTimeInSeconds: 3600
+          }
+        })
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutHandle = setTimeout(() => reject(new Error(`Token fetch timeout after ${timeoutMs}ms`)), timeoutMs)
+        })
+        const start = performance.now()
+        const { data: tokenData, error: tokenError }: any = await Promise.race([fetchPromise, timeoutPromise])
+        clearTimeout(timeoutHandle)
+        const duration = Math.round(performance.now() - start)
+        console.log(`→ Token fetch attempt ${attempt} duration: ${duration}ms`)
+        if (tokenError) {
+          console.error(`❌ Attempt ${attempt} token server error:`, tokenError)
+          console.error('Error details:', JSON.stringify(tokenError, null, 2))
+          if (attempt === maxAttempts) throw new Error(tokenError.message || tokenError.toString() || 'Token server error')
+        } else if (!tokenData?.token) {
+          console.warn(`⚠️ Attempt ${attempt} empty token response`)
+          if (attempt === maxAttempts) throw new Error('Token server returned empty token')
+        } else {
+          if (tokenData.appId && tokenData.appId !== appId) {
+            console.log('→ Server App ID differs; using server App ID for diagnostics only (joining still uses provided appId).')
+          }
+            const token = tokenData.token.startsWith('007') ? tokenData.token : `007${tokenData.token}`
+            this.tokenCache.set(cacheKey, { token, appId: tokenData.appId || appId, fetchedAt: Date.now() })
+            console.log('✅ Token fetched (length:', token.length, ') preview:', token.substring(0,20)+'...')
+            return token
+        }
+      } catch (e: any) {
+        clearTimeout(timeoutHandle)
+        const msg = e?.message || e.toString()
+        console.warn(`⚠️ Attempt ${attempt} failed: ${msg}`)
+        if (attempt === maxAttempts) {
+          if (msg.includes('timeout')) {
+            throw new Error('Token server unreachable (timeout). Check Supabase Edge Function status or network connectivity.')
+          }
+          if (msg.includes('Failed to fetch') || msg.includes('Network')) {
+            throw new Error('Network error contacting token server. Verify internet connectivity and DNS.')
+          }
+          if (msg.includes('Unauthorized') || msg.includes('401')) {
+            throw new Error('Authentication failed. Please sign out and sign back in, then try again.')
+          }
+          throw new Error(`Token generation failed: ${msg}. Please check browser console for details.`)
+        }
+      }
+      // Backoff before next attempt
+      const delay = baseDelay * attempt + Math.floor(Math.random() * 150)
+      await new Promise(r => setTimeout(r, delay))
+    }
+    throw new Error('Unexpected token fetch loop termination')
+  }
+
+  private attachTokenRenewal(appId: string, channel: string, uid: string | number, role: 'host' | 'audience') {
+    if (!this.client || this.tokenListenersAttached) return
+    this.tokenListenersAttached = true
+    this.client.on('token-privilege-will-expire', async () => {
+      try {
+        console.log('🔄 Token will expire soon; renewing...')
+        const newToken = await this.getOrFetchToken(appId, channel, uid, role, true)
+        await this.client!.renewToken(newToken)
+        console.log('✅ Token renewed successfully (will-expire)')
+      } catch (e: any) {
+        console.error('❌ Failed to renew token (will-expire):', e?.message || e)
+      }
+    })
+    this.client.on('token-privilege-did-expire', async () => {
+      try {
+        console.log('⏰ Token expired; fetching new token...')
+        const newToken = await this.getOrFetchToken(appId, channel, uid, role, true)
+        await this.client!.renewToken(newToken)
+        console.log('✅ Token renewed successfully (did-expire)')
+      } catch (e: any) {
+        console.error('❌ Failed to renew token (did-expire):', e?.message || e)
+      }
+    })
   }
 
   async createLocalTracks(): Promise<LocalTracks> {
     try {
       console.log('→ Requesting device access...')
       
-      // Use simpler config for better compatibility
+      // Check for secure context first
+      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+        throw new Error('Camera access requires HTTPS or localhost. Current URL is not secure.')
+      }
+      
+      // Use simpler config for better compatibility - Agora SDK handles all permissions
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
         {
           // Audio settings
@@ -88,163 +278,257 @@ export class AgoraService {
       
       this.localTracks = { audioTrack, videoTrack }
       return this.localTracks
-    } catch (error: any) {
-      console.error('→ Device access failed:', error)
       
-      // Specific error handling
-      if (error.name === 'NotAllowedError' || error.code === 'PERMISSION_DENIED') {
-        throw new Error('Permission denied for camera or microphone')
-      } else if (error.name === 'NotFoundError' || error.code === 'DEVICE_NOT_FOUND') {
-        throw new Error('Camera or microphone not found')
-      } else if (error.name === 'NotReadableError' || error.code === 'DEVICE_BUSY') {
-        throw new Error('Camera or microphone is already in use')
+    } catch (error: any) {
+      console.error('Failed to create local tracks:', error)
+      
+      if (error.name === 'NotAllowedError') {
+        throw new Error('🎥 Camera or microphone permission denied. Please:\n\n1. Click the camera/microphone icon in your browser address bar\n2. Select "Allow" for both camera and microphone\n3. Refresh the page and try again\n\nNote: HTTPS is required for camera access.')
+      } else if (error.name === 'NotFoundError') {
+        throw new Error('📷 No camera or microphone found. Please:\n\n1. Connect a camera/microphone device\n2. Check if other applications are using the camera\n3. Restart your browser\n4. Try again')
+      } else if (error.name === 'OverconstrainedError') {
+        throw new Error('⚙️ Camera constraints not supported. Please:\n\n1. Try using a different camera\n2. Check camera resolution settings\n3. Update browser to latest version')
+      } else if (error.name === 'NotReadableError') {
+        throw new Error('📹 Camera is in use by another application. Please:\n\n1. Close other apps using the camera\n2. Restart your browser\n3. Try again')
+      } else if (error.message?.includes('screen') || error.message?.includes('display')) {
+        throw new Error('🖥️ Screen sharing unavailable. This may be due to:\n\n1. Browser security restrictions\n2. Screen sharing blocked by system\n3. Try using camera mode instead')
       } else {
-        throw new Error(error.message || 'Failed to access camera/microphone')
+        throw new Error(`❌ Failed to access camera/microphone: ${error.message}\n\nTroubleshooting:\n1. Check browser permissions\n2. Ensure HTTPS connection\n3. Try refreshing the page`)
       }
     }
   }
 
   async publishTracks(): Promise<void> {
     if (!this.client) throw new Error('Client not initialized')
-    
-    const tracks = []
-    if (this.localTracks.audioTrack) tracks.push(this.localTracks.audioTrack)
-    if (this.localTracks.videoTrack) tracks.push(this.localTracks.videoTrack)
-
-    if (tracks.length > 0) {
-      await this.client.publish(tracks)
+    if (!this.localTracks.videoTrack || !this.localTracks.audioTrack) {
+      throw new Error('Local tracks not created')
     }
+
+    console.log('→ Publishing local tracks...')
+    await this.client.publish([this.localTracks.videoTrack, this.localTracks.audioTrack])
+    console.log('✅ Local tracks published')
   }
 
-  async leaveChannel(): Promise<void> {
-    if (this.localTracks.audioTrack) {
-      this.localTracks.audioTrack.stop()
-      this.localTracks.audioTrack.close()
-    }
+  async unpublishTracks(): Promise<void> {
+    if (!this.client) return
+    if (!this.localTracks.videoTrack || !this.localTracks.audioTrack) return
+
+    console.log('→ Unpublishing local tracks...')
+    await this.client.unpublish([this.localTracks.videoTrack, this.localTracks.audioTrack])
+    console.log('✅ Local tracks unpublished')
+  }
+
+  async leave(): Promise<void> {
+    console.log('→ Leaving Agora channel...')
+    
+    // Stop and close local tracks
     if (this.localTracks.videoTrack) {
       this.localTracks.videoTrack.stop()
       this.localTracks.videoTrack.close()
+      this.localTracks.videoTrack = null
     }
+    
+    if (this.localTracks.audioTrack) {
+      this.localTracks.audioTrack.stop()
+      this.localTracks.audioTrack.close()
+      this.localTracks.audioTrack = null
+    }
+    
+    // Leave channel
+    if (this.client) {
+      await this.client.leave()
+      console.log('✅ Left Agora channel')
+    }
+  }
 
-    await this.client?.leave()
+  // Backwards-compatible alias used by UI code
+  async leaveChannel(): Promise<void> {
+    await this.leave()
+  }
+
+  playVideoTrack(track: ICameraVideoTrack | IRemoteVideoTrack, container: HTMLElement): void {
+    track.play(container)
+  }
+
+  async toggleVideo(enabled: boolean): Promise<void> {
+    if (this.localTracks.videoTrack) {
+      await this.localTracks.videoTrack.setEnabled(enabled)
+      console.log(`Video ${enabled ? 'enabled' : 'disabled'}`)
+    }
+  }
+
+  async toggleAudio(enabled: boolean): Promise<void> {
+    if (this.localTracks.audioTrack) {
+      await this.localTracks.audioTrack.setEnabled(enabled)
+      console.log(`Audio ${enabled ? 'enabled' : 'disabled'}`)
+    }
+  }
+
+  getRemoteUsers(): IAgoraRTCRemoteUser[] {
+    if (!this.client) return []
+    return this.client.remoteUsers || []
   }
 
   onUserJoined(callback: (user: IAgoraRTCRemoteUser) => void): void {
-    this.client?.on('user-joined', callback)
+    if (this.client) {
+      this.client.on('user-joined', callback)
+    }
   }
 
   onUserLeft(callback: (user: IAgoraRTCRemoteUser) => void): void {
-    this.client?.on('user-left', callback)
-  }
-
-  onUserPublished(
-    callback: (user: IAgoraRTCRemoteUser, mediaType: 'audio' | 'video') => void
-  ): void {
-    this.client?.on('user-published', callback)
-  }
-
-  async subscribeToUser(
-    user: IAgoraRTCRemoteUser,
-    mediaType: 'audio' | 'video'
-  ): Promise<IRemoteVideoTrack | IRemoteAudioTrack> {
-    if (!this.client) throw new Error('Client not initialized')
-    await this.client.subscribe(user, mediaType)
-    return mediaType === 'video' ? user.videoTrack! : user.audioTrack!
-  }
-
-  getLocalTracks(): LocalTracks {
-    return this.localTracks
-  }
-
-  getClient(): IAgoraRTCClient | null {
-    return this.client
-  }
-
-  async toggleAudio(): Promise<boolean> {
-    if (this.localTracks.audioTrack) {
-      await this.localTracks.audioTrack.setEnabled(
-        !this.localTracks.audioTrack.enabled
-      )
-      return this.localTracks.audioTrack.enabled
+    if (this.client) {
+      this.client.on('user-left', callback)
     }
-    return false
   }
 
-  async toggleVideo(): Promise<boolean> {
-    if (this.localTracks.videoTrack) {
-      await this.localTracks.videoTrack.setEnabled(
-        !this.localTracks.videoTrack.enabled
-      )
-      return this.localTracks.videoTrack.enabled
+  onUserPublished(callback: (user: IAgoraRTCRemoteUser, mediaType: 'video' | 'audio') => void): void {
+    if (this.client) {
+      this.client.on('user-published', callback)
     }
-    return false
   }
-}
 
-export const generateAgoraToken = async (
-  channelName: string,
-  _uid: string,
-  role: 'host' | 'audience'
-): Promise<{ token: string; uid: string }> => {
-  // Import supabase client directly
-  const { supabase } = await import('./supabase/client')
-  
-  // Get current session with retry
-  let session = null
-  for (let i = 0; i < 3; i++) {
-    const { data } = await supabase.auth.getSession()
-    if (data.session) {
-      session = data.session
-      break
+  onUserUnpublished(callback: (user: IAgoraRTCRemoteUser, mediaType: 'video' | 'audio') => void): void {
+    if (this.client) {
+      this.client.on('user-unpublished', callback)
     }
-    // Wait a bit before retry
-    await new Promise(resolve => setTimeout(resolve, 300))
   }
-  
-  if (!session) {
-    throw new Error('Authentication required. Please sign in and try again.')
-  }
-  
-  console.log('Generating Agora token with session:', session.user.id)
 
-  // For development/testing: Use null token (requires Agora project to allow it)
-  // In production, you would call the backend function
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  
-  try {
-    // Try to call backend function to generate token
-    const response = await fetch(
-      `${supabaseUrl}/functions/v1/generate-agora-token`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          channelName,
-          role,
-        }),
+  async subscribeUser(user: IAgoraRTCRemoteUser, mediaType: 'video' | 'audio'): Promise<void> {
+    if (this.client) {
+      await this.client.subscribe(user, mediaType)
+    }
+  }
+
+  async unsubscribeUser(user: IAgoraRTCRemoteUser, mediaType: 'video' | 'audio'): Promise<void> {
+    if (this.client) {
+      await this.client.unsubscribe(user, mediaType)
+    }
+  }
+
+  getRemoteVideoTrack(user: IAgoraRTCRemoteUser): IRemoteVideoTrack | undefined {
+    return user.videoTrack
+  }
+
+  getRemoteAudioTrack(user: IAgoraRTCRemoteUser): IRemoteAudioTrack | undefined {
+    return user.audioTrack
+  }
+
+  /**
+   * Comprehensive diagnostic method to check system capabilities
+   */
+  async runDiagnostics(): Promise<{
+    cameras: boolean
+    microphones: boolean
+    screenShare: boolean
+    networkConnectivity: boolean
+    httpsConnection: boolean
+    browserSupport: boolean
+    diagnosticResults: string[]
+  }> {
+    const results: string[] = []
+    const diagnostics = {
+      cameras: false,
+      microphones: false,
+      screenShare: false,
+      networkConnectivity: false,
+      httpsConnection: false,
+      browserSupport: false,
+      diagnosticResults: results
+    }
+
+    // Check HTTPS
+    diagnostics.httpsConnection = window.location.protocol === 'https:' || window.location.hostname === 'localhost'
+    if (!diagnostics.httpsConnection) {
+      results.push('❌ HTTPS required for camera/microphone access')
+    } else {
+      results.push('✅ HTTPS connection available')
+    }
+
+    // Check browser support
+    diagnostics.browserSupport = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    if (!diagnostics.browserSupport) {
+      results.push('❌ Browser does not support media devices')
+    } else {
+      results.push('✅ Browser supports media devices')
+    }
+
+    // Check available devices
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const cameras = devices.filter(device => device.kind === 'videoinput')
+      const microphones = devices.filter(device => device.kind === 'audioinput')
+      
+      diagnostics.cameras = cameras.length > 0
+      diagnostics.microphones = microphones.length > 0
+      
+      if (diagnostics.cameras) {
+        results.push(`✅ ${cameras.length} camera(s) detected`)
+      } else {
+        results.push('❌ No cameras detected')
       }
-    )
-
-    if (!response.ok) {
-      // If function not deployed, use null token (works if Agora app security is disabled)
-      console.warn('Token generation service unavailable, using null token for testing')
-      return { 
-        token: '', // null token
-        uid: session.user.id 
+      
+      if (diagnostics.microphones) {
+        results.push(`✅ ${microphones.length} microphone(s) detected`)
+      } else {
+        results.push('❌ No microphones detected')
       }
+    } catch (error) {
+      results.push(`⚠️ Could not enumerate devices: ${(error as Error).message}`)
     }
 
-    const data = await response.json()
-    return { token: data.token, uid: data.uid }
-  } catch (error) {
-    // Network error or function not available - use null token for testing
-    console.warn('Token generation failed, using null token for testing:', error)
-    return { 
-      token: '', // null token
-      uid: session.user.id 
+    // Check screen sharing capability
+    try {
+      if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
+        diagnostics.screenShare = true
+        results.push('✅ Screen sharing supported')
+      } else {
+        diagnostics.screenShare = false
+        results.push('❌ Screen sharing not supported')
+      }
+    } catch (error) {
+      results.push(`⚠️ Screen sharing check failed: ${(error as Error).message}`)
     }
+
+    // Check network connectivity
+    try {
+      await fetch('https://jtmmeumzjcldqukpqcfi.supabase.co/rest/v1/', {
+        method: 'HEAD',
+        mode: 'no-cors'
+      })
+      diagnostics.networkConnectivity = true
+      results.push('✅ Network connectivity to Supabase')
+    } catch (error) {
+      diagnostics.networkConnectivity = false
+      results.push('❌ No network connectivity to Supabase')
+    }
+
+    return diagnostics
+  }
+
+  /**
+   * Get user-friendly error message for token generation failures
+   */
+  static getTokenErrorMessage(error: any): string {
+    if (!error) return 'Unknown token generation error'
+    
+    const message = error.message || error.toString()
+    
+    if (message.includes('Unauthorized') || message.includes('401')) {
+      return '🔐 Authentication required. Please sign in to use livestreaming features.'
+    }
+    
+    if (message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch')) {
+      return '🌐 Network error. Please check your internet connection and try again.'
+    }
+    
+    if (message.includes('Function not found')) {
+      return '⚙️ Server configuration issue. Edge functions not deployed.'
+    }
+    
+    if (message.includes('certificate')) {
+      return '🔑 Server configuration issue. Missing authentication certificates.'
+    }
+    
+    return `❌ Failed to generate streaming token: ${message}\n\nPlease check your internet connection and try again.`
   }
 }

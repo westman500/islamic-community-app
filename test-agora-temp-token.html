@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Agora Temp Token</title>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.24.1.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+        button:hover { background: #45a049; }
+        #log {
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        .success { color: #4caf50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Testing Agora Temp Token</h1>
+        <button onclick="testToken()">🚀 Test Connection with Temp Token</button>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const APP_ID = '6bc4256e9b5349f38d791a3c86b535a7';
+        const TEMP_TOKEN = '0066bc4256e9b5349f38d791a3c86b535a7IACMhtTMBN5YnxoTcu4osI2qLJz6cneFNTlpltzAhJxbESHf2/QAAAAAEADlYzhQcN4raQEA6ANw3itp';
+        const CHANNEL = 'test_channel'; // Must match the channel used when generating the token
+        
+        const logDiv = document.getElementById('log');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function testToken() {
+            logDiv.innerHTML = '';
+            log('=== TESTING AGORA TEMP TOKEN ===');
+            log('');
+            log(`App ID: ${APP_ID}`);
+            log(`Token: ${TEMP_TOKEN.substring(0, 40)}...`);
+            log(`Token length: ${TEMP_TOKEN.length} characters`);
+            log(`Channel: ${CHANNEL}`);
+            log('');
+
+            try {
+                // Configure North America region
+                log('Configuring region: NORTH_AMERICA...');
+                AgoraRTC.setArea({
+                    areaCode: 'NORTH_AMERICA',
+                    excludedArea: 'CHINA'
+                });
+                log('✅ Region configured', 'success');
+
+                // Create client
+                log('Creating Agora client...');
+                const client = AgoraRTC.createClient({ 
+                    mode: 'live',
+                    codec: 'vp8' 
+                });
+                log('✅ Client created', 'success');
+
+                // Set role to host
+                log('Setting role to host...');
+                await client.setClientRole('host');
+                log('✅ Role set to host', 'success');
+
+                // Join channel
+                log('');
+                log('⏳ Joining channel with temp token...');
+                log('This is the moment of truth...');
+                
+                const uid = await client.join(APP_ID, CHANNEL, TEMP_TOKEN, 0);
+
+                log('');
+                log('🎉🎉🎉 SUCCESS! 🎉🎉🎉', 'success');
+                log('', 'success');
+                log('✅ Connected to Agora successfully!', 'success');
+                log(`✅ Assigned UID: ${uid}`, 'success');
+                log('', 'success');
+                log('=== DIAGNOSIS ===', 'success');
+                log('✅ Your App ID is VALID and EXISTS', 'success');
+                log('✅ Your Certificate is VALID', 'success');
+                log('✅ Token authentication is WORKING', 'success');
+                log('✅ Project is in "Secured mode" (App ID + Token)', 'success');
+                log('', 'success');
+                log('📌 PROBLEM IDENTIFIED:', 'success');
+                log('Our edge function token generation format is INCORRECT', 'success');
+                log('We need to match the Agora temp token format exactly', 'success');
+
+                // Leave channel
+                await client.leave();
+                log('');
+                log('Disconnected from test channel');
+
+            } catch (error) {
+                log('');
+                log('❌ CONNECTION FAILED', 'error');
+                log(`Error: ${error.message}`, 'error');
+                log(`Code: ${error.code}`, 'error');
+                log('');
+
+                if (error.message.includes('invalid vendor key') || error.message.includes('can not find appid')) {
+                    log('=== PROBLEM ===', 'error');
+                    log('The temp token channel name might not match', 'error');
+                    log('Go back to Agora Token Builder and use channel: test_channel', 'error');
+                } else {
+                    log('Unexpected error. See details above.', 'error');
+                }
+
+                console.error(error);
+            }
+        }
+
+        log('Ready to test. Click the button above.');
+        log('');
+        log('⚠️ NOTE: The channel name must match what you used in Token Builder');
+        log('Default channel name is: test_channel');
+    </script>
+</body>
+</html>

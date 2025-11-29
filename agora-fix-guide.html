@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agora Project Configuration Checker</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .step { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .code { font-family: monospace; background: #e9ecef; padding: 2px 4px; border-radius: 3px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Agora Configuration Fix Guide</h1>
+    
+    <div class="error">
+        <h3>❌ Current Issue: Token Generation Failed</h3>
+        <p>Your Agora project is set to require tokens, but token generation is failing.</p>
+    </div>
+    
+    <div class="step">
+        <h3>🎯 SOLUTION 1: Switch to App ID Mode (Recommended for Testing)</h3>
+        <p><strong>This is the quickest fix and will work immediately:</strong></p>
+        <ol>
+            <li>Open <a href="https://console.agora.io" target="_blank">Agora Console</a></li>
+            <li>Find your project with App ID: <span class="code">1a3cb8e2d1174dd097edcc38466983a0</span></li>
+            <li>Click on your project to open it</li>
+            <li>Go to <strong>Authentication</strong> in the left sidebar</li>
+            <li>Change the mode from <strong>"Token"</strong> to <strong>"App ID"</strong></li>
+            <li>Click <strong>"Save"</strong></li>
+            <li>Return to your app and try streaming again</li>
+        </ol>
+        <button onclick="window.open('https://console.agora.io', '_blank')">Open Agora Console</button>
+    </div>
+    
+    <div class="step">
+        <h3>🎯 SOLUTION 2: Fix Token Generation (Advanced)</h3>
+        <p>If you need token authentication for production:</p>
+        <ol>
+            <li>Check your Supabase project is deployed</li>
+            <li>Verify the edge function <span class="code">generate-agora-token</span> is deployed</li>
+            <li>Ensure <span class="code">AGORA_APP_CERTIFICATE</span> secret is set in Supabase</li>
+            <li>Check your internet connection</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h3>🧪 Test Your Configuration</h3>
+        <p>After making changes, test your configuration:</p>
+        <ul>
+            <li><a href="http://localhost:5174/test-agora" target="_blank">Test Agora Connection</a></li>
+            <li><a href="http://localhost:5174/scholar-live-stream" target="_blank">Test Live Streaming</a></li>
+        </ul>
+        <button onclick="window.open('http://localhost:5174/test-agora', '_blank')">Test Agora</button>
+        <button onclick="window.open('http://localhost:5174/scholar-live-stream', '_blank')">Test Streaming</button>
+    </div>
+    
+    <div class="warning">
+        <h3>⚠️ Important Notes:</h3>
+        <ul>
+            <li><strong>App ID Mode:</strong> Simpler, works immediately, good for testing</li>
+            <li><strong>Token Mode:</strong> More secure, required for production, needs proper setup</li>
+            <li><strong>Free Minutes:</strong> Both modes use your Agora free minutes</li>
+            <li><strong>Switch Anytime:</strong> You can change between modes in Agora Console</li>
+        </ul>
+    </div>
+    
+    <div class="success" style="margin-top: 30px;">
+        <h3>✅ What Happens Next:</h3>
+        <p>Once you switch to App ID mode:</p>
+        <ul>
+            <li>Your app will connect directly without tokens</li>
+            <li>Live streaming will work immediately</li>
+            <li>Camera and microphone will be accessible</li>
+            <li>You can test both web and Android APK</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Auto-refresh detection
+        setInterval(() => {
+            const status = document.getElementById('connection-status');
+            if (status) {
+                // You can add connection testing logic here
+            }
+        }, 10000);
+    </script>
+</body>
+</html>

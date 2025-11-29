@@ -15,6 +15,20 @@ export const UserSignIn: React.FC = () => {
   const { signIn } = useAuth()
   const navigate = useNavigate()
 
+  // Clear any stale loading states on mount
+  React.useEffect(() => {
+    setLoading(false)
+    setError('')
+    
+    // Force clear any stuck states for existing accounts
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('clear') === 'true') {
+      localStorage.clear()
+      sessionStorage.clear()
+      window.location.href = '/'
+    }
+  }, [])
+
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
@@ -53,16 +67,26 @@ export const UserSignIn: React.FC = () => {
     setError('')
     setLoading(true)
 
+    // Safety timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Sign-in timeout reached, resetting loading state')
+      setLoading(false)
+      setError('Sign-in is taking too long. Please refresh and try again.')
+    }, 10000) // 10 second timeout
+
     try {
       console.log('UserSignIn: Calling signIn...')
       await signIn(email, password)
       console.log('UserSignIn: signIn completed successfully, navigating...')
       
-      // Navigate immediately - the AuthContext and ProtectedRoute will handle the rest
+      clearTimeout(timeoutId)
+      setLoading(false)
+      
+      // Navigate after successful sign-in
       navigate('/dashboard', { replace: true })
-      // Keep loading true to prevent double submission
     } catch (err: any) {
       console.error('UserSignIn: Sign in error:', err)
+      clearTimeout(timeoutId)
       setError(err.message || 'Failed to sign in')
       setLoading(false)
     }

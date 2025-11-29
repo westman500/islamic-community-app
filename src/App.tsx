@@ -41,6 +41,8 @@ import { AvailableScholars } from './components/AvailableScholars'
 import { MyBookings } from './components/MyBookings'
 import { ActivityCategories } from './components/ActivityCategories'
 import { ActivitiesByCategory } from './components/ActivitiesByCategory'
+import { AgoraTest } from './components/AgoraTest'
+import { TokenDiagnostics } from './components/TokenDiagnostics'
 
 function App() {
   return (
@@ -54,6 +56,16 @@ function App() {
             <Route path="/signup" element={<UserSignUp />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
+            
+            {/* Diagnostic routes */}
+            <Route
+              path="/token-diagnostics"
+              element={
+                <ProtectedRoute>
+                  <TokenDiagnostics />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Main Dashboard */}
             <Route
@@ -92,6 +104,14 @@ function App() {
             />
 
             {/* Member-only routes */}
+            <Route
+              path="/watch-stream/:channelName"
+              element={
+                <ProtectedRoute allowedRoles={['user']}>
+                  <UserPrayerServiceViewer />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/watch-stream"
               element={
@@ -233,6 +253,16 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AccountDeletion />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Debug/Test Routes */}
+            <Route
+              path="/test-agora"
+              element={
+                <ProtectedRoute>
+                  <AgoraTest />
                 </ProtectedRoute>
               }
             />

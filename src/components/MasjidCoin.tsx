@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { useAuth } from '../contexts/AuthContext'
+// Removed unused import
 import { Coins, DollarSign, TrendingUp, Zap, Heart, Video, Calendar } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 
@@ -16,7 +16,7 @@ interface Transaction {
 }
 
 export const MasjidCoin: React.FC = () => {
-  const { profile } = useAuth()
+  // Removed unused destructure to clear diagnostics
   const [coinBalance, setCoinBalance] = useState(0)
   const [depositAmount, setDepositAmount] = useState('')
   const [transactions, setTransactions] = useState<Transaction[]>([])
