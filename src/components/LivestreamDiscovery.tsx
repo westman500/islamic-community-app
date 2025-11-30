@@ -11,7 +11,7 @@ interface Stream {
   id: string
   scholar_id: string
   title: string
-  channel_name: string
+  channel: string
   is_active: boolean
   price: number
   is_free: boolean

@@ -256,8 +256,8 @@ export class AgoraService {
           ANS: true,
         },
         {
-          // Video settings - optimized for mobile
-          encoderConfig: '480p_1',
+          // Video settings - High quality for best viewing experience
+          encoderConfig: '720p_2', // 1280x720 @ 30fps, 2130 Kbps
           facingMode: 'user',
         }
       )
