@@ -103,7 +103,9 @@ export const ScholarProfileViewer: React.FC = () => {
   }, [reviewFilter])
 
   const handleBookConsultation = () => {
-    navigate(`/book-consultation?scholarId=${scholarId}`)
+    if (scholar) {
+      navigate(`/consultation/${scholar.id}`)
+    }
   }
 
   const handleMessageScholar = () => {
@@ -324,12 +326,12 @@ export const ScholarProfileViewer: React.FC = () => {
         </CardContent>
 
         {!isOwnProfile && (
-          <CardFooter className="flex gap-3">
-            <Button onClick={handleBookConsultation} className="flex-1">
+          <CardFooter className="flex flex-col sm:flex-row gap-2 sm:gap-3 p-3">
+            <Button onClick={handleBookConsultation} className="w-full sm:flex-1 text-sm">
               <Calendar className="w-4 h-4 mr-2" />
               Book Consultation
             </Button>
-            <Button onClick={handleMessageScholar} variant="outline" className="flex-1">
+            <Button onClick={handleMessageScholar} variant="outline" className="w-full sm:flex-1 text-sm">
               <MessageCircle className="w-4 h-4 mr-2" />
               Message
             </Button>

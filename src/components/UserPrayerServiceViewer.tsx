@@ -4,8 +4,10 @@ import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
 import { AgoraService } from '../utils/agora'
-import { Users, Volume2, VolumeX, ThumbsUp, ThumbsDown, Heart } from 'lucide-react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Users, Volume2, VolumeX, ThumbsUp, ThumbsDown, Heart, Maximize, Minimize, PictureInPicture2 } from 'lucide-react'
+import { useParams } from 'react-router-dom'
+import { FloatingReactions, triggerReaction } from './FloatingReactions'
+import { ZakatModal } from './ZakatModal'
 
 interface ActiveStream {
   id: string
@@ -20,7 +22,6 @@ interface ActiveStream {
 export const UserPrayerServiceViewer: React.FC = () => {
   const { profile } = useAuth()
   const { channelName } = useParams<{ channelName?: string }>()
-  const navigate = useNavigate()
   
   console.log('UserPrayerServiceViewer loaded with channelName:', channelName)
   const [activeStreams, setActiveStreams] = useState<ActiveStream[]>([])
@@ -33,15 +34,43 @@ export const UserPrayerServiceViewer: React.FC = () => {
   const [hasDisliked, setHasDisliked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
   const [dislikesCount, setDislikesCount] = useState(0)
+  const [showZakatModal, setShowZakatModal] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isPiP, setIsPiP] = useState(false)
   
   const agoraService = useRef<AgoraService | null>(null)
   const remoteVideoRef = useRef<HTMLDivElement>(null)
+  const videoContainerRef = useRef<HTMLDivElement>(null)
 
   // Fetch active streams
   useEffect(() => {
     fetchActiveStreams()
     const interval = setInterval(fetchActiveStreams, 10000) // Refresh every 10 seconds
     return () => clearInterval(interval)
+  }, [])
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Listen for picture-in-picture changes
+  useEffect(() => {
+    const handlePiPChange = () => {
+      setIsPiP(!!document.pictureInPictureElement)
+    }
+
+    document.addEventListener('enterpictureinpicture', handlePiPChange)
+    document.addEventListener('leavepictureinpicture', handlePiPChange)
+    return () => {
+      document.removeEventListener('enterpictureinpicture', handlePiPChange)
+      document.removeEventListener('leavepictureinpicture', handlePiPChange)
+    }
   }, [])
 
   // Poll viewer count and reactions when watching stream
@@ -62,6 +91,7 @@ export const UserPrayerServiceViewer: React.FC = () => {
         }
 
         if (streamData) {
+          console.log('📊 Polled viewer count:', streamData.viewer_count)
           setSelectedStream(prev => prev ? { ...prev, viewerCount: streamData.viewer_count || 0 } : null)
           setLikesCount(streamData.likes_count || 0)
           setDislikesCount(streamData.dislikes_count || 0)
@@ -86,7 +116,8 @@ export const UserPrayerServiceViewer: React.FC = () => {
       }
     }
 
-    pollStreamData() // Initial load
+    // Immediate poll when connected (give scholar 500ms to update DB)
+    setTimeout(() => pollStreamData(), 500)
     const interval = setInterval(pollStreamData, 3000) // Poll every 3 seconds
 
     return () => clearInterval(interval)
@@ -242,8 +273,6 @@ export const UserPrayerServiceViewer: React.FC = () => {
               
               console.log('✅ Audio playing through device speakers at volume 100')
               console.log('📊 Audio track state:', {
-                enabled: audioTrack.enabled,
-                muted: audioTrack.muted,
                 volumeLevel: audioTrack.getVolumeLevel()
               })
               
@@ -400,6 +429,9 @@ export const UserPrayerServiceViewer: React.FC = () => {
         setHasLiked(true)
         setLikesCount(prev => prev + 1)
         
+        // Trigger floating reaction animation
+        triggerReaction('like')
+        
         // Update stream likes count
         await supabase
           .from('streams')
@@ -463,6 +495,9 @@ export const UserPrayerServiceViewer: React.FC = () => {
         setHasDisliked(true)
         setDislikesCount(prev => prev + 1)
         
+        // Trigger floating reaction animation
+        triggerReaction('dislike')
+        
         // Update stream dislikes count
         await supabase
           .from('streams')
@@ -475,7 +510,45 @@ export const UserPrayerServiceViewer: React.FC = () => {
   }
 
   const handleZakat = () => {
-    navigate('/masjid-coin')
+    setShowZakatModal(true)
+  }
+
+  const toggleFullscreen = async () => {
+    if (!videoContainerRef.current) return
+
+    try {
+      if (!document.fullscreenElement) {
+        await videoContainerRef.current.requestFullscreen()
+        setIsFullscreen(true)
+      } else {
+        await document.exitFullscreen()
+        setIsFullscreen(false)
+      }
+    } catch (err) {
+      console.error('Fullscreen error:', err)
+    }
+  }
+
+  const togglePictureInPicture = async () => {
+    if (!remoteVideoRef.current) return
+
+    try {
+      const videoElement = remoteVideoRef.current.querySelector('video')
+      if (!videoElement) {
+        console.warn('No video element found for PiP')
+        return
+      }
+
+      if (!document.pictureInPictureElement) {
+        await videoElement.requestPictureInPicture()
+        setIsPiP(true)
+      } else {
+        await document.exitPictureInPicture()
+        setIsPiP(false)
+      }
+    } catch (err) {
+      console.error('Picture-in-Picture error:', err)
+    }
   }
 
   useEffect(() => {
@@ -591,8 +664,37 @@ export const UserPrayerServiceViewer: React.FC = () => {
               </div>
 
               {/* Video player */}
-              <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+              <div 
+                ref={videoContainerRef}
+                className={`relative aspect-video bg-black rounded-lg overflow-hidden group ${isPiP ? 'ring-4 ring-blue-500' : ''}`}
+              >
                 <div ref={remoteVideoRef} className="w-full h-full" />
+                
+                {/* Video controls overlay (show on hover) */}
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10">
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={toggleFullscreen}
+                    className="bg-black/50 hover:bg-black/70 text-white"
+                    title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                  >
+                    {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={togglePictureInPicture}
+                    className="bg-black/50 hover:bg-black/70 text-white"
+                    title="Picture-in-Picture"
+                  >
+                    <PictureInPicture2 className="h-5 w-5" />
+                  </Button>
+                </div>
+                
+                {/* Floating reactions overlay */}
+                <FloatingReactions />
+                
                 {!isConnected && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black">
                     <div className="text-white text-center">
@@ -670,6 +772,16 @@ export const UserPrayerServiceViewer: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      
+      {/* Zakat Modal */}
+      {selectedStream && (
+        <ZakatModal
+          isOpen={showZakatModal}
+          onClose={() => setShowZakatModal(false)}
+          scholarId={selectedStream.scholarId}
+          streamTitle={selectedStream.title}
+        />
+      )}
     </div>
   )
 }
