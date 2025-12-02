@@ -148,8 +148,8 @@ async function handleSuccessfulCharge(supabase: any, event: PaystackEvent) {
   console.log(`Processing ${transactionType} for user ${userId}, amount: ${amountInNaira}`)
 
   if (transactionType === 'deposit') {
-    // Convert deposited amount to MasjidCoins (1 Naira = 10 coins)
-    const CONVERSION_RATE = 10
+    // Convert deposited amount to MasjidCoins (100 Naira = 1 coin)
+    const CONVERSION_RATE = 0.01
     const coinsToAdd = Math.floor(amountInNaira * CONVERSION_RATE)
 
     // Update user's coin balance

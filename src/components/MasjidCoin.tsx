@@ -24,8 +24,8 @@ export const MasjidCoin: React.FC = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // Conversion rate: $1 = 100 Masjid Coins
-  const CONVERSION_RATE = 100
+  // Conversion rate: 100 Naira = 1 Masjid Coin
+  const CONVERSION_RATE = 0.01
 
   useEffect(() => {
     fetchCoinBalance()

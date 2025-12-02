@@ -197,7 +197,7 @@ All payment-related tables have Row Level Security enabled:
 1. User clicks "Deposit" → Opens Paystack popup
 2. User completes payment → Paystack charges card
 3. Paystack sends webhook → charge.success event
-4. Webhook handler converts Naira to coins (1:10 ratio)
+4. Webhook handler converts Naira to coins (100:1 ratio - 100 Naira = 1 coin)
 5. User balance updated in profiles table
 6. Transaction recorded in masjid_coin_transactions
 ```
@@ -245,7 +245,7 @@ All payment-related tables have Row Level Security enabled:
 ### Issue: Amount mismatch
 **Solution:**
 - Remember Paystack uses kobo (divide by 100 for Naira)
-- Check conversion rates (1 Naira = 10 MasjidCoins)
+- Check conversion rates (100 Naira = 1 MasjidCoin)
 - Verify amount is rounded to 2 decimal places
 
 ## 📱 Testing Payment Methods
