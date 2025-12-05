@@ -228,6 +228,45 @@ async function handleSuccessfulCharge(supabase: any, event: PaystackEvent) {
 
     console.log(`✅ Consultation payment confirmed: ${amountInNaira} Naira for booking ${bookingId}`)
 
+  } else if (transactionType === 'livestream') {
+    // Handle livestream access payment
+    const streamId = event.data.metadata.stream_id
+    if (!streamId) throw new Error('No stream ID for livestream payment')
+
+    // Update stream access payment status
+    const { error: accessError } = await supabase
+      .from('stream_access_payments')
+      .update({
+        payment_status: 'completed',
+        paid_at: event.data.paid_at
+      })
+      .eq('payment_reference', event.data.reference)
+
+    if (accessError) throw accessError
+
+    // Transfer funds to scholar's balance
+    const scholarId = event.data.metadata.scholar_id
+    if (scholarId) {
+      const { data: scholarProfile, error: scholarError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', scholarId)
+        .single()
+
+      if (scholarError) throw scholarError
+
+      const newScholarBalance = (scholarProfile.masjid_coin_balance || 0) + amountInNaira
+
+      const { error: updateScholarError } = await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newScholarBalance })
+        .eq('id', scholarId)
+
+      if (updateScholarError) throw updateScholarError
+    }
+
+    console.log(`✅ Livestream access payment confirmed: ${amountInNaira} Naira for stream ${streamId}`)
+
   } else if (transactionType === 'donation') {
     // Handle direct donation to scholar
     const recipientId = event.data.metadata.recipient_id

@@ -8,6 +8,7 @@ import { Users, Volume2, VolumeX, ThumbsUp, ThumbsDown, Heart, Maximize, Minimiz
 import { useParams } from 'react-router-dom'
 import { FloatingReactions, triggerReaction } from './FloatingReactions'
 import { ZakatModal } from './ZakatModal'
+import { initializePaystackPayment, generatePaymentReference } from '../utils/paystack'
 
 interface ActiveStream {
   id: string
@@ -258,11 +259,102 @@ export const UserPrayerServiceViewer: React.FC = () => {
     }
   }
 
-  const joinStream = async (stream: ActiveStream) => {
+  const handleStreamPayment = async (stream: ActiveStream, fee: number) => {
+    if (!profile?.id) {
+      setError('Please login to access paid streams')
+      return
+    }
+
+    const paymentReference = generatePaymentReference()
+    const accessRecordId = crypto.randomUUID()
+
+    try {
+      // Create pending access record
+      const { error: accessError } = await supabase
+        .from('stream_access_payments')
+        .insert({
+          id: accessRecordId,
+          stream_id: stream.id,
+          user_id: profile.id,
+          scholar_id: stream.scholarId,
+          amount_paid: fee,
+          payment_reference: paymentReference,
+          payment_status: 'pending'
+        })
+
+      if (accessError) throw accessError
+
+      // Initialize Paystack payment
+      await initializePaystackPayment(
+        profile.email || '',
+        fee,
+        paymentReference,
+        async (reference) => {
+          // Payment successful - webhook will handle database update
+          // Retry joining stream with bypass
+          setTimeout(() => {
+            joinStream(stream, true)
+          }, 2000)
+        },
+        () => {
+          // Payment cancelled
+          supabase
+            .from('stream_access_payments')
+            .delete()
+            .eq('id', accessRecordId)
+            .then(() => {
+              setError('Payment cancelled. Please pay to access this stream.')
+            })
+        },
+        {
+          transaction_type: 'livestream',
+          stream_id: stream.id,
+          scholar_id: stream.scholarId
+        }
+      )
+    } catch (err: any) {
+      setError(`Payment error: ${err.message}`)
+    }
+  }
+
+  const joinStream = async (stream: ActiveStream, bypassPayment = false) => {
     setError('')
     setSelectedStream(stream)
 
     try {
+      // Check if stream requires payment (fetch scholar's livestream_fee)
+      const { data: scholarData, error: scholarError } = await supabase
+        .from('profiles')
+        .select('livestream_fee')
+        .eq('id', stream.scholarId)
+        .single()
+
+      if (scholarError) throw scholarError
+
+      const livestreamFee = scholarData?.livestream_fee || 0
+
+      // If stream requires payment and not bypassed, check if user has paid
+      if (livestreamFee > 0 && !bypassPayment) {
+        // Check if user has already paid for this stream
+        const { data: accessData, error: accessError } = await supabase
+          .from('stream_access_payments')
+          .select('*')
+          .eq('stream_id', stream.id)
+          .eq('user_id', profile?.id)
+          .eq('payment_status', 'completed')
+          .single()
+
+        if (accessError && accessError.code !== 'PGRST116') { // PGRST116 = no rows
+          throw accessError
+        }
+
+        // If no valid payment found, trigger payment flow
+        if (!accessData) {
+          await handleStreamPayment(stream, livestreamFee)
+          return // Exit - payment flow will recall joinStream on success
+        }
+      }
+
       // Initialize Agora service
       agoraService.current = new AgoraService()
 
