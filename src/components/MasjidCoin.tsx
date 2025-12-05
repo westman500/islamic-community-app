@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-// Removed unused import
 import { Coins, DollarSign, TrendingUp, Zap, Heart, Video, Calendar } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
+import { supabase } from '../utils/supabase/client'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Transaction {
   id: string
@@ -16,7 +17,7 @@ interface Transaction {
 }
 
 export const MasjidCoin: React.FC = () => {
-  // Removed unused destructure to clear diagnostics
+  const { profile } = useAuth()
   const [coinBalance, setCoinBalance] = useState(0)
   const [depositAmount, setDepositAmount] = useState('')
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -33,39 +34,39 @@ export const MasjidCoin: React.FC = () => {
 
   const fetchCoinBalance = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await apiCall(`user-coins/${profile?.id}`)
-      // setCoinBalance(response.balance)
-      // setTransactions(response.transactions)
+      // Fetch real balance from database
+      if (!profile?.id) return
       
-      // Mock data
-      setCoinBalance(2500)
-      setTransactions([
-        {
-          id: 'txn_1',
-          amount: 25,
-          coins: 2500,
-          type: 'deposit',
-          description: 'Deposited funds',
-          date: '2025-11-19'
-        },
-        {
-          id: 'txn_2',
-          amount: 5,
-          coins: 500,
-          type: 'livestream',
-          description: 'Livestream tip to Imam Abdullah',
-          date: '2025-11-18'
-        },
-        {
-          id: 'txn_3',
-          amount: 10,
-          coins: 1000,
-          type: 'donation',
-          description: 'Donation to Sheikh Muhammad',
-          date: '2025-11-17'
-        }
-      ])
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', profile.id)
+        .single()
+      
+      if (profileError) throw profileError
+      
+      setCoinBalance(profileData?.masjid_coin_balance || 0)
+      
+      // Fetch transactions
+      const { data: txData, error: txError } = await supabase
+        .from('masjid_coin_transactions')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      
+      if (txError) throw txError
+      
+      const formattedTx = (txData || []).map(tx => ({
+        id: tx.id,
+        amount: Math.abs(tx.amount / 100), // Convert from coins to currency
+        coins: Math.abs(tx.amount),
+        type: tx.type,
+        description: tx.description,
+        date: new Date(tx.created_at).toLocaleDateString()
+      }))
+      
+      setTransactions(formattedTx)
     } catch (err) {
       console.error('Error fetching coin balance:', err)
     }

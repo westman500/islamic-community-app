@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-// Removed unused import
 import { Heart, DollarSign, TrendingUp, ArrowDownToLine, Eye, EyeOff } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
+import { supabase } from '../utils/supabase/client'
+import { useAuth } from '../contexts/AuthContext'
 
 interface ZakatTransaction {
   id: string
@@ -15,7 +16,7 @@ interface ZakatTransaction {
 }
 
 export const ScholarWallet: React.FC = () => {
-  // Removed unused destructure to clear diagnostics
+  const { profile } = useAuth()
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState<ZakatTransaction[]>([])
   const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -30,50 +31,38 @@ export const ScholarWallet: React.FC = () => {
 
   const fetchWalletData = async () => {
     try {
-      // TODO: Replace with actual API call to fetch wallet balance and transactions
-      // const response = await apiCall(`scholar-wallet/${profile?.id}`)
-      // setBalance(response.balance)
-      // setTransactions(response.transactions)
+      if (!profile?.id) return
       
-      // Mock data
-      setBalance(1250)
-      setTransactions([
-        {
-          id: 'txn_1',
-          amount: 50,
-          donorName: 'Ahmed Ali',
-          date: '2025-11-19',
-          type: 'zakat'
-        },
-        {
-          id: 'txn_2',
-          amount: 100,
-          donorName: 'Fatima Hassan',
-          date: '2025-11-18',
-          type: 'zakat'
-        },
-        {
-          id: 'txn_3',
-          amount: 500,
-          donorName: 'Bank Transfer',
-          date: '2025-11-17',
-          type: 'withdrawal'
-        },
-        {
-          id: 'txn_4',
-          amount: 75,
-          donorName: 'Yusuf Ibrahim',
-          date: '2025-11-16',
-          type: 'zakat'
-        },
-        {
-          id: 'txn_5',
-          amount: 200,
-          donorName: 'Aisha Mohammed',
-          date: '2025-11-15',
-          type: 'zakat'
-        }
-      ])
+      // Fetch real wallet balance from database
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', profile.id)
+        .single()
+      
+      if (profileError) throw profileError
+      
+      setBalance(profileData?.masjid_coin_balance || 0)
+      
+      // Fetch transactions (donations received and withdrawals)
+      const { data: txData, error: txError } = await supabase
+        .from('masjid_coin_transactions')
+        .select('*, donor:profiles!user_id(full_name)')
+        .or(`recipient_id.eq.${profile.id},user_id.eq.${profile.id}`)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      
+      if (txError) throw txError
+      
+      const formattedTx = (txData || []).map(tx => ({
+        id: tx.id,
+        amount: Math.abs(tx.amount),
+        donorName: tx.donor?.full_name || 'Anonymous',
+        date: new Date(tx.created_at).toLocaleDateString(),
+        type: tx.type === 'donation' ? 'zakat' : 'withdrawal'
+      }))
+      
+      setTransactions(formattedTx)
     } catch (err) {
       console.error('Error fetching wallet data:', err)
       setError('Failed to load wallet data')
@@ -98,29 +87,23 @@ export const ScholarWallet: React.FC = () => {
     setLoading(true)
 
     try {
-      // TODO: Integrate with payment gateway for withdrawal
-      // 1. Verify scholar bank account details
-      // 2. Initiate transfer
-      // 3. Record withdrawal in database
-      // 4. Update balance
+      // Create withdrawal request in database
+      const { error: withdrawalError } = await supabase
+        .from('withdrawal_requests')
+        .insert({
+          user_id: profile?.id,
+          amount: amount,
+          status: 'pending'
+        })
       
-      // Mock success for now
-      setTimeout(() => {
-        setBalance(prev => prev - amount)
-        setTransactions(prev => [
-          {
-            id: `txn_${Date.now()}`,
-            amount,
-            donorName: 'Bank Transfer',
-            date: new Date().toISOString().split('T')[0],
-            type: 'withdrawal'
-          },
-          ...prev
-        ])
-        setSuccess(`Successfully withdrew $${amount}`)
-        setWithdrawAmount('')
-        setLoading(false)
-      }, 1500)
+      if (withdrawalError) throw withdrawalError
+      
+      setSuccess(`Withdrawal request submitted for ₦${amount}. Processing may take 1-2 business days.`)
+      setWithdrawAmount('')
+      setLoading(false)
+      
+      // Refresh wallet data
+      fetchWalletData()
     } catch (err) {
       setError('Failed to process withdrawal')
       setLoading(false)

@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Heart, DollarSign } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
+import { supabase } from '../utils/supabase/client'
 
 interface Scholar {
   id: string
@@ -26,23 +27,21 @@ export const ZakatDonation: React.FC = () => {
 
   const fetchScholars = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await apiCall('scholars')
-      // setScholars(response.scholars)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, specialization')
+        .in('role', ['scholar', 'imam'])
+        .order('full_name')
       
-      // Mock data
-      setScholars([
-        {
-          id: 'scholar_1',
-          name: 'Imam Abdullah',
-          specialization: 'Quran & Tafsir',
-        },
-        {
-          id: 'scholar_2',
-          name: 'Sheikh Muhammad',
-          specialization: 'Fiqh & Hadith',
-        },
-      ])
+      if (error) throw error
+      
+      const formattedScholars = (data || []).map(s => ({
+        id: s.id,
+        name: s.full_name,
+        specialization: s.specialization || 'Islamic Studies'
+      }))
+      
+      setScholars(formattedScholars)
     } catch (err) {
       console.error('Error fetching scholars:', err)
     }
@@ -64,21 +63,35 @@ export const ZakatDonation: React.FC = () => {
     setLoading(true)
 
     try {
-      // TODO: Integrate with Paystack payment
-      // 1. Initialize Paystack transaction
-      // 2. Redirect to payment page
-      // 3. Handle callback
-      // 4. Record donation in database
+      // Integrate with Paystack payment
+      const { initializePaystackPayment, generatePaymentReference } = await import('../utils/paystack')
+      const { supabase } = await import('../utils/supabase/client')
       
-      // Mock success for now
-      setTimeout(() => {
-        setSuccess(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setError('You must be logged in to donate')
         setLoading(false)
-        setAmount('')
-        setSelectedScholar(null)
-        
-        setTimeout(() => setSuccess(false), 5000)
-      }, 2000)
+        return
+      }
+      
+      const reference = generatePaymentReference('DON')
+      
+      await initializePaystackPayment({
+        email: user.email || 'user@example.com',
+        amount: donationAmount,
+        reference,
+        metadata: {
+          user_id: user.id,
+          transaction_type: 'donation',
+          recipient_id: selectedScholar.id
+        }
+      })
+      
+      setSuccess(true)
+      setAmount('')
+      setSelectedScholar(null)
+      
+      setTimeout(() => setSuccess(false), 5000)
 
       // Example API call structure:
       // const response = await apiCall('donate', {

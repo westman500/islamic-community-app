@@ -44,24 +44,23 @@ export const ConsultationBooking: React.FC = () => {
 
   const fetchScholars = async () => {
     try {
-      // TODO: Replace with actual API call
-      // Mock data
-      setScholars([
-        {
-          id: 'scholar_1',
-          name: 'Imam Abdullah',
-          specialization: 'Quran & Tafsir',
-          availableSlots: ['10:00', '14:00', '16:00', '18:00'],
-          consultationFee: 25,
-        },
-        {
-          id: 'scholar_2',
-          name: 'Sheikh Muhammad',
-          specialization: 'Fiqh & Hadith',
-          availableSlots: ['11:00', '15:00', '17:00'],
-          consultationFee: 30,
-        },
-      ])
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, specialization, consultation_fee, available_slots')
+        .in('role', ['scholar', 'imam'])
+        .order('full_name')
+      
+      if (error) throw error
+      
+      const formattedScholars = (data || []).map(s => ({
+        id: s.id,
+        name: s.full_name,
+        specialization: s.specialization || 'Islamic Studies',
+        availableSlots: s.available_slots || [],
+        consultationFee: s.consultation_fee || 0
+      }))
+      
+      setScholars(formattedScholars)
     } catch (err) {
       console.error('Error fetching scholars:', err)
     }
@@ -69,15 +68,23 @@ export const ConsultationBooking: React.FC = () => {
 
   const fetchMyBookings = async () => {
     try {
-      // TODO: Replace with actual API call
-      // Mock data
-      setMyBookings([
-        {
-          id: 'booking_1',
-          scholarId: 'scholar_1',
-          scholarName: 'Imam Abdullah',
-          date: '2025-11-20',
-          time: '14:00',
+      if (!profile?.id) return
+      
+      const { data, error } = await supabase
+        .from('consultation_bookings')
+        .select('*, scholar:profiles!scholar_id(full_name)')
+        .eq('user_id', profile.id)
+        .order('booking_date', { ascending: false })
+        .limit(10)
+      
+      if (error) throw error
+      
+      const formattedBookings = (data || []).map(b => ({
+        id: b.id,
+        scholarId: b.scholar_id,
+        scholarName: b.scholar?.full_name || 'Unknown',
+        date: b.booking_date,
+        time: b.booking_time,
           topic: 'Questions about Salah',
           status: 'confirmed',
         },
