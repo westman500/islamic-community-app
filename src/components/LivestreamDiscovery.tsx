@@ -39,10 +39,32 @@ export const LivestreamDiscovery: React.FC = () => {
   useEffect(() => {
     fetchActiveStreams()
     
-    // Poll for updates every 10 seconds
-    const interval = setInterval(fetchActiveStreams, 10000)
+    // Poll for updates every 5 seconds (faster refresh)
+    const interval = setInterval(fetchActiveStreams, 5000)
     
-    return () => clearInterval(interval)
+    // Subscribe to realtime changes on streams table
+    const streamSubscription = supabase
+      .channel('streams-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'streams',
+        },
+        (payload) => {
+          console.log('Stream change detected:', payload)
+          // Immediately refetch when any stream changes
+          fetchActiveStreams()
+          fetchEndedStreams()
+        }
+      )
+      .subscribe()
+    
+    return () => {
+      clearInterval(interval)
+      streamSubscription.unsubscribe()
+    }
   }, [profile?.id])
 
   const fetchActiveStreams = async () => {

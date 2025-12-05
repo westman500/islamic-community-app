@@ -35,10 +35,28 @@ export const ScholarLiveStream: React.FC = () => {
     // Cleanup on unmount
     return () => {
       if (agoraService.current && isStreaming) {
-        stopStream()
+        // Call cleanup without awaiting to allow immediate unmount
+        handleStreamCleanup()
       }
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming])
+
+  const handleStreamCleanup = async () => {
+    try {
+      if (streamId) {
+        await supabase
+          .from('streams')
+          .update({
+            is_active: false,
+            ended_at: new Date().toISOString()
+          })
+          .eq('id', streamId)
+      }
+    } catch (err) {
+      console.error('Cleanup error:', err)
+    }
+  }
 
   // Play video preview when both track and ref are ready
   useEffect(() => {
@@ -299,52 +317,70 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
   }
 
   const stopStream = async () => {
+    console.log('🛑 Stopping stream...')
+    
+    // Immediately update UI state
+    setIsStreaming(false)
+    setViewerCount(0)
+    
     try {
-      if (agoraService.current) {
-        await agoraService.current.leaveChannel()
-        agoraService.current = null
-      }
-
-      // Update stream record in database
+      // Update database first (most critical)
       if (streamId) {
-        console.log('Stopping stream in database:', streamId)
+        console.log('📝 Updating stream in database:', streamId)
+        const endTime = new Date().toISOString()
+        
+        // Update stream status immediately
         const { error: streamError } = await supabase
           .from('streams')
           .update({
             is_active: false,
-            ended_at: new Date().toISOString()
+            ended_at: endTime,
+            viewer_count: 0
           })
           .eq('id', streamId)
 
         if (streamError) {
-          console.error('Error updating stream status:', streamError)
+          console.error('❌ Error updating stream status:', streamError)
         } else {
           console.log('✅ Stream marked as inactive in database')
         }
 
-        // Mark all participants as inactive
-        const { error: participantsError } = await supabase
+        // Mark all participants as inactive (don't await, let it happen in background)
+        supabase
           .from('stream_participants')
           .update({
             is_active: false,
-            left_at: new Date().toISOString()
+            left_at: endTime
           })
           .eq('stream_id', streamId)
           .eq('is_active', true)
-
-        if (participantsError) {
-          console.error('Error updating participants:', participantsError)
-        }
+          .then(({ error }) => {
+            if (error) console.error('❌ Error updating participants:', error)
+            else console.log('✅ Participants marked as inactive')
+          })
       }
 
-      setIsStreaming(false)
-      setViewerCount(0)
+      // Then cleanup Agora connection
+      if (agoraService.current) {
+        console.log('🔌 Disconnecting from Agora...')
+        await agoraService.current.leaveChannel()
+        agoraService.current = null
+        console.log('✅ Disconnected from Agora')
+      }
+
+      // Reset state
       setChannelName('')
       setStreamId(null)
+      setError('')
+      
+      console.log('✅ Stream stopped successfully')
 
     } catch (err: any) {
-      console.error('Error stopping stream:', err)
-      setError(err.message || 'Failed to stop stream')
+      console.error('❌ Error stopping stream:', err)
+      setError(err.message || 'Failed to stop stream completely, but stream is marked as ended')
+      // Still reset state even if there's an error
+      setChannelName('')
+      setStreamId(null)
     }
   }
 

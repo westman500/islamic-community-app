@@ -42,12 +42,41 @@ export const UserPrayerServiceViewer: React.FC = () => {
   const remoteVideoRef = useRef<HTMLDivElement>(null)
   const videoContainerRef = useRef<HTMLDivElement>(null)
 
-  // Fetch active streams
+  // Fetch active streams and subscribe to realtime changes
   useEffect(() => {
     fetchActiveStreams()
-    const interval = setInterval(fetchActiveStreams, 10000) // Refresh every 10 seconds
-    return () => clearInterval(interval)
-  }, [])
+    const interval = setInterval(fetchActiveStreams, 5000) // Refresh every 5 seconds
+    
+    // Subscribe to realtime stream updates
+    const streamSubscription = supabase
+      .channel('viewer-streams')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'streams',
+          filter: `is_active=eq.false`,
+        },
+        (payload: any) => {
+          console.log('Stream ended detected:', payload)
+          // If currently watching this stream, disconnect
+          if (selectedStream && payload.new.id === selectedStream.id) {
+            console.log('⚠️ Current stream ended by scholar, disconnecting...')
+            leaveStream()
+            setError('Stream has ended by the scholar')
+          }
+          // Refresh stream list
+          fetchActiveStreams()
+        }
+      )
+      .subscribe()
+    
+    return () => {
+      clearInterval(interval)
+      streamSubscription.unsubscribe()
+    }
+  }, [selectedStream])
 
   // Listen for fullscreen changes
   useEffect(() => {
