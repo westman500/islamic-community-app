@@ -37,26 +37,23 @@ supabase functions deploy paystack-webhook
 ### 5. Configure Paystack Webhook
 1. Go to https://dashboard.paystack.com/#/settings/developers
 2. Click "Webhooks"
-3. Add URL: `https://YOUR_PROJECT.supabase.co/functions/v1/paystack-webhook`
+3. Add URL: `https://hustlapp.onrender.com/api/paystackSub/webhook`
 4. Select events: `charge.success`, `transfer.success`, `transfer.failed`
 5. Save
 
 ## Verify Deployment
 
-### Check Function Status
+### Check Webhook Status
 ```bash
-supabase functions list
+# Test webhook endpoint is accessible
+curl https://hustlapp.onrender.com/api/paystackSub/webhook
 ```
 
 ### View Logs
-```bash
-supabase functions logs paystack-webhook --limit 50
-```
-
-### Stream Logs (Real-time)
-```bash
-supabase functions logs paystack-webhook --follow
-```
+- Go to https://dashboard.render.com
+- Select your service
+- Navigate to Logs tab
+- Monitor incoming webhook requests
 
 ## Test Webhook
 
@@ -93,16 +90,14 @@ supabase functions deploy paystack-webhook --no-verify-jwt
 
 ## Troubleshooting
 
-### Function Not Responding
+### Webhook Not Responding
 ```bash
-# Check function logs
-supabase functions logs paystack-webhook
+# Check if Render service is running
+curl https://hustlapp.onrender.com/api/paystackSub/webhook
 
-# Verify secrets are set
-supabase secrets list
-
-# Redeploy function
-supabase functions deploy paystack-webhook
+# Check Render service status at dashboard.render.com
+# Verify environment variables are set correctly
+# Check Render logs for errors
 ```
 
 ### Webhook Signature Fails

@@ -85,7 +85,7 @@ Expected output:
 
 2. **Add Webhook URL**
    ```
-   https://YOUR_PROJECT.supabase.co/functions/v1/paystack-webhook
+   https://hustlapp.onrender.com/api/paystackSub/webhook
    ```
 
 3. **Select Events to Monitor**
@@ -102,14 +102,14 @@ Expected output:
 
 ### Test Locally (Optional)
 ```bash
-# Start Supabase functions locally
-supabase functions serve paystack-webhook
+# The webhook is handled by external service at:
+# https://hustlapp.onrender.com/api/paystackSub/webhook
 
-# Use ngrok to expose local endpoint
-ngrok http 54321
+# To test locally, use ngrok to forward to your local backend:
+ngrok http YOUR_LOCAL_PORT
 
 # Update Paystack webhook URL temporarily to ngrok URL
-https://YOUR_NGROK_URL.ngrok.io/functions/v1/paystack-webhook
+https://YOUR_NGROK_URL.ngrok.io/api/paystackSub/webhook
 ```
 
 ### Test Payment Flow
@@ -225,10 +225,11 @@ All payment-related tables have Row Level Security enabled:
 
 ### Issue: Webhook not receiving events
 **Solution:**
-- Check webhook URL is correct and accessible
+- Check webhook URL is correct: https://hustlapp.onrender.com/api/paystackSub/webhook
 - Verify HTTPS (required by Paystack)
-- Check Supabase function logs: `supabase functions logs paystack-webhook`
+- Check if Render service is running and accessible
 - Test with "Send Test Event" in Paystack dashboard
+- Check Render logs for incoming webhook requests
 
 ### Issue: Invalid signature error
 **Solution:**
@@ -271,13 +272,13 @@ OTP: 123456
 
 ## 📈 Monitoring
 
-### View Paystack Logs
+### View Webhook Logs
 ```bash
-# View function logs
-supabase functions logs paystack-webhook --limit 50
+# View Render service logs:
+# Go to https://dashboard.render.com
+# Select your service > Logs tab
 
-# Stream logs in real-time
-supabase functions logs paystack-webhook --follow
+# Or check application logs if you have access to the backend
 ```
 
 ### Paystack Dashboard Metrics
@@ -299,8 +300,8 @@ When ready for production:
    ```
 
 2. **Update Webhook URL**
-   - Use production Supabase URL
-   - Verify HTTPS certificate
+   - Webhook URL remains: https://hustlapp.onrender.com/api/paystackSub/webhook
+   - Verify HTTPS certificate and service is running
 
 3. **Verify Business**
    - Complete KYC on Paystack
