@@ -5,6 +5,9 @@ import { Input } from './ui/input'
 import { usePermissions } from './ProtectedRoute'
 import { Calendar, Clock, MessageSquare } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
+import { supabase } from '../utils/supabase/client'
+import { useAuth } from '../contexts/AuthContext'
+import { initializePaystackPayment, generatePaymentReference } from '../utils/paystack'
 
 interface Scholar {
   id: string
@@ -26,6 +29,7 @@ interface Booking {
 
 export const ConsultationBooking: React.FC = () => {
   const permissions = usePermissions()
+  const { profile } = useAuth()
   const [scholars, setScholars] = useState<Scholar[]>([])
   const [selectedScholar, setSelectedScholar] = useState<Scholar | null>(null)
   const [selectedDate, setSelectedDate] = useState('')
@@ -105,31 +109,73 @@ export const ConsultationBooking: React.FC = () => {
       return
     }
 
+    if (!profile?.id) {
+      setError('User not authenticated')
+      return
+    }
+
     setError('')
     setLoading(true)
 
     try {
-      // TODO: API call to create booking and process payment
-      // const response = await apiCall('book-consultation', {
-      //   method: 'POST',
-      //   body: JSON.stringify({
-      //     scholarId: selectedScholar.id,
-      //     userId: profile?.id,
-      //     date: selectedDate,
-      //     time: selectedTime,
-      //     topic,
-      //     fee: selectedScholar.consultationFee
-      //   })
-      // })
+      // Create pending booking first
+      const bookingId = crypto.randomUUID()
+      const paymentReference = generatePaymentReference()
+      const amountInNaira = selectedScholar.consultationFee
 
-      setSuccess(true)
-      setSelectedScholar(null)
-      setSelectedDate('')
-      setSelectedTime('')
-      setTopic('')
-      
-      setTimeout(() => setSuccess(false), 5000)
-      fetchMyBookings() // Refresh bookings
+      const { error: bookingError } = await supabase
+        .from('consultation_bookings')
+        .insert({
+          id: bookingId,
+          user_id: profile.id,
+          scholar_id: selectedScholar.id,
+          booking_date: selectedDate,
+          booking_time: selectedTime,
+          topic: topic,
+          payment_status: 'pending',
+          payment_reference: paymentReference,
+          amount_paid: amountInNaira
+        })
+
+      if (bookingError) throw bookingError
+
+      // Initialize Paystack payment
+      await initializePaystackPayment(
+        profile.email || '',
+        amountInNaira,
+        paymentReference,
+        async (reference) => {
+          // Payment successful callback - webhook will handle database update
+          setSuccess(true)
+          setSelectedScholar(null)
+          setSelectedDate('')
+          setSelectedTime('')
+          setTopic('')
+          
+          setTimeout(() => setSuccess(false), 5000)
+          
+          // Wait a bit for webhook to process, then refresh
+          setTimeout(() => {
+            fetchMyBookings()
+          }, 2000)
+        },
+        () => {
+          // Payment cancelled callback
+          // Delete the pending booking
+          supabase
+            .from('consultation_bookings')
+            .delete()
+            .eq('id', bookingId)
+            .then(() => {
+              setError('Payment cancelled. Please try again.')
+            })
+        },
+        {
+          transaction_type: 'consultation',
+          booking_id: bookingId,
+          scholar_id: selectedScholar.id
+        }
+      )
 
     } catch (err: any) {
       setError(err.message || 'Failed to book consultation')
@@ -227,7 +273,7 @@ export const ConsultationBooking: React.FC = () => {
                             </p>
                           </div>
                           <p className="text-sm font-semibold">
-                            ${scholar.consultationFee}/session
+                            ₦{scholar.consultationFee}/session
                           </p>
                         </div>
                       </div>
@@ -295,7 +341,7 @@ export const ConsultationBooking: React.FC = () => {
                   className="w-full"
                   size="lg"
                 >
-                  {loading ? 'Processing...' : `Book & Pay $${selectedScholar?.consultationFee || 0}`}
+                  {loading ? 'Processing...' : `Book & Pay ₦${selectedScholar?.consultationFee || 0}`}
                 </Button>
               </>
             )}

@@ -24,8 +24,11 @@ interface PaystackEvent {
     ip_address: string
     metadata: {
       user_id: string
-      transaction_type: 'deposit' | 'donation' | 'withdrawal'
+      transaction_type: 'deposit' | 'donation' | 'withdrawal' | 'consultation' | 'livestream'
       recipient_id?: string
+      booking_id?: string
+      scholar_id?: string
+      stream_id?: string
       custom_fields?: Array<{ display_name: string; variable_name: string; value: string }>
     }
     customer: {
@@ -185,6 +188,45 @@ async function handleSuccessfulCharge(supabase: any, event: PaystackEvent) {
     if (txError) throw txError
 
     console.log(`✅ Deposit successful: ${coinsToAdd} coins added to user ${userId}`)
+
+  } else if (transactionType === 'consultation') {
+    // Handle consultation booking payment
+    const bookingId = event.data.metadata.booking_id
+    if (!bookingId) throw new Error('No booking ID for consultation payment')
+
+    // Update booking payment status
+    const { error: bookingError } = await supabase
+      .from('consultation_bookings')
+      .update({
+        payment_status: 'completed',
+        paid_at: event.data.paid_at
+      })
+      .eq('payment_reference', event.data.reference)
+
+    if (bookingError) throw bookingError
+
+    // Transfer funds to scholar's balance
+    const scholarId = event.data.metadata.scholar_id
+    if (scholarId) {
+      const { data: scholarProfile, error: scholarError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', scholarId)
+        .single()
+
+      if (scholarError) throw scholarError
+
+      const newScholarBalance = (scholarProfile.masjid_coin_balance || 0) + amountInNaira
+
+      const { error: updateScholarError } = await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newScholarBalance })
+        .eq('id', scholarId)
+
+      if (updateScholarError) throw updateScholarError
+    }
+
+    console.log(`✅ Consultation payment confirmed: ${amountInNaira} Naira for booking ${bookingId}`)
 
   } else if (transactionType === 'donation') {
     // Handle direct donation to scholar

@@ -12,6 +12,11 @@ export const ProfileSettings: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   
+  // Pricing fields for scholars/imams
+  const [consultationFee, setConsultationFee] = useState(0)
+  const [livestreamFee, setLivestreamFee] = useState(0)
+  const [liveConsultationFee, setLiveConsultationFee] = useState(0)
+  
   const [verificationStatus, setVerificationStatus] = useState({
     phone_verified: false,
     email_verified: false,
@@ -23,6 +28,9 @@ export const ProfileSettings: React.FC = () => {
   useEffect(() => {
     if (profile) {
       setPhoneNumber(profile.phone_number || '')
+      setConsultationFee(profile.consultation_fee || 0)
+      setLivestreamFee(profile.livestream_fee || 0)
+      setLiveConsultationFee(profile.live_consultation_fee || 0)
       setVerificationStatus({
         phone_verified: profile.phone_verified || false,
         email_verified: profile.email_verified || false,
@@ -51,6 +59,30 @@ export const ProfileSettings: React.FC = () => {
       if (error) throw error
 
       setMessage('Phone number updated successfully!')
+    } catch (err: any) {
+      setMessage(`Error: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSavePricing = async () => {
+    setLoading(true)
+    setMessage('')
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          consultation_fee: consultationFee,
+          livestream_fee: livestreamFee,
+          live_consultation_fee: liveConsultationFee
+        })
+        .eq('id', profile?.id || '')
+
+      if (error) throw error
+
+      setMessage('Pricing updated successfully!')
     } catch (err: any) {
       setMessage(`Error: ${err.message}`)
     } finally {
@@ -425,6 +457,80 @@ export const ProfileSettings: React.FC = () => {
                   : 'Start SMILE ID Verification'}
               </Button>
             </div>
+
+            {message && (
+              <div className={`p-3 rounded ${
+                message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+              }`}>
+                {message}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pricing Settings for Scholars/Imams */}
+      {isScholarOrImam && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Service Pricing</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Consultation Fee (₦)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={consultationFee}
+                onChange={(e) => setConsultationFee(Number(e.target.value))}
+                placeholder="e.g., 5000"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Fee for private 1-on-1 consultation sessions
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Livestream Access Fee (₦)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={livestreamFee}
+                onChange={(e) => setLivestreamFee(Number(e.target.value))}
+                placeholder="e.g., 1000"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Fee for viewers to access your paid livestreams (0 for free)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Live Consultation Fee (₦)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={liveConsultationFee}
+                onChange={(e) => setLiveConsultationFee(Number(e.target.value))}
+                placeholder="e.g., 2000"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Fee for live consultation requests during streams
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleSavePricing} 
+              disabled={loading}
+              className="w-full"
+            >
+              Save Pricing
+            </Button>
 
             {message && (
               <div className={`p-3 rounded ${

@@ -101,6 +101,21 @@ export const ConsultationMessaging: React.FC = () => {
 
   const fetchConsultation = async () => {
     try {
+      // First check if consultation booking has completed payment
+      const { data: booking, error: bookingError } = await supabase
+        .from('consultation_bookings')
+        .select('payment_status, amount_paid')
+        .eq('id', consultationId)
+        .single()
+
+      if (bookingError) throw bookingError
+
+      // Block access if payment not completed
+      if (booking.payment_status !== 'completed') {
+        setLoading(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from('consultations')
         .select(`
@@ -351,8 +366,15 @@ export const ConsultationMessaging: React.FC = () => {
     return (
       <div className="w-full max-w-4xl mx-auto p-4">
         <Card>
-          <CardContent className="p-6">
-            <p className="text-red-500">Consultation not found</p>
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-500 font-semibold mb-2">Access Denied</p>
+            <p className="text-sm text-gray-600">
+              Payment for this consultation has not been completed.
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              Please complete the payment to access the consultation messaging.
+            </p>
           </CardContent>
         </Card>
       </div>
