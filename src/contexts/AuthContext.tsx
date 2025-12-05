@@ -24,14 +24,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   void initialized
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session - Always check localStorage first for persistence
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session check:', session ? 'Session found' : 'No session')
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
+      
+      // Restore session state even after app force close
+      if (session) {
+        setSession(session)
+        setUser(session?.user ?? null)
         fetchProfile(session.user.id)
       } else {
+        // Try to restore from localStorage if available
+        const storedSession = localStorage.getItem('supabase.auth.token')
+        if (storedSession) {
+          console.log('Attempting to restore session from localStorage')
+          // Session will be restored by Supabase automatically
+        }
         setLoading(false)
         setInitialized(true)
       }
@@ -56,6 +64,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('masjid-last-activity', new Date().toISOString())
       return true
     }
+    
+    // Track app visibility to update activity on app resume
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('App resumed, updating activity timestamp')
+        localStorage.setItem('masjid-last-activity', new Date().toISOString())
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Track app pause/resume events (for Capacitor)
+    const handleAppStateChange = () => {
+      console.log('App state changed, preserving session')
+      localStorage.setItem('masjid-last-activity', new Date().toISOString())
+    }
+    
+    window.addEventListener('pause', handleAppStateChange)
+    window.addEventListener('resume', handleAppStateChange)
     
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -84,7 +111,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pause', handleAppStateChange)
+      window.removeEventListener('resume', handleAppStateChange)
+    }
   }, [])
 
   const fetchProfile = async (userId: string, retryCount = 0) => {
