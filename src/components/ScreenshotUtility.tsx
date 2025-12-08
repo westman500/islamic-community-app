@@ -190,16 +190,18 @@ export const ScreenshotUtility: React.FC = () => {
   }
 
   const isCaptured = (name: string) => capturedScreens.has(`${name}-${selectedSize}`)
+  
+  const [isMinimized, setIsMinimized] = useState(false)
 
   return (
-    <Card className="fixed bottom-4 right-4 w-96 shadow-xl z-50 bg-white/95 backdrop-blur">
-      <CardHeader>
+    <Card className={`fixed bottom-4 right-4 shadow-xl z-50 bg-white/95 backdrop-blur transition-all ${isMinimized ? 'w-12' : 'w-96'}`}>
+      <CardHeader className="cursor-pointer" onClick={() => setIsMinimized(!isMinimized)}>
         <CardTitle className="flex items-center gap-2 text-sm">
           <Camera className="h-4 w-4" />
-          Screenshot Utility
+          {!isMinimized && 'Screenshot Utility'}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      {!isMinimized && (<CardContent className="space-y-4">
         {/* Size Selector */}
         <div>
           <label className="text-xs font-medium mb-2 block">Target Size:</label>
@@ -270,7 +272,7 @@ export const ScreenshotUtility: React.FC = () => {
         <div className="text-[10px] text-gray-500 border-t pt-2">
           Screenshots will be saved to your Downloads folder. Navigate to each screen manually for best results, or use "All Screens" for automatic capture.
         </div>
-      </CardContent>
+      </CardContent>)}
     </Card>
   )
 }
