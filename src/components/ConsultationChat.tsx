@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Send, Clock, AlertCircle, RefreshCw } from 'lucide-react'
-import { Alert, AlertDescription } from './ui/alert'
 
 interface Message {
   id: string
@@ -40,7 +39,7 @@ export default function ConsultationChat({
   const [isActive, setIsActive] = useState(true)
   const [isExtending, setIsExtending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const timerRef = useRef<number | null>(null)
 
   const isScholar = profile?.role === 'scholar' || profile?.role === 'imam'
 
@@ -295,15 +294,15 @@ export default function ConsultationChat({
         </div>
 
         {!isActive && (
-          <Alert className="mt-3 bg-amber-50 border-amber-200">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-800">
+          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+            <p className="text-sm text-amber-800">
               {isScholar 
                 ? 'Consultation time has expired. Waiting for member to extend or close.'
                 : 'Consultation time has expired. You can extend for 15 more minutes using 5 Masjid Coins.'
               }
-            </AlertDescription>
-          </Alert>
+            </p>
+          </div>
         )}
       </CardHeader>
 
