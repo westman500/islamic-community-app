@@ -50,8 +50,12 @@ import { IslamicReels } from './components/IslamicReels'
 import { ActivitiesAndRestaurants } from './components/ActivitiesAndRestaurants'
 
 function App() {
-  // Only show screenshot utility in development mode
-  const isDevelopment = import.meta.env.DEV
+  // Only show demo features (screenshot utility) in development mode on localhost
+  // This ensures mobile builds never include demo features
+  const isDevelopment = import.meta.env.DEV && (
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1'
+  )
   
   return (
     <BrowserRouter>

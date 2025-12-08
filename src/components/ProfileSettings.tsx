@@ -4,10 +4,12 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
-import { CheckCircle, XCircle, Phone, Mail, Camera, FileText, Shield } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CheckCircle, XCircle, Phone, Mail, Camera, FileText, Shield, ArrowLeft } from 'lucide-react'
 
 export const ProfileSettings: React.FC = () => {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [phoneNumber, setPhoneNumber] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -255,7 +257,17 @@ export const ProfileSettings: React.FC = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4 space-y-6">
-      <h1 className="text-3xl font-bold mb-6">Profile Settings</h1>
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => navigate(-1)}
+          className="rounded-full"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-3xl font-bold">Profile Settings</h1>
+      </div>
 
       {/* Basic Information */}
       <Card>

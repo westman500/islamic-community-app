@@ -32,6 +32,10 @@ export function Dashboard() {
   const navigate = useNavigate()
   const [currentTime, setCurrentTime] = React.useState(new Date())
   const [location, setLocation] = React.useState('Loading...')
+  const [isRefreshing, setIsRefreshing] = React.useState(false)
+  const [startY, setStartY] = React.useState(0)
+  const [pullDistance, setPullDistance] = React.useState(0)
+  const dashboardRef = React.useRef<HTMLDivElement>(null)
 
   const isScholar = profile?.role === 'scholar' || profile?.role === 'imam'
   const fullName = profile?.full_name || 'User'
@@ -70,6 +74,38 @@ export function Dashboard() {
       )
     }
   }, [])
+
+  // Pull-to-refresh handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (dashboardRef.current && dashboardRef.current.scrollTop === 0) {
+      setStartY(e.touches[0].clientY)
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY === 0 || isRefreshing) return
+    
+    const currentY = e.touches[0].clientY
+    const distance = currentY - startY
+    
+    if (distance > 0 && distance < 150) {
+      setPullDistance(distance)
+    }
+  }
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 80 && !isRefreshing) {
+      setIsRefreshing(true)
+      setPullDistance(0)
+      
+      // Refresh the page
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      window.location.reload()
+    } else {
+      setPullDistance(0)
+    }
+    setStartY(0)
+  }
 
   // Islamic greeting based on time of day
   const getIslamicGreeting = () => {
@@ -325,7 +361,34 @@ export function Dashboard() {
   const features = isScholar ? scholarFeatures : userFeatures
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-24">
+    <div 
+      ref={dashboardRef}
+      className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-24 overflow-y-auto"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {pullDistance > 0 && (
+        <div 
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-emerald-500 text-white transition-all duration-300"
+          style={{ height: `${pullDistance}px`, opacity: pullDistance / 100 }}
+        >
+          <div className="text-sm font-medium">
+            {pullDistance > 80 ? '↓ Release to refresh' : '↓ Pull down to refresh'}
+          </div>
+        </div>
+      )}
+      
+      {/* Refreshing spinner */}
+      {isRefreshing && (
+        <div className="fixed top-4 left-0 right-0 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-full p-3 shadow-lg">
+            <div className="animate-spin h-6 w-6 border-4 border-emerald-500 border-t-transparent rounded-full"></div>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-6 shadow-lg">
         <div className="flex justify-between items-start">
