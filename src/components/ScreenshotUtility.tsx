@@ -137,21 +137,24 @@ export const ScreenshotUtility: React.FC = () => {
         document.documentElement.scrollHeight
       )
       
-      // Calculate scale to fit content width
-      const scale = dimensions.width / window.innerWidth
+      // Use higher scale for better quality (2x for retina displays)
+      const scale = 2
 
       const canvas = await html2canvas(element, {
         width: dimensions.width,
-        height: Math.min(dimensions.height, contentHeight * scale),
+        height: Math.min(dimensions.height, contentHeight * (dimensions.width / window.innerWidth)),
         scale: scale,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
         windowWidth: dimensions.width,
         windowHeight: dimensions.height,
         scrollY: -window.scrollY,
         scrollX: -window.scrollX,
+        imageTimeout: 0,
+        foreignObjectRendering: false,
+        removeContainer: true,
       })
 
       // Show the screenshot utility component again

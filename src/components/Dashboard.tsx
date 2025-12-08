@@ -400,6 +400,7 @@ export function Dashboard() {
                 alt="Islamic Crescent" 
                 className="relative h-20 w-20 drop-shadow-2xl"
                 style={{ filter: 'drop-shadow(0 0 8px rgba(253, 224, 71, 0.5)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3))' }}
+                crossOrigin="anonymous"
               />
               <div className="absolute -top-1 -right-1 h-4 w-4 bg-yellow-400 rounded-full animate-pulse border-2 border-white shadow-lg"></div>
             </div>
