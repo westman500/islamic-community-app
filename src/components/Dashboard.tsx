@@ -22,10 +22,10 @@ import {
   Sunrise,
   Sun,
   Sunset,
-  Moon
+  Moon,
+  Film
 } from 'lucide-react'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// Removed unused import to clear diagnostics
+import { CompactPrayerTimes } from './CompactPrayerTimes'
 
 export function Dashboard() {
   const { profile, signOut } = useAuth()
@@ -161,6 +161,26 @@ export function Dashboard() {
       iconColor: 'text-green-600',
       buttonColor: 'bg-green-500 hover:bg-green-600',
       path: '/donate'
+    },
+    {
+      title: 'Islamic Reels',
+      description: 'Watch & Upload Reels',
+      detail: 'Share Islamic content through short videos',
+      icon: Film,
+      color: 'bg-pink-50',
+      iconColor: 'text-pink-600',
+      buttonColor: 'bg-pink-500 hover:bg-pink-600',
+      path: '/reels'
+    },
+    {
+      title: 'Activities & Restaurants',
+      description: 'Community & Halal Food',
+      detail: 'Discover events and halal dining options',
+      icon: UtensilsCrossed,
+      color: 'bg-orange-50',
+      iconColor: 'text-orange-600',
+      buttonColor: 'bg-orange-500 hover:bg-orange-600',
+      path: '/activities'
     }
   ]
 
@@ -356,6 +376,9 @@ export function Dashboard() {
       </div>
 
       <div className="p-4 space-y-6">
+        {/* Compact Prayer Times - New Component */}
+        <CompactPrayerTimes />
+
         {/* Premium Features (Top Banner Style) */}
         {!isScholar && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

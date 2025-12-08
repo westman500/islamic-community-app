@@ -46,6 +46,8 @@ import { AgoraTest } from './components/AgoraTest'
 import { TokenDiagnostics } from './components/TokenDiagnostics'
 import { ConsultationBooking } from './components/ConsultationBooking'
 import { ScreenshotUtility } from './components/ScreenshotUtility'
+import { IslamicReels } from './components/IslamicReels'
+import { ActivitiesAndRestaurants } from './components/ActivitiesAndRestaurants'
 
 function App() {
   // Only show screenshot utility in development mode
@@ -325,6 +327,26 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AvailableScholars />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Islamic Reels */}
+            <Route
+              path="/reels"
+              element={
+                <ProtectedRoute>
+                  <IslamicReels />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Activities and Restaurants */}
+            <Route
+              path="/activities"
+              element={
+                <ProtectedRoute>
+                  <ActivitiesAndRestaurants />
                 </ProtectedRoute>
               }
             />
