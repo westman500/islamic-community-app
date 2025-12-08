@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS public.islamic_reels (
   category text, -- 'quran_recitation', 'dua', 'islamic_reminder', 'halal_food', 'travel', 'education', 'lifestyle'
   views_count integer DEFAULT 0,
   likes_count integer DEFAULT 0,
+  dislikes_count integer DEFAULT 0,
+  comments_count integer DEFAULT 0,
+  favorites_count integer DEFAULT 0,
   shares_count integer DEFAULT 0,
   is_approved boolean DEFAULT false, -- Requires moderation approval
   moderation_status text DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'flagged'
@@ -29,6 +32,24 @@ CREATE TABLE IF NOT EXISTS public.islamic_reels (
 
 -- Create reels likes table
 CREATE TABLE IF NOT EXISTS public.reel_likes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  reel_id uuid REFERENCES public.islamic_reels(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(reel_id, user_id)
+);
+
+-- Create reels dislikes table
+CREATE TABLE IF NOT EXISTS public.reel_dislikes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  reel_id uuid REFERENCES public.islamic_reels(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(reel_id, user_id)
+);
+
+-- Create reels favorites table (save for later)
+CREATE TABLE IF NOT EXISTS public.reel_favorites (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   reel_id uuid REFERENCES public.islamic_reels(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
@@ -109,6 +130,30 @@ CREATE POLICY "Users can like reels" ON public.reel_likes
 CREATE POLICY "Users can unlike reels" ON public.reel_likes
   FOR DELETE USING (auth.uid() = user_id);
 
+-- Reel Dislikes Policies
+ALTER TABLE public.reel_dislikes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view dislikes" ON public.reel_dislikes
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can dislike reels" ON public.reel_dislikes
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can remove dislike" ON public.reel_dislikes
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Reel Favorites Policies
+ALTER TABLE public.reel_favorites ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own favorites" ON public.reel_favorites
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can favorite reels" ON public.reel_favorites
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can unfavorite reels" ON public.reel_favorites
+  FOR DELETE USING (auth.uid() = user_id);
+
 -- Reel Comments Policies
 ALTER TABLE public.reel_comments ENABLE ROW LEVEL SECURITY;
 
@@ -149,6 +194,12 @@ CREATE INDEX islamic_reels_moderation_status_idx ON public.islamic_reels(moderat
 CREATE INDEX reel_likes_reel_id_idx ON public.reel_likes(reel_id);
 CREATE INDEX reel_likes_user_id_idx ON public.reel_likes(user_id);
 
+CREATE INDEX reel_dislikes_reel_id_idx ON public.reel_dislikes(reel_id);
+CREATE INDEX reel_dislikes_user_id_idx ON public.reel_dislikes(user_id);
+
+CREATE INDEX reel_favorites_reel_id_idx ON public.reel_favorites(reel_id);
+CREATE INDEX reel_favorites_user_id_idx ON public.reel_favorites(user_id);
+
 CREATE INDEX reel_comments_reel_id_idx ON public.reel_comments(reel_id);
 CREATE INDEX reel_comments_user_id_idx ON public.reel_comments(user_id);
 
@@ -179,6 +230,69 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER reel_likes_count_trigger
 AFTER INSERT OR DELETE ON public.reel_likes
 FOR EACH ROW EXECUTE FUNCTION update_reel_likes_count();
+
+-- Auto-update dislikes count
+CREATE OR REPLACE FUNCTION update_reel_dislikes_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE public.islamic_reels
+    SET dislikes_count = dislikes_count + 1
+    WHERE id = NEW.reel_id;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE public.islamic_reels
+    SET dislikes_count = dislikes_count - 1
+    WHERE id = OLD.reel_id;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER reel_dislikes_count_trigger
+AFTER INSERT OR DELETE ON public.reel_dislikes
+FOR EACH ROW EXECUTE FUNCTION update_reel_dislikes_count();
+
+-- Auto-update favorites count
+CREATE OR REPLACE FUNCTION update_reel_favorites_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE public.islamic_reels
+    SET favorites_count = favorites_count + 1
+    WHERE id = NEW.reel_id;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE public.islamic_reels
+    SET favorites_count = favorites_count - 1
+    WHERE id = OLD.reel_id;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER reel_favorites_count_trigger
+AFTER INSERT OR DELETE ON public.reel_favorites
+FOR EACH ROW EXECUTE FUNCTION update_reel_favorites_count();
+
+-- Auto-update comments count
+CREATE OR REPLACE FUNCTION update_reel_comments_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE public.islamic_reels
+    SET comments_count = comments_count + 1
+    WHERE id = NEW.reel_id;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE public.islamic_reels
+    SET comments_count = comments_count - 1
+    WHERE id = OLD.reel_id;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER reel_comments_count_trigger
+AFTER INSERT OR DELETE ON public.reel_comments
+FOR EACH ROW EXECUTE FUNCTION update_reel_comments_count();
 
 -- Auto-update flagged count
 CREATE OR REPLACE FUNCTION update_reel_flags_count()
@@ -221,6 +335,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.islamic_reels;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reel_likes;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.reel_dislikes;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.reel_favorites;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reel_comments;
 
 -- ============================================

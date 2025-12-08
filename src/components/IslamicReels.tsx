@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Textarea } from './ui/textarea'
 import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
-import { Play, Heart, MessageCircle, Share2, Flag, Upload, Film, Eye, AlertTriangle, X } from 'lucide-react'
+import { Heart, ThumbsDown, MessageCircle, Share2, Flag, Upload, Film, Eye, AlertTriangle, X, Bookmark } from 'lucide-react'
 
 interface Reel {
   id: string
@@ -19,6 +18,9 @@ interface Reel {
   category: string | null
   views_count: number
   likes_count: number
+  dislikes_count: number
+  comments_count: number
+  favorites_count: number
   shares_count: number
   is_approved: boolean
   moderation_status: string
@@ -28,6 +30,8 @@ interface Reel {
     avatar_url: string | null
   }
   liked_by_user?: boolean
+  disliked_by_user?: boolean
+  favorited_by_user?: boolean
 }
 
 export const IslamicReels: React.FC = () => {
@@ -82,22 +86,28 @@ export const IslamicReels: React.FC = () => {
 
       if (error) throw error
 
-      // Check which reels user has liked
+      // Check which reels user has liked, disliked, and favorited
       if (profile?.id && data) {
-        const { data: likes } = await supabase
-          .from('reel_likes')
-          .select('reel_id')
-          .eq('user_id', profile.id)
-          .in('reel_id', data.map(r => r.id))
-
-        const likedReelIds = new Set(likes?.map(l => l.reel_id) || [])
+        const reelIds = data.map(r => r.id)
         
-        const reelsWithLikeStatus = data.map(reel => ({
+        const [likesResult, dislikesResult, favoritesResult] = await Promise.all([
+          supabase.from('reel_likes').select('reel_id').eq('user_id', profile.id).in('reel_id', reelIds),
+          supabase.from('reel_dislikes').select('reel_id').eq('user_id', profile.id).in('reel_id', reelIds),
+          supabase.from('reel_favorites').select('reel_id').eq('user_id', profile.id).in('reel_id', reelIds)
+        ])
+
+        const likedReelIds = new Set(likesResult.data?.map(l => l.reel_id) || [])
+        const dislikedReelIds = new Set(dislikesResult.data?.map(d => d.reel_id) || [])
+        const favoritedReelIds = new Set(favoritesResult.data?.map(f => f.reel_id) || [])
+        
+        const reelsWithStatus = data.map(reel => ({
           ...reel,
-          liked_by_user: likedReelIds.has(reel.id)
+          liked_by_user: likedReelIds.has(reel.id),
+          disliked_by_user: dislikedReelIds.has(reel.id),
+          favorited_by_user: favoritedReelIds.has(reel.id)
         }))
         
-        setReels(reelsWithLikeStatus)
+        setReels(reelsWithStatus)
       } else {
         setReels(data || [])
       }
@@ -150,19 +160,121 @@ export const IslamicReels: React.FC = () => {
             : r
         ))
       } else {
-        // Like
+        // Like (and remove dislike if exists)
+        if (reel.disliked_by_user) {
+          await supabase
+            .from('reel_dislikes')
+            .delete()
+            .eq('reel_id', reelId)
+            .eq('user_id', profile.id)
+        }
+
         await supabase
           .from('reel_likes')
           .insert({ reel_id: reelId, user_id: profile.id })
 
         setReels(prev => prev.map(r =>
           r.id === reelId
-            ? { ...r, likes_count: r.likes_count + 1, liked_by_user: true }
+            ? { 
+                ...r, 
+                likes_count: r.likes_count + 1, 
+                dislikes_count: r.disliked_by_user ? r.dislikes_count - 1 : r.dislikes_count,
+                liked_by_user: true,
+                disliked_by_user: false
+              }
             : r
         ))
       }
     } catch (error) {
       console.error('Error toggling like:', error)
+    }
+  }
+
+  const handleDislike = async (reelId: string) => {
+    if (!profile?.id) return
+
+    try {
+      const reel = reels.find(r => r.id === reelId)
+      if (!reel) return
+
+      if (reel.disliked_by_user) {
+        // Remove dislike
+        await supabase
+          .from('reel_dislikes')
+          .delete()
+          .eq('reel_id', reelId)
+          .eq('user_id', profile.id)
+
+        setReels(prev => prev.map(r =>
+          r.id === reelId
+            ? { ...r, dislikes_count: r.dislikes_count - 1, disliked_by_user: false }
+            : r
+        ))
+      } else {
+        // Dislike (and remove like if exists)
+        if (reel.liked_by_user) {
+          await supabase
+            .from('reel_likes')
+            .delete()
+            .eq('reel_id', reelId)
+            .eq('user_id', profile.id)
+        }
+
+        await supabase
+          .from('reel_dislikes')
+          .insert({ reel_id: reelId, user_id: profile.id })
+
+        setReels(prev => prev.map(r =>
+          r.id === reelId
+            ? { 
+                ...r, 
+                dislikes_count: r.dislikes_count + 1,
+                likes_count: r.liked_by_user ? r.likes_count - 1 : r.likes_count,
+                disliked_by_user: true,
+                liked_by_user: false
+              }
+            : r
+        ))
+      }
+    } catch (error) {
+      console.error('Error toggling dislike:', error)
+    }
+  }
+
+  const handleFavorite = async (reelId: string) => {
+    if (!profile?.id) return
+
+    try {
+      const reel = reels.find(r => r.id === reelId)
+      if (!reel) return
+
+      if (reel.favorited_by_user) {
+        // Unfavorite
+        await supabase
+          .from('reel_favorites')
+          .delete()
+          .eq('reel_id', reelId)
+          .eq('user_id', profile.id)
+
+        setReels(prev => prev.map(r =>
+          r.id === reelId
+            ? { ...r, favorites_count: r.favorites_count - 1, favorited_by_user: false }
+            : r
+        ))
+      } else {
+        // Favorite
+        await supabase
+          .from('reel_favorites')
+          .insert({ reel_id: reelId, user_id: profile.id })
+
+        setReels(prev => prev.map(r =>
+          r.id === reelId
+            ? { ...r, favorites_count: r.favorites_count + 1, favorited_by_user: true }
+            : r
+        ))
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
     }
   }
 
@@ -357,11 +469,31 @@ export const IslamicReels: React.FC = () => {
                   <span className="text-white text-xs font-medium">{currentReel.likes_count}</span>
                 </button>
 
+                <button
+                  onClick={() => handleDislike(currentReel.id)}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <div className={`w-12 h-12 rounded-full ${currentReel.disliked_by_user ? 'bg-gray-700' : 'bg-white/20'} flex items-center justify-center backdrop-blur-sm`}>
+                    <ThumbsDown className={`h-6 w-6 ${currentReel.disliked_by_user ? 'fill-white' : ''} text-white`} />
+                  </div>
+                  <span className="text-white text-xs font-medium">{currentReel.dislikes_count}</span>
+                </button>
+
                 <button className="flex flex-col items-center gap-1">
                   <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
                     <MessageCircle className="h-6 w-6 text-white" />
                   </div>
-                  <span className="text-white text-xs font-medium">0</span>
+                  <span className="text-white text-xs font-medium">{currentReel.comments_count}</span>
+                </button>
+
+                <button
+                  onClick={() => handleFavorite(currentReel.id)}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <div className={`w-12 h-12 rounded-full ${currentReel.favorited_by_user ? 'bg-yellow-500' : 'bg-white/20'} flex items-center justify-center backdrop-blur-sm`}>
+                    <Bookmark className={`h-6 w-6 ${currentReel.favorited_by_user ? 'fill-white' : ''} text-white`} />
+                  </div>
+                  <span className="text-white text-xs font-medium">{currentReel.favorites_count}</span>
                 </button>
 
                 <button
@@ -494,9 +626,10 @@ export const IslamicReels: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Description</label>
-                  <Textarea
+                  <textarea
+                    className="w-full p-2 border rounded-md"
                     value={uploadForm.description}
-                    onChange={(e) => setUploadForm(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setUploadForm(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Tell viewers about your reel..."
                     rows={3}
                     maxLength={500}
@@ -585,9 +718,10 @@ export const IslamicReels: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Additional Details</label>
-                  <Textarea
+                  <textarea
+                    className="w-full p-2 border rounded-md"
                     value={flagDescription}
-                    onChange={(e) => setFlagDescription(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFlagDescription(e.target.value)}
                     placeholder="Please provide more information..."
                     rows={3}
                   />
