@@ -15,6 +15,7 @@ interface Scholar {
   specialization: string
   availableSlots: string[]
   consultationFee: number
+  consultationDuration?: number
   isOnline?: boolean
 }
 
@@ -68,7 +69,7 @@ export const ConsultationBooking: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, specialization, specializations, consultation_fee, available_slots, is_online')
+        .select('id, full_name, specializations, consultation_fee, consultation_duration, available_slots, is_online')
         .in('role', ['scholar', 'imam'])
         .order('full_name')
       
@@ -92,11 +93,12 @@ export const ConsultationBooking: React.FC = () => {
         return {
           id: s.id,
           name: s.full_name,
-          specialization: s.specialization || (Array.isArray(s.specializations) && s.specializations.length > 0 ? s.specializations[0] : 'Islamic Studies'),
+          specialization: Array.isArray(s.specializations) && s.specializations.length > 0 ? s.specializations[0] : 'Islamic Studies',
           availableSlots: Array.isArray(s.available_slots) && s.available_slots.length > 0 
             ? s.available_slots 
             : ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
           consultationFee: fee,
+          consultationDuration: s.consultation_duration || 30,
           isOnline: s.is_online || false
         }
       })
@@ -160,11 +162,83 @@ export const ConsultationBooking: React.FC = () => {
     setLoading(true)
 
     try {
-      // Create pending booking first
       const bookingId = crypto.randomUUID()
-      const paymentReference = generatePaymentReference()
-      const amountInNaira = selectedScholar.consultationFee
+      const paymentReference = `CONSULT_${profile.id}_${Date.now()}`
+      const CONVERSION_RATE = 0.01 // 100 Naira = 1 Coin
+      const coinsRequired = Math.floor(selectedScholar.consultationFee * CONVERSION_RATE)
 
+      // Check user's Masjid Coin balance
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', profile.id)
+        .single()
+
+      if (profileError) throw new Error('Failed to fetch your balance')
+
+      const currentBalance = userProfile?.masjid_coin_balance || 0
+
+      if (currentBalance < coinsRequired) {
+        throw new Error(`Insufficient balance. You need ${coinsRequired} coins (₦${selectedScholar.consultationFee}) but have ${currentBalance} coins. Please deposit more coins.`)
+      }
+
+      // Deduct coins from user's balance
+      const newUserBalance = currentBalance - coinsRequired
+      const { error: deductError } = await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newUserBalance })
+        .eq('id', profile.id)
+
+      if (deductError) throw new Error('Failed to deduct coins from your balance')
+
+      // Add coins to scholar's balance
+      const { data: scholarProfile, error: scholarProfileError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', selectedScholar.id)
+        .single()
+
+      if (scholarProfileError) throw new Error('Failed to fetch scholar balance')
+
+      const scholarBalance = scholarProfile?.masjid_coin_balance || 0
+      const newScholarBalance = scholarBalance + coinsRequired
+
+      const { error: creditError } = await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newScholarBalance })
+        .eq('id', selectedScholar.id)
+
+      if (creditError) throw new Error('Failed to credit scholar')
+
+      // Create transaction record for user (debit)
+      await supabase
+        .from('masjid_coin_transactions')
+        .insert({
+          user_id: profile.id,
+          recipient_id: selectedScholar.id,
+          amount: -coinsRequired,
+          type: 'consultation',
+          description: `Consultation with ${selectedScholar.name}`,
+          payment_reference: paymentReference,
+          payment_status: 'success',
+          status: 'completed'
+        })
+
+      // Create transaction record for scholar (credit)
+      await supabase
+        .from('masjid_coin_transactions')
+        .insert({
+          user_id: selectedScholar.id,
+          recipient_id: profile.id,
+          amount: coinsRequired,
+          type: 'consultation',
+          description: `Consultation fee from ${profile.full_name}`,
+          payment_reference: paymentReference,
+          payment_status: 'success',
+          status: 'completed'
+        })
+
+      // Create confirmed booking with consultation duration
       const { error: bookingError } = await supabase
         .from('consultation_bookings')
         .insert({
@@ -174,52 +248,29 @@ export const ConsultationBooking: React.FC = () => {
           booking_date: selectedDate,
           booking_time: selectedTime,
           topic: topic,
-          payment_status: 'pending',
+          payment_status: 'success',
           payment_reference: paymentReference,
-          amount_paid: amountInNaira
+          amount_paid: coinsRequired,
+          consultation_duration: selectedScholar.consultationDuration || 30,
+          status: 'confirmed'
         })
 
       if (bookingError) throw bookingError
 
-      // Initialize Paystack payment
-      await initializePaystackPayment(
-        profile.email || '',
-        amountInNaira,
-        paymentReference,
-        async (reference) => {
-          // Payment successful callback - webhook will handle database update
-          setSuccess(true)
-          setSelectedScholar(null)
-          setSelectedDate('')
-          setSelectedTime('')
-          setTopic('')
-          
-          setTimeout(() => setSuccess(false), 5000)
-          
-          // Wait a bit for webhook to process, then refresh
-          setTimeout(() => {
-            fetchMyBookings()
-          }, 2000)
-        },
-        () => {
-          // Payment cancelled callback
-          // Delete the pending booking
-          supabase
-            .from('consultation_bookings')
-            .delete()
-            .eq('id', bookingId)
-            .then(() => {
-              setError('Payment cancelled. Please try again.')
-            })
-        },
-        {
-          transaction_type: 'consultation',
-          booking_id: bookingId,
-          scholar_id: selectedScholar.id
-        }
-      )
+      // Success!
+      setSuccess(true)
+      setSelectedScholar(null)
+      setSelectedDate('')
+      setSelectedTime('')
+      setTopic('')
+      
+      // Refresh bookings
+      await fetchMyBookings()
+      
+      setTimeout(() => setSuccess(false), 5000)
 
     } catch (err: any) {
+      console.error('Booking error:', err)
       setError(err.message || 'Failed to book consultation')
     } finally {
       setLoading(false)
@@ -285,8 +336,11 @@ export const ConsultationBooking: React.FC = () => {
               <div className="p-6 bg-primary/10 border border-primary rounded-lg text-center">
                 <Calendar className="h-12 w-12 text-primary mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Booking Confirmed!</h3>
-                <p className="text-muted-foreground">
-                  Your consultation has been booked. Check your email for confirmation details.
+                <p className="text-muted-foreground mb-2">
+                  Your consultation has been booked successfully.
+                </p>
+                <p className="text-sm text-emerald-600 font-semibold">
+                  ✓ Paid with Masjid Coins
                 </p>
               </div>
             ) : (
@@ -331,10 +385,10 @@ export const ConsultationBooking: React.FC = () => {
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-lg font-bold text-emerald-600">
-                                ₦{scholar.consultationFee.toLocaleString()}
+                              <p className="text-lg font-bold text-emerald-600 flex items-center gap-1">
+                                💰 {Math.floor(scholar.consultationFee * 0.01).toLocaleString()}
                               </p>
-                              <p className="text-xs text-muted-foreground">per session</p>
+                              <p className="text-xs text-muted-foreground">coins (₦{scholar.consultationFee.toLocaleString()})</p>
                             </div>
                           </div>
                         </div>
@@ -342,6 +396,18 @@ export const ConsultationBooking: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Show user balance */}
+                {profile && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Your Masjid Coin Balance:</span>
+                      <span className="text-lg font-bold text-emerald-600">
+                        💰 {(profile.masjid_coin_balance || 0).toLocaleString()} coins
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {selectedScholar && (
                   <>

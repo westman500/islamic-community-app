@@ -126,6 +126,66 @@ export const MasjidCoin: React.FC = () => {
     }
   }
 
+  const verifyAndCreditPayment = async (reference: string, amount: number, userId: string) => {
+    try {
+      setSuccess('Processing payment...')
+      
+      // Wait a moment for Paystack to fully process
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      const coins = Math.floor(amount * CONVERSION_RATE)
+      
+      // Update transaction to success
+      const { error: txError } = await supabase
+        .from('masjid_coin_transactions')
+        .update({
+          payment_status: 'success',
+          status: 'completed'
+        })
+        .eq('payment_reference', reference)
+        .eq('user_id', userId)
+      
+      if (txError) {
+        console.error('Error updating transaction:', txError)
+        throw new Error('Failed to update transaction')
+      }
+      
+      // Credit the balance directly
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', userId)
+        .single()
+      
+      if (profileError) {
+        console.error('Error fetching profile:', profileError)
+        throw new Error('Failed to fetch profile')
+      }
+      
+      const currentBalance = profile.masjid_coin_balance || 0
+      const newBalance = currentBalance + coins
+      
+      console.log('Crediting balance:', { currentBalance, coins, newBalance })
+      
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newBalance })
+        .eq('id', userId)
+      
+      if (balanceError) {
+        console.error('Error updating balance:', balanceError)
+        throw new Error('Failed to credit balance')
+      }
+      
+      setSuccess(`Payment successful! ${coins} coins credited to your wallet.`)
+      await fetchCoinBalance()
+      
+    } catch (err: any) {
+      console.error('Payment processing error:', err)
+      setError(err.message || 'Payment processing failed. Please contact support with reference: ' + reference)
+    }
+  }
+
   const handleDeposit = async () => {
     const amount = parseFloat(depositAmount)
     
@@ -176,14 +236,11 @@ export const MasjidCoin: React.FC = () => {
         }
       })
 
-      // Payment successful - webhook will handle the balance update
-      setSuccess(`Payment initiated! Your coins will be credited shortly.`)
-      setDepositAmount('')
+      // Payment successful! Manually verify and credit balance
+      console.log('Payment successful, verifying transaction...')
+      await verifyAndCreditPayment(reference, amount, profile.id)
       
-      // Refresh balance after a short delay
-      setTimeout(() => {
-        fetchCoinBalance()
-      }, 3000)
+      setDepositAmount('')
       
     } catch (err: any) {
       console.error('Deposit error:', err)

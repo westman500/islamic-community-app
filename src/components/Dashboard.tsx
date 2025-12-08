@@ -98,9 +98,35 @@ export function Dashboard() {
       setIsRefreshing(true)
       setPullDistance(0)
       
-      // Refresh the page
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      window.location.reload()
+      // Refresh data without reloading the page
+      try {
+        // Re-fetch location
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              try {
+                const response = await fetch(
+                  `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
+                )
+                const data = await response.json()
+                setLocation(data.address?.city || data.address?.town || data.address?.county || 'Unknown Location')
+              } catch {
+                setLocation('Location Unknown')
+              }
+            }
+          )
+        }
+        
+        // Update time
+        setCurrentTime(new Date())
+        
+        // Small delay for better UX
+        await new Promise(resolve => setTimeout(resolve, 800))
+      } catch (error) {
+        console.error('Refresh error:', error)
+      } finally {
+        setIsRefreshing(false)
+      }
     } else {
       setPullDistance(0)
     }
@@ -520,56 +546,50 @@ export function Dashboard() {
           })}
         </div>
 
-        {/* Community Activities Section - Only for Members */}
+        {/* Featured Jummah Prayer - Only for Members */}
         {!isScholar && (
           <div className="mt-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Community Activities</h2>
-            <p className="text-gray-600 mb-6">
-              Discover prayers, education, restaurants, services, and community events
-            </p>
-
-            <div className="space-y-4">
-              {activityFeatures.map((activity) => {
-                const Icon = activity.icon
-                return (
-                  <Card key={activity.title} className={`${activity.color} border-none shadow-md hover:shadow-lg transition-shadow`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start space-x-4">
-                        <div className={`p-4 rounded-xl ${activity.color}`}>
-                          <Icon className={`h-8 w-8 ${activity.iconColor}`} />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-800 mb-2">{activity.title}</h3>
-                          <p className="text-gray-600 mb-4">{activity.description}</p>
-                          
-                          <div className="space-y-2 mb-4">
-                            <div className="flex items-center text-sm text-gray-600">
-                              <GraduationCap className="h-4 w-4 mr-2" />
-                              <span>{activity.organizer}</span>
-                            </div>
-                            <div className="flex items-center text-sm text-gray-600">
-                              <MapPin className="h-4 w-4 mr-2" />
-                              <span>{activity.location}</span>
-                            </div>
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Calendar className="h-4 w-4 mr-2" />
-                              <span>{activity.time}</span>
-                            </div>
-                          </div>
-
-                          <Button 
-                            className={`${activity.buttonColor} text-white w-full`}
-                            onClick={() => activity.action === 'livestream' ? navigate('/livestreams') : navigate('/prayer-times')}
-                          >
-                            {activity.action === 'livestream' ? 'Join Now' : 'View Times'}
-                          </Button>
-                        </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">This Week's Jummah</h2>
+            
+            {/* Jummah Featured Card */}
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 shadow-lg hover:shadow-xl transition-shadow mb-6">
+              <CardContent className="p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-green-100 to-emerald-100 shadow-md">
+                    <Users className="h-10 w-10 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-2xl font-bold text-gray-800">Friday Congregational Prayer</h3>
+                      <span className="px-2 py-1 bg-green-500 text-white text-xs rounded-full font-semibold">LIVE</span>
+                    </div>
+                    <p className="text-gray-600 mb-4">Join us live for the weekly Friday prayer service with khutbah (sermon) delivered in Arabic and English.</p>
+                    
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <GraduationCap className="h-4 w-4 mr-2" />
+                        <span>Led by Imam Abdullah</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        <span>Main Prayer Hall - Live Stream</span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        <span className="font-semibold">Every Friday at 12:30 PM</span>
+                      </div>
+                    </div>
+
+                    <Button 
+                      className="bg-green-500 hover:bg-green-600 text-white w-full shadow-md hover:shadow-lg"
+                      onClick={() => navigate('/livestreams')}
+                    >
+                      Join Live Stream
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

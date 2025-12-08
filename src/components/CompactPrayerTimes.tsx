@@ -13,6 +13,7 @@ export const CompactPrayerTimes: React.FC = () => {
   const [location, setLocation] = useState('Lagos, Nigeria')
   const [currentPrayer, setCurrentPrayer] = useState<string>('')
   const [nextPrayer, setNextPrayer] = useState<string>('')
+  const [currentSlide, setCurrentSlide] = useState(0)
 
   useEffect(() => {
     fetchPrayerTimes()
@@ -22,6 +23,15 @@ export const CompactPrayerTimes: React.FC = () => {
 
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    // Auto-slide every 3 seconds
+    const slideInterval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % (prayerTimes.length + 1))
+    }, 3000)
+
+    return () => clearInterval(slideInterval)
+  }, [prayerTimes.length])
 
   const fetchPrayerTimes = async () => {
     try {
@@ -128,6 +138,13 @@ export const CompactPrayerTimes: React.FC = () => {
   const isPrayerNext = (prayerName: string) => prayerName === nextPrayer
   const isPrayerCurrent = (prayerName: string) => prayerName === currentPrayer
 
+  // Add Jummah to the carousel
+  const allPrayers = [...prayerTimes, { name: "Jumu'ah", time: '1:30 PM', arabic: 'الجمعة' }]
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index)
+  }
+
   return (
     <Card className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-lg">
       <CardContent className="p-4">
@@ -143,39 +160,55 @@ export const CompactPrayerTimes: React.FC = () => {
           </div>
         </div>
 
-        {/* Prayer Times Grid - 5 prayers in one box */}
-        <div className="grid grid-cols-5 gap-2">
-          {prayerTimes.map((prayer) => (
+        {/* Carousel Container */}
+        <div className="relative overflow-hidden h-24">
+          <div 
+            className="flex transition-transform duration-500 ease-in-out"
+            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          >
+            {allPrayers.map((prayer, index) => (
+              <div
+                key={index}
+                className="min-w-full flex items-center justify-center"
+              >
+                <div className={`text-center p-3 rounded-lg w-full ${
+                  prayer.name === "Jumu'ah"
+                    ? 'bg-green-500/30 border border-green-300'
+                    : isPrayerNext(prayer.name)
+                    ? 'bg-amber-500/30 border border-amber-300'
+                    : isPrayerCurrent(prayer.name)
+                    ? 'bg-emerald-800/50'
+                    : 'bg-white/10'
+                }`}>
+                  <div className="text-sm font-bold mb-1">{prayer.arabic}</div>
+                  <div className="text-base font-semibold mb-1">{prayer.name}</div>
+                  <div className="text-xl font-bold">{prayer.time}</div>
+                  {prayer.name === "Jumu'ah" && (
+                    <div className="text-xs mt-1 opacity-75">Every Friday</div>
+                  )}
+                  {isPrayerNext(prayer.name) && prayer.name !== "Jumu'ah" && (
+                    <div className="text-xs mt-1 font-semibold">🔔 Next</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Carousel Indicators */}
+        <div className="flex justify-center gap-1.5 mt-2">
+          {allPrayers.map((_, index) => (
             <div
-              key={prayer.name}
-              className={`text-center p-2 rounded-lg transition-all ${
-                isPrayerNext(prayer.name)
-                  ? 'bg-amber-500 scale-105 shadow-md'
-                  : isPrayerCurrent(prayer.name)
-                  ? 'bg-emerald-800/50'
-                  : 'bg-white/10'
+              key={index}
+              className={`h-1.5 rounded-full transition-all ${
+                index === currentSlide 
+                  ? 'w-4 bg-white' 
+                  : 'w-1.5 bg-white/40'
               }`}
-            >
-              <div className="text-xs font-medium mb-1">{prayer.name}</div>
-              <div className="text-lg font-bold">{prayer.time}</div>
-              <div className="text-xs opacity-75 mt-1">{prayer.arabic}</div>
-            </div>
+            />
           ))}
         </div>
 
-        {/* Next Prayer Indicator */}
-        {nextPrayer && (
-          <div className="mt-3 text-center text-xs opacity-90">
-            Next: <span className="font-bold">{nextPrayer}</span>
-          </div>
-        )}
-
-        {/* Jumma Note */}
-        <div className="mt-3 pt-3 border-t border-white/20 text-center">
-          <div className="text-xs font-medium mb-1">🕌 Jumu'ah (Friday Prayer)</div>
-          <div className="text-sm font-bold">1:30 PM</div>
-          <div className="text-xs opacity-75 mt-1">Every Friday at Main Hall</div>
-        </div>
       </CardContent>
     </Card>
   )

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Heart, DollarSign } from 'lucide-react'
+import { Heart, DollarSign, Coins } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Scholar {
   id: string
@@ -14,6 +15,7 @@ interface Scholar {
 }
 
 export const ZakatDonation: React.FC = () => {
+  const { profile } = useAuth()
   const [scholars, setScholars] = useState<Scholar[]>([])
   const [selectedScholar, setSelectedScholar] = useState<Scholar | null>(null)
   const [amount, setAmount] = useState('')
@@ -53,9 +55,9 @@ export const ZakatDonation: React.FC = () => {
       return
     }
 
-    const donationAmount = parseFloat(amount)
-    if (!donationAmount || donationAmount < 1) {
-      setError('Please enter a valid amount (minimum $1)')
+    const coinsAmount = parseFloat(amount)
+    if (!coinsAmount || coinsAmount < 1) {
+      setError('Please enter a valid amount (minimum 1 coin)')
       return
     }
 
@@ -63,29 +65,85 @@ export const ZakatDonation: React.FC = () => {
     setLoading(true)
 
     try {
-      // Integrate with Paystack payment
-      const { initializePaystackPayment, generatePaymentReference } = await import('../utils/paystack')
-      const { supabase } = await import('../utils/supabase/client')
-      
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         setError('You must be logged in to donate')
         setLoading(false)
         return
       }
-      
-      const reference = generatePaymentReference('DON')
-      
-      await initializePaystackPayment({
-        email: user.email || 'user@example.com',
-        amount: donationAmount,
-        reference,
-        metadata: {
+
+      // Check user's Masjid Coin balance
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance, full_name')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) throw new Error('Failed to fetch your balance')
+
+      const currentBalance = userProfile?.masjid_coin_balance || 0
+
+      if (currentBalance < coinsAmount) {
+        throw new Error(`Insufficient balance. You need ${coinsAmount} coins but have ${currentBalance} coins. Please deposit more coins.`)
+      }
+
+      const reference = `DON_${user.id}_${Date.now()}`
+
+      // Deduct coins from user's balance
+      const newUserBalance = currentBalance - coinsAmount
+      const { error: deductError } = await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newUserBalance })
+        .eq('id', user.id)
+
+      if (deductError) throw new Error('Failed to deduct coins from your balance')
+
+      // Add coins to scholar's balance
+      const { data: scholarProfile, error: scholarProfileError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', selectedScholar.id)
+        .single()
+
+      if (scholarProfileError) throw new Error('Failed to fetch scholar balance')
+
+      const scholarBalance = scholarProfile?.masjid_coin_balance || 0
+      const newScholarBalance = scholarBalance + coinsAmount
+
+      const { error: creditError } = await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newScholarBalance })
+        .eq('id', selectedScholar.id)
+
+      if (creditError) throw new Error('Failed to credit scholar')
+
+      // Create transaction record for user (debit)
+      await supabase
+        .from('masjid_coin_transactions')
+        .insert({
           user_id: user.id,
-          transaction_type: 'donation',
-          recipient_id: selectedScholar.id
-        }
-      })
+          recipient_id: selectedScholar.id,
+          amount: -coinsAmount,
+          type: 'donation',
+          description: `Zakat donation to ${selectedScholar.name}`,
+          payment_reference: reference,
+          payment_status: 'completed',
+          status: 'completed'
+        })
+
+      // Create transaction record for scholar (credit)
+      await supabase
+        .from('masjid_coin_transactions')
+        .insert({
+          user_id: selectedScholar.id,
+          recipient_id: user.id,
+          amount: coinsAmount,
+          type: 'donation',
+          description: `Zakat received from ${userProfile.full_name}`,
+          payment_reference: reference,
+          payment_status: 'completed',
+          status: 'completed'
+        })
       
       setSuccess(true)
       setAmount('')
@@ -133,6 +191,18 @@ export const ZakatDonation: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* Show user balance */}
+              {profile && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Your Masjid Coin Balance:</span>
+                    <span className="text-lg font-bold text-emerald-600">
+                      💰 {(profile.masjid_coin_balance || 0).toLocaleString()} coins
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Scholar selection */}
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -170,22 +240,22 @@ export const ZakatDonation: React.FC = () => {
               {/* Amount input */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Donation Amount
+                  Donation Amount (Masjid Coins)
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600" />
                   <Input
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
+                    placeholder="0"
                     min="1"
-                    step="0.01"
+                    step="1"
                     className="pl-10"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Minimum donation: $1.00
+                  Minimum donation: 1 coin
                 </p>
               </div>
 
@@ -197,7 +267,7 @@ export const ZakatDonation: React.FC = () => {
                     variant="outline"
                     onClick={() => setAmount(value.toString())}
                   >
-                    ${value}
+                    💰 {value}
                   </Button>
                 ))}
               </div>
@@ -208,8 +278,9 @@ export const ZakatDonation: React.FC = () => {
                 <ul className="text-xs text-muted-foreground space-y-1">
                   <li>• 100% goes directly to the scholar/imam</li>
                   <li>• Includes: livestream tips, non-livestream zakat, and charitable donations</li>
-                  <li>• Does NOT include consultation booking fees (handled separately in Wallet)</li>
-                  <li>• Secure payment processing via Paystack</li>
+                  <li>• Does NOT include consultation booking fees (handled separately)</li>
+                  <li>• Paid instantly using your Masjid Coin balance</li>
+                  <li>• Deposit more coins in MASJID COIN section if needed</li>
                 </ul>
               </div>
 

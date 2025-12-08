@@ -6,6 +6,7 @@ import { supabase } from '../utils/supabase/client'
 import { Calendar, Clock, User, MapPin, MessageCircle, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { MobileLayout } from './MobileLayout'
+import ConsultationChat from './ConsultationChat'
 
 interface ConsultationBooking {
   id: string
@@ -13,6 +14,7 @@ interface ConsultationBooking {
   scheduled_at: string
   topic: string
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  consultation_duration?: number
   scholar: {
     full_name: string
     specializations: string[]
@@ -42,6 +44,8 @@ export const MyBookings: React.FC = () => {
   const [activityBookings, setActivityBookings] = useState<ActivityBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'consultations' | 'activities'>('consultations')
+  const [activeChatBookingId, setActiveChatBookingId] = useState<string | null>(null)
+  const [activeChatScholar, setActiveChatScholar] = useState<{ id: string; name: string; duration: number } | null>(null)
 
   useEffect(() => {
     fetchBookings()
@@ -272,12 +276,18 @@ export const MyBookings: React.FC = () => {
                         <>
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => navigate(`/messages/${booking.scholar_id}`)}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                            onClick={() => {
+                              setActiveChatBookingId(booking.id)
+                              setActiveChatScholar({
+                                id: booking.scholar_id,
+                                name: booking.scholar.full_name,
+                                duration: booking.consultation_duration || 30
+                              })
+                            }}
                           >
                             <MessageCircle className="w-4 h-4 mr-1" />
-                            Message
+                            Start Chat
                           </Button>
                           <Button
                             size="sm"
@@ -378,6 +388,25 @@ export const MyBookings: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Consultation Chat Modal */}
+      {activeChatBookingId && activeChatScholar && profile && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl h-[600px] max-h-[90vh]">
+            <ConsultationChat
+              bookingId={activeChatBookingId}
+              scholarId={activeChatScholar.id}
+              scholarName={activeChatScholar.name}
+              userId={profile.id}
+              consultationDuration={activeChatScholar.duration}
+              onClose={() => {
+                setActiveChatBookingId(null)
+                setActiveChatScholar(null)
+              }}
+            />
+          </div>
+        </div>
+      )}
     </MobileLayout>
   )
 }

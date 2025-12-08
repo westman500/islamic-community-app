@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import { MobileLayout } from './MobileLayout'
-import { BarChart3, DollarSign, Users, Calendar, TrendingUp, Clock } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { BarChart3, DollarSign, Users, Calendar, TrendingUp, Clock, MessageCircle, Settings } from 'lucide-react'
 
 export const ScholarDashboard: React.FC = () => {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [stats, setStats] = useState({
     totalConsultations: 0,
     totalEarnings: 0,
@@ -90,6 +93,29 @@ export const ScholarDashboard: React.FC = () => {
             </p>
           </CardContent>
         </Card>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button 
+            onClick={() => navigate('/scholar-consultations')}
+            className="bg-emerald-600 hover:bg-emerald-700 h-auto py-4"
+          >
+            <div className="flex flex-col items-center gap-1">
+              <MessageCircle className="w-5 h-5" />
+              <span className="text-sm">My Consultations</span>
+            </div>
+          </Button>
+          <Button 
+            onClick={() => navigate('/wallet')}
+            variant="outline"
+            className="h-auto py-4"
+          >
+            <div className="flex flex-col items-center gap-1">
+              <DollarSign className="w-5 h-5" />
+              <span className="text-sm">Wallet</span>
+            </div>
+          </Button>
+        </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4">

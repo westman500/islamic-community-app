@@ -30,6 +30,7 @@ import { ScholarConsultationManager } from './components/ScholarConsultationMana
 import { ScholarDashboard } from './components/ScholarDashboard'
 import { ScholarWallet } from './components/ScholarWallet'
 import { ScholarAvailability } from './components/ScholarAvailability'
+import { ScholarConsultations } from './components/ScholarConsultations'
 
 // New components
 import { LivestreamDiscovery } from './components/LivestreamDiscovery'
@@ -215,10 +216,26 @@ function App() {
               }
             />
             <Route
+              path="/scholar-consultations"
+              element={
+                <ProtectedRoute allowedRoles={['scholar', 'imam']}>
+                  <ScholarConsultations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/wallet"
               element={
                 <ProtectedRoute allowedRoles={['scholar', 'imam']}>
                   <ScholarWallet />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/scholar-consultations"
+              element={
+                <ProtectedRoute allowedRoles={['scholar', 'imam']}>
+                  <ScholarConsultations />
                 </ProtectedRoute>
               }
             />

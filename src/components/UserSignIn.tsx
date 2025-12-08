@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 export const UserSignIn: React.FC = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -19,6 +20,17 @@ export const UserSignIn: React.FC = () => {
   React.useEffect(() => {
     setLoading(false)
     setError('')
+    
+    // Load remembered credentials
+    const rememberedEmail = localStorage.getItem('rememberedEmail')
+    const rememberedPassword = localStorage.getItem('rememberedPassword')
+    if (rememberedEmail) {
+      setEmail(rememberedEmail)
+      setRememberMe(true)
+    }
+    if (rememberedPassword) {
+      setPassword(rememberedPassword)
+    }
     
     // Force clear any stuck states for existing accounts
     const urlParams = new URLSearchParams(window.location.search)
@@ -78,6 +90,15 @@ export const UserSignIn: React.FC = () => {
       console.log('UserSignIn: Calling signIn...')
       await signIn(email, password)
       console.log('UserSignIn: signIn completed successfully, navigating...')
+      
+      // Save credentials if "Remember Me" is checked
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email)
+        localStorage.setItem('rememberedPassword', password)
+      } else {
+        localStorage.removeItem('rememberedEmail')
+        localStorage.removeItem('rememberedPassword')
+      }
       
       clearTimeout(timeoutId)
       setLoading(false)
@@ -142,6 +163,19 @@ export const UserSignIn: React.FC = () => {
                 placeholder="Enter your password"
                 required
               />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                id="rememberMe"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500 focus:ring-2"
+              />
+              <label htmlFor="rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
+                Remember my email and password
+              </label>
             </div>
 
             {error && (
