@@ -117,6 +117,16 @@ export const ScreenshotUtility: React.FC = () => {
     try {
       setProgress(`Capturing ${config.name} for ${size}...`)
       
+      // Hide the screenshot utility component before capturing
+      const utilityElement = document.querySelector('.screenshot-utility-card') as HTMLElement
+      const originalDisplay = utilityElement?.style.display || ''
+      if (utilityElement) {
+        utilityElement.style.display = 'none'
+      }
+      
+      // Small delay to ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       const element = document.getElementById('app-root') || document.body
       const dimensions = SCREENSHOT_SIZES[size]
       
@@ -137,6 +147,11 @@ export const ScreenshotUtility: React.FC = () => {
         windowWidth: dimensions.width,
         windowHeight: dimensions.height,
       })
+
+      // Show the screenshot utility component again
+      if (utilityElement) {
+        utilityElement.style.display = originalDisplay || 'block'
+      }
 
       // Convert to blob and download
       canvas.toBlob((blob) => {
@@ -194,7 +209,7 @@ export const ScreenshotUtility: React.FC = () => {
   const [isMinimized, setIsMinimized] = useState(false)
 
   return (
-    <Card className={`fixed bottom-4 right-4 shadow-xl z-50 bg-white/95 backdrop-blur transition-all ${isMinimized ? 'w-12' : 'w-96'}`}>
+    <Card className={`screenshot-utility-card fixed bottom-4 right-4 shadow-xl z-50 bg-white/95 backdrop-blur transition-all ${isMinimized ? 'w-12' : 'w-96'}`}>
       <CardHeader className="cursor-pointer" onClick={() => setIsMinimized(!isMinimized)}>
         <CardTitle className="flex items-center gap-2 text-sm">
           <Camera className="h-4 w-4" />
