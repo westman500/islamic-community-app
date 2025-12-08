@@ -11,9 +11,11 @@ export interface PaystackConfig {
   amount: number // Amount in Naira (will be converted to kobo)
   reference: string
   metadata: {
+    project?: string // Project identifier for multi-project webhooks
     user_id: string
     transaction_type: 'deposit' | 'donation'
     recipient_id?: string
+    coins?: number // Amount in Masjid Coins
     custom_fields?: Array<{ display_name: string; variable_name: string; value: string }>
   }
   callback_url?: string

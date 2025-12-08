@@ -47,6 +47,12 @@ export interface Profile {
   average_rating?: number
   total_ratings?: number
   specializations?: string[]
+  masjid_coin_balance?: number
+  is_online?: boolean
+  consultation_fee?: number
+  livestream_fee?: number
+  live_consultation_fee?: number
+  available_slots?: string[]
   created_at: string
   updated_at: string
 }

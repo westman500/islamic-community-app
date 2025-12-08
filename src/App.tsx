@@ -45,12 +45,16 @@ import { ActivitiesByCategory } from './components/ActivitiesByCategory'
 import { AgoraTest } from './components/AgoraTest'
 import { TokenDiagnostics } from './components/TokenDiagnostics'
 import { ConsultationBooking } from './components/ConsultationBooking'
+import { ScreenshotUtility } from './components/ScreenshotUtility'
 
 function App() {
+  // Only show screenshot utility in development mode
+  const isDevelopment = import.meta.env.DEV
+  
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="min-h-screen bg-background">
+        <div id="app-root" className="min-h-screen bg-background">
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<SplashScreen />} />
@@ -328,6 +332,9 @@ function App() {
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          
+          {/* Screenshot utility - only in development */}
+          {isDevelopment && <ScreenshotUtility />}
         </div>
       </AuthProvider>
     </BrowserRouter>

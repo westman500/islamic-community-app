@@ -57,14 +57,15 @@ export const MasjidCoin: React.FC = () => {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen to all events (INSERT and UPDATE)
           schema: 'public',
           table: 'masjid_coin_transactions',
           filter: `user_id=eq.${profile.id}`
         },
         (payload) => {
-          console.log('New transaction:', payload)
-          fetchCoinBalance() // Refresh all data
+          console.log('Transaction update:', payload)
+          // Refresh balance immediately when transaction status changes
+          fetchCoinBalance()
         }
       )
       .subscribe()
@@ -191,9 +192,19 @@ export const MasjidCoin: React.FC = () => {
         {/* Balance Card */}
         <Card className="bg-gradient-to-br from-amber-500 to-amber-700 text-white">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <Coins className="h-6 w-6" />
-              <CardTitle className="text-white">Masjid Coin Balance</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Coins className="h-6 w-6" />
+                <CardTitle className="text-white">Masjid Coin Balance</CardTitle>
+              </div>
+              <Button
+                onClick={fetchCoinBalance}
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-amber-600"
+              >
+                Refresh
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
