@@ -16,6 +16,7 @@ export const ProfileSettings: React.FC = () => {
   const [consultationFee, setConsultationFee] = useState(0)
   const [livestreamFee, setLivestreamFee] = useState(0)
   const [liveConsultationFee, setLiveConsultationFee] = useState(0)
+  const [isOnline, setIsOnline] = useState(false)
   
   const [verificationStatus, setVerificationStatus] = useState({
     phone_verified: false,
@@ -31,6 +32,7 @@ export const ProfileSettings: React.FC = () => {
       setConsultationFee(profile.consultation_fee || 0)
       setLivestreamFee(profile.livestream_fee || 0)
       setLiveConsultationFee(profile.live_consultation_fee || 0)
+      setIsOnline(profile.is_online || false)
       setVerificationStatus({
         phone_verified: profile.phone_verified || false,
         email_verified: profile.email_verified || false,
@@ -83,6 +85,28 @@ export const ProfileSettings: React.FC = () => {
       if (error) throw error
 
       setMessage('Pricing updated successfully!')
+    } catch (err: any) {
+      setMessage(`Error: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleToggleAvailability = async () => {
+    setLoading(true)
+    setMessage('')
+
+    try {
+      const newStatus = !isOnline
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_online: newStatus })
+        .eq('id', profile?.id || '')
+
+      if (error) throw error
+
+      setIsOnline(newStatus)
+      setMessage(`Availability set to ${newStatus ? 'Online' : 'Offline'}`)
     } catch (err: any) {
       setMessage(`Error: ${err.message}`)
     } finally {
@@ -473,9 +497,35 @@ export const ProfileSettings: React.FC = () => {
       {isScholarOrImam && (
         <Card>
           <CardHeader>
-            <CardTitle>Service Pricing</CardTitle>
+            <CardTitle>Service Pricing & Availability</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Availability Toggle */}
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Availability Status</h4>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {isOnline 
+                      ? 'You are currently available for consultations' 
+                      : 'You are currently offline'}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleToggleAvailability}
+                  disabled={loading}
+                  variant={isOnline ? 'default' : 'outline'}
+                  className={isOnline ? 'bg-green-600 hover:bg-green-700' : ''}
+                >
+                  {isOnline ? 'Online' : 'Offline'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-4">Set Your Fees</h4>
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-2">
                 Consultation Fee (₦)

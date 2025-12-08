@@ -71,6 +71,9 @@ export const LivestreamDiscovery: React.FC = () => {
     try {
       setError('') // Clear previous errors
       
+      // Only show streams from the last 24 hours to avoid old stale streams
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      
       // Fetch active streams with scholar info
       const { data: streamsData, error: streamsError } = await supabase
         .from('streams')
@@ -79,6 +82,7 @@ export const LivestreamDiscovery: React.FC = () => {
           scholar:profiles!scholar_id(full_name, role, certificate_verified)
         `)
         .eq('is_active', true)
+        .gte('started_at', twentyFourHoursAgo)
         .order('started_at', { ascending: false })
 
       if (streamsError) {

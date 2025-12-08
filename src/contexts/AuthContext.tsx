@@ -25,24 +25,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Get initial session - Always check localStorage first for persistence
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session ? 'Session found' : 'No session')
+    console.log('🔐 AuthContext: Initializing session...')
+    
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('🔐 Initial session check:', session ? `Session found for ${session.user.email}` : 'No session')
       
       // Restore session state even after app force close
       if (session) {
+        console.log('✅ Restoring active session')
         setSession(session)
         setUser(session?.user ?? null)
+        
+        // Update activity timestamp on session restore
+        localStorage.setItem('masjid-last-activity', new Date().toISOString())
+        
         fetchProfile(session.user.id)
       } else {
-        // Try to restore from localStorage if available
-        const storedSession = localStorage.getItem('supabase.auth.token')
-        if (storedSession) {
-          console.log('Attempting to restore session from localStorage')
-          // Session will be restored by Supabase automatically
+        console.log('⚠️ No active session found, attempting refresh-token restore')
+        // Attempt to restore using stored refresh token
+        try {
+          const raw = localStorage.getItem('supabase.auth.token')
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            const refreshToken = parsed?.currentSession?.refresh_token || parsed?.refreshToken
+            const accessToken = parsed?.currentSession?.access_token || parsed?.accessToken
+            if (refreshToken) {
+              console.log('🔁 Found refresh token, attempting setSession restore')
+              const { data: restored, error: restoreError } = await supabase.auth.setSession({
+                refresh_token: refreshToken,
+                access_token: accessToken || ''
+              })
+              if (!restoreError && restored?.session) {
+                console.log('✅ Session restored from refresh token')
+                setSession(restored.session)
+                setUser(restored.session.user)
+                localStorage.setItem('masjid-last-activity', new Date().toISOString())
+                fetchProfile(restored.session.user.id)
+                return
+              } else {
+                console.warn('⚠️ Refresh-token restore failed:', restoreError?.message)
+              }
+            }
+          }
+        } catch (restoreErr) {
+          console.error('❌ Error during refresh-token restore:', restoreErr)
         }
         setLoading(false)
         setInitialized(true)
       }
+    }).catch(error => {
+      console.error('❌ Error getting session:', error)
+      setLoading(false)
+      setInitialized(true)
     })
 
     // Check and enforce 30-day inactivity logout
@@ -83,6 +117,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     window.addEventListener('pause', handleAppStateChange)
     window.addEventListener('resume', handleAppStateChange)
+    window.addEventListener('beforeunload', async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (data.session) {
+          localStorage.setItem('supabase.last_session_user', data.session.user.id)
+          localStorage.setItem('masjid-last-activity', new Date().toISOString())
+        }
+      } catch {}
+    })
     
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -116,6 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('pause', handleAppStateChange)
       window.removeEventListener('resume', handleAppStateChange)
+      window.removeEventListener('beforeunload', () => {})
     }
   }, [])
 

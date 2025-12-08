@@ -16,6 +16,7 @@ interface Scholar {
   total_ratings: number
   certificate_verified: boolean
   is_online: boolean
+  consultation_fee?: number
 }
 
 export const AvailableScholars: React.FC = () => {
@@ -27,6 +28,19 @@ export const AvailableScholars: React.FC = () => {
 
   useEffect(() => {
     fetchScholars()
+    const channel = supabase
+      .channel('scholar-presence')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        fetchScholars()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'consultations' }, () => {
+        fetchScholars()
+      })
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
   }, [filter])
 
   const fetchScholars = async () => {
@@ -42,8 +56,7 @@ export const AvailableScholars: React.FC = () => {
       if (filter === 'verified') {
         query = query.eq('certificate_verified', true)
       } else if (filter === 'online') {
-        // For now, show all. Later implement real-time presence
-        query = query.eq('certificate_verified', true)
+        query = query.eq('is_online', true)
       }
 
       const { data, error: fetchError } = await query
@@ -51,7 +64,21 @@ export const AvailableScholars: React.FC = () => {
 
       if (fetchError) throw fetchError
 
-      setScholars(data || [])
+      // Determine busy status by checking active consultations
+      const ids = (data || []).map(p => p.id)
+      let busyMap: Record<string, boolean> = {}
+      if (ids.length > 0) {
+        const { data: activeCons } = await supabase
+          .from('consultations')
+          .select('scholar_id, started_at, actual_ended_at, status')
+          .in('scholar_id', ids)
+          .is('actual_ended_at', null)
+        activeCons?.forEach(c => {
+          if (c.started_at && c.status !== 'completed') busyMap[c.scholar_id] = true
+        })
+      }
+
+      setScholars((data || []).map(p => ({ ...p, is_online: !!p.is_online, busy: !!busyMap[p.id] })) as any)
       setLoading(false)
     } catch (err: any) {
       console.error('Error fetching scholars:', err)
@@ -61,7 +88,7 @@ export const AvailableScholars: React.FC = () => {
   }
 
   const handleBookConsultation = (scholarId: string) => {
-    navigate(`/book-consultation?scholar=${scholarId}`)
+    navigate(`/scholar/${scholarId}/book`)
   }
 
   return (
@@ -150,6 +177,13 @@ export const AvailableScholars: React.FC = () => {
                   )}
 
                   <div className="grid grid-cols-3 gap-2">
+                    {typeof (scholar as any).consultation_fee === 'number' && (scholar as any).consultation_fee > 0 && (
+                      <div className="col-span-3 -mt-1 mb-2 text-right">
+                        <span className="text-xs px-2 py-1 rounded bg-emerald-50 text-emerald-700 font-semibold">
+                          ₦{(scholar as any).consultation_fee}/session
+                        </span>
+                      </div>
+                    )}
                     <Button
                       className="bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => handleBookConsultation(scholar.id)}

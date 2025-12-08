@@ -6,6 +6,7 @@ import { usePermissions } from './ProtectedRoute'
 import { Calendar, Clock, MessageSquare, CheckCircle, XCircle, MessageCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { MobileLayout } from './MobileLayout'
+import { supabase } from '../utils/supabase/client'
 
 interface ConsultationBooking {
   id: string
@@ -27,72 +28,99 @@ export const ScholarConsultationManager: React.FC = () => {
   const [bookings, setBookings] = useState<ConsultationBooking[]>([])
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'completed'>('all')
   const [loading, setLoading] = useState(false)
+  const [isAvailable, setIsAvailable] = useState<boolean>(!!profile?.is_online)
+  const [isBusy, setIsBusy] = useState<boolean>(false)
 
   useEffect(() => {
     fetchBookings()
+    // Subscribe to consultations to reflect busy state and booking updates
+    const channel = supabase
+      .channel('consultation-status')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'consultations', filter: profile?.id ? `scholar_id=eq.${profile.id}` : undefined }, async () => {
+        await refreshBusyState()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'consultation_bookings', filter: profile?.id ? `scholar_id=eq.${profile.id}` : undefined }, () => {
+        fetchBookings()
+      })
+      .subscribe()
+
+    refreshBusyState()
+
+    return () => {
+      channel.unsubscribe()
+    }
   }, [])
 
+  const refreshBusyState = async () => {
+    if (!profile?.id) return
+    const { data } = await supabase
+      .from('consultations')
+      .select('id, started_at, actual_ended_at, status')
+      .eq('scholar_id', profile.id)
+      .is('actual_ended_at', null)
+      .limit(1)
+    const active = (data || []).some(c => c.started_at && c.status !== 'completed')
+    setIsBusy(active)
+  }
+
+  const toggleAvailability = async () => {
+    if (!profile?.id) return
+    const next = !isAvailable
+    setIsAvailable(next)
+    await supabase
+      .from('profiles')
+      .update({ is_online: next })
+      .eq('id', profile.id)
+  }
+
   const fetchBookings = async () => {
+    if (!profile?.id) return
+    
     try {
-      // TODO: Replace with actual API call
-      // const response = await apiCall(`scholar-bookings/${profile?.id}`)
-      // setBookings(response.bookings)
-      
-      // Mock data
-      setBookings([
-        {
-          id: 'booking_1',
-          userId: 'user_123',
-          userName: 'Ahmed Ali',
-          userEmail: 'ahmed@example.com',
-          date: '2025-11-20',
-          time: '14:00',
-          topic: 'Questions about Salah and prayer times',
-          status: 'pending',
-          fee: 25,
-          bookedAt: '2025-11-15T10:00:00Z',
-        },
-        {
-          id: 'booking_2',
-          userId: 'user_456',
-          userName: 'Fatima Hassan',
-          userEmail: 'fatima@example.com',
-          date: '2025-11-21',
-          time: '16:00',
-          topic: 'Islamic marriage guidance',
-          status: 'confirmed',
-          fee: 25,
-          bookedAt: '2025-11-14T15:30:00Z',
-        },
-        {
-          id: 'booking_3',
-          userId: 'user_789',
-          userName: 'Yusuf Ibrahim',
-          userEmail: 'yusuf@example.com',
-          date: '2025-11-18',
-          time: '10:00',
-          topic: 'Zakat calculation questions',
-          status: 'completed',
-          fee: 25,
-          bookedAt: '2025-11-10T09:00:00Z',
-        },
-      ])
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('consultation_bookings')
+        .select('*, user:profiles!user_id(full_name, email), amount_paid')
+        .eq('scholar_id', profile.id)
+        .order('booking_date', { ascending: false })
+
+      if (error) throw error
+
+      const formattedBookings = (data || []).map((b: any) => ({
+        id: b.id,
+        userId: b.user_id,
+        userName: b.user?.full_name || 'Unknown',
+        userEmail: b.user?.email || '',
+        date: b.booking_date || '',
+        time: b.booking_time || '',
+        topic: b.topic || 'No topic',
+        status: b.status || 'pending',
+        fee: b.amount_paid || 0,
+        bookedAt: b.created_at || new Date().toISOString(),
+      }))
+
+      setBookings(formattedBookings)
     } catch (err) {
       console.error('Error fetching bookings:', err)
+    } finally {
+      setLoading(false)
     }
   }
 
   const confirmBooking = async (bookingId: string) => {
     setLoading(true)
     try {
-      // TODO: API call to confirm booking
-      // await apiCall(`confirm-booking/${bookingId}`, { method: 'POST' })
+      const { error } = await supabase
+        .from('consultation_bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', bookingId)
+
+      if (error) throw error
       
-      setBookings(bookings.map(b => 
-        b.id === bookingId ? { ...b, status: 'confirmed' as const } : b
-      ))
+      await fetchBookings()
     } catch (err) {
       console.error('Error confirming booking:', err)
+      alert('Failed to confirm booking')
     } finally {
       setLoading(false)
     }
@@ -101,14 +129,17 @@ export const ScholarConsultationManager: React.FC = () => {
   const cancelBooking = async (bookingId: string) => {
     setLoading(true)
     try {
-      // TODO: API call to cancel booking
-      // await apiCall(`cancel-booking/${bookingId}`, { method: 'POST' })
+      const { error } = await supabase
+        .from('consultation_bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId)
+
+      if (error) throw error
       
-      setBookings(bookings.map(b => 
-        b.id === bookingId ? { ...b, status: 'cancelled' as const } : b
-      ))
+      await fetchBookings()
     } catch (err) {
       console.error('Error cancelling booking:', err)
+      alert('Failed to cancel booking')
     } finally {
       setLoading(false)
     }
@@ -117,14 +148,17 @@ export const ScholarConsultationManager: React.FC = () => {
   const completeBooking = async (bookingId: string) => {
     setLoading(true)
     try {
-      // TODO: API call to mark booking as completed
-      // await apiCall(`complete-booking/${bookingId}`, { method: 'POST' })
+      const { error } = await supabase
+        .from('consultation_bookings')
+        .update({ status: 'completed' })
+        .eq('id', bookingId)
+
+      if (error) throw error
       
-      setBookings(bookings.map(b => 
-        b.id === bookingId ? { ...b, status: 'completed' as const } : b
-      ))
+      await fetchBookings()
     } catch (err) {
       console.error('Error completing booking:', err)
+      alert('Failed to complete booking')
     } finally {
       setLoading(false)
     }
@@ -171,6 +205,14 @@ export const ScholarConsultationManager: React.FC = () => {
           <CardDescription>
             Manage your consultation appointments and schedule
           </CardDescription>
+          <div className="mt-4 flex items-center gap-3">
+            <span className={`text-xs px-2 py-1 rounded ${isBusy ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+              {isBusy ? 'Busy: In Session' : 'Available'}
+            </span>
+            <Button variant={isAvailable ? 'default' : 'outline'} size="sm" onClick={toggleAvailability}>
+              {isAvailable ? 'Go Offline' : 'Go Online'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Stats */}

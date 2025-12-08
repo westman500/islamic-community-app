@@ -26,11 +26,54 @@ export const MasjidCoin: React.FC = () => {
   const [success, setSuccess] = useState('')
 
   // Conversion rate: 100 Naira = 1 Masjid Coin
-  const CONVERSION_RATE = 0.01
+  const CONVERSION_RATE = 0.01 // 1 coin per 100 Naira
 
   useEffect(() => {
+    if (!profile?.id) return
+    
     fetchCoinBalance()
-  }, [])
+
+    // Subscribe to realtime balance updates
+    const balanceChannel = supabase
+      .channel('masjid-coin-balance')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${profile.id}`
+        },
+        (payload) => {
+          console.log('Balance updated:', payload)
+          setCoinBalance(payload.new.masjid_coin_balance || 0)
+        }
+      )
+      .subscribe()
+
+    // Subscribe to realtime transaction updates
+    const txChannel = supabase
+      .channel('masjid-coin-transactions')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'masjid_coin_transactions',
+          filter: `user_id=eq.${profile.id}`
+        },
+        (payload) => {
+          console.log('New transaction:', payload)
+          fetchCoinBalance() // Refresh all data
+        }
+      )
+      .subscribe()
+
+    return () => {
+      balanceChannel.unsubscribe()
+      txChannel.unsubscribe()
+    }
+  }, [profile?.id])
 
   const fetchCoinBalance = async () => {
     try {
@@ -75,8 +118,13 @@ export const MasjidCoin: React.FC = () => {
   const handleDeposit = async () => {
     const amount = parseFloat(depositAmount)
     
-    if (!amount || amount < 1) {
-      setError('Please enter a valid amount (minimum $1)')
+    if (!amount || amount < 100) {
+      setError('Please enter a valid amount (minimum 100 Naira)')
+      return
+    }
+
+    if (!profile?.id || !profile?.email) {
+      setError('Profile not loaded. Please refresh the page.')
       return
     }
 
@@ -85,40 +133,57 @@ export const MasjidCoin: React.FC = () => {
     setLoading(true)
 
     try {
-      // TODO: Integrate with Paystack payment
-      // 1. Initialize Paystack transaction
-      // 2. Redirect to payment page
-      // 3. Handle callback
-      // 4. Convert deposited amount to coins
-      // 5. Update user coin balance
+      // Generate unique payment reference
+      const reference = `DEP_${profile.id}_${Date.now()}`
       
-      // Mock success for now
+      // Create pending transaction record
+      const { error: txError } = await supabase
+        .from('masjid_coin_transactions')
+        .insert({
+          user_id: profile.id,
+          amount: Math.floor(amount * CONVERSION_RATE), // Convert to coins
+          type: 'deposit',
+          description: `Deposit ${amount} Naira`,
+          payment_reference: reference,
+          payment_status: 'pending'
+        })
+      
+      if (txError) throw txError
+
+      // Initialize Paystack payment
+      const { initializePaystackPayment } = await import('../utils/paystack')
+      
+      await initializePaystackPayment({
+        email: profile.email,
+        amount: amount, // Amount in Naira
+        reference: reference,
+        metadata: {
+          project: 'masjid-app', // Identifier for this project
+          user_id: profile.id,
+          transaction_type: 'deposit',
+          coins: Math.floor(amount * CONVERSION_RATE)
+        }
+      })
+
+      // Payment successful - webhook will handle the balance update
+      setSuccess(`Payment initiated! Your coins will be credited shortly.`)
+      setDepositAmount('')
+      
+      // Refresh balance after a short delay
       setTimeout(() => {
-        const coins = Math.floor(amount * CONVERSION_RATE)
-        setCoinBalance(prev => prev + coins)
-        setTransactions(prev => [
-          {
-            id: `txn_${Date.now()}`,
-            amount,
-            coins,
-            type: 'deposit',
-            description: 'Deposited funds',
-            date: new Date().toISOString().split('T')[0]
-          },
-          ...prev
-        ])
-        setSuccess(`Successfully deposited $${amount.toFixed(2)} (${coins.toLocaleString()} coins)`)
-        setDepositAmount('')
-        setLoading(false)
-      }, 1500)
-    } catch (err) {
-      setError('Failed to process deposit')
+        fetchCoinBalance()
+      }, 3000)
+      
+    } catch (err: any) {
+      console.error('Deposit error:', err)
+      setError(err.message || 'Failed to process deposit. Please try again.')
+    } finally {
       setLoading(false)
     }
   }
 
   const coinsToDisplay = coinBalance.toLocaleString()
-  const usdValue = (coinBalance / CONVERSION_RATE).toFixed(2)
+  const nairaValue = (coinBalance / CONVERSION_RATE).toFixed(2)
 
   return (
     <MobileLayout title="Masjid Coin Wallet">
@@ -137,7 +202,7 @@ export const MasjidCoin: React.FC = () => {
               <span className="text-xl">coins</span>
             </div>
             <p className="text-amber-100 text-sm">
-              ≈ ${usdValue} USD
+              ≈ ₦{nairaValue}
             </p>
           </CardContent>
         </Card>
@@ -151,7 +216,7 @@ export const MasjidCoin: React.FC = () => {
                 <span className="font-semibold">Conversion Rate</span>
               </div>
               <span className="text-lg font-bold text-amber-600">
-                $1 = {CONVERSION_RATE} coins
+                ₦100 = 1 coin
               </span>
             </div>
           </CardContent>
@@ -181,20 +246,20 @@ export const MasjidCoin: React.FC = () => {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Amount (USD)</label>
+              <label className="text-sm font-medium">Amount (Naira)</label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold">₦</span>
                 <Input
                   type="number"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}
                   placeholder="Enter amount"
                   className="pl-10"
-                  min="1"
-                  step="0.01"
+                  min="100"
+                  step="100"
                 />
               </div>
-              {depositAmount && parseFloat(depositAmount) >= 1 && (
+              {depositAmount && parseFloat(depositAmount) >= 100 && (
                 <p className="text-xs text-gray-500">
                   You'll receive: <span className="font-bold text-amber-600">
                     {(parseFloat(depositAmount) * CONVERSION_RATE).toLocaleString()} coins
@@ -205,7 +270,7 @@ export const MasjidCoin: React.FC = () => {
 
             {/* Quick amount buttons */}
             <div className="grid grid-cols-4 gap-2">
-              {[5, 10, 20, 50].map((value) => (
+              {[500, 1000, 2000, 5000].map((value) => (
                 <Button
                   key={value}
                   variant="outline"
@@ -213,7 +278,7 @@ export const MasjidCoin: React.FC = () => {
                   onClick={() => setDepositAmount(value.toString())}
                   className="text-xs"
                 >
-                  ${value}
+                  ₦{value}
                 </Button>
               ))}
             </div>

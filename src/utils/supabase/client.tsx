@@ -11,6 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storageKey: 'masjid-auth',
     storage: window.localStorage,
     flowType: 'pkce',
+    debug: true, // Enable debug logging for session issues
     // Session expires after 30 days of inactivity
     // Supabase will auto-refresh tokens to keep session alive
     // After 30 days without refresh, user must log in again

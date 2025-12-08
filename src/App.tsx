@@ -29,6 +29,7 @@ import { ScholarLiveStream } from './components/ScholarLiveStream'
 import { ScholarConsultationManager } from './components/ScholarConsultationManager'
 import { ScholarDashboard } from './components/ScholarDashboard'
 import { ScholarWallet } from './components/ScholarWallet'
+import { ScholarAvailability } from './components/ScholarAvailability'
 
 // New components
 import { LivestreamDiscovery } from './components/LivestreamDiscovery'
@@ -43,6 +44,7 @@ import { ActivityCategories } from './components/ActivityCategories'
 import { ActivitiesByCategory } from './components/ActivitiesByCategory'
 import { AgoraTest } from './components/AgoraTest'
 import { TokenDiagnostics } from './components/TokenDiagnostics'
+import { ConsultationBooking } from './components/ConsultationBooking'
 
 function App() {
   return (
@@ -145,6 +147,14 @@ function App() {
               }
             />
             <Route
+              path="/scholar/:scholarId/book"
+              element={
+                <ProtectedRoute allowedRoles={['user']}>
+                  <ConsultationBooking />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/my-bookings"
               element={
                 <ProtectedRoute>
@@ -199,6 +209,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['scholar', 'imam']}>
                   <ScholarWallet />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/availability"
+              element={
+                <ProtectedRoute allowedRoles={['scholar', 'imam']}>
+                  <ScholarAvailability />
                 </ProtectedRoute>
               }
             />

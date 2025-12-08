@@ -233,6 +233,14 @@ export const ConsultationMessaging: React.FC = () => {
 
       if (error) throw error
 
+      // Set scholar offline while session is active
+      if (consultation?.scholar_id) {
+        await supabase
+          .from('profiles')
+          .update({ is_online: false })
+          .eq('id', consultation.scholar_id)
+      }
+
       // Send system message
       await supabase.from('messages').insert({
         consultation_id: consultationId,
@@ -328,6 +336,14 @@ export const ConsultationMessaging: React.FC = () => {
           status: 'completed'
         })
         .eq('id', consultationId)
+
+      // Restore scholar availability after session ends
+      if (consultation?.scholar_id) {
+        await supabase
+          .from('profiles')
+          .update({ is_online: true })
+          .eq('id', consultation.scholar_id)
+      }
 
       await supabase.from('messages').insert({
         consultation_id: consultationId,

@@ -3,8 +3,8 @@
  * Handles deposits, donations, and withdrawals via Paystack API
  */
 
-const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
-const PAYSTACK_SECRET_KEY = import.meta.env.VITE_PAYSTACK_SECRET_KEY
+const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || (window as any).__PAYSTACK_PUBLIC_KEY
+const PAYSTACK_SECRET_KEY = import.meta.env.VITE_PAYSTACK_SECRET_KEY || (window as any).__PAYSTACK_SECRET_KEY
 
 export interface PaystackConfig {
   email: string
@@ -40,8 +40,8 @@ export interface WithdrawalRequest {
  */
 export const initializePaystackPayment = (config: PaystackConfig) => {
   return new Promise((resolve, reject) => {
-    if (!PAYSTACK_PUBLIC_KEY) {
-      reject(new Error('Paystack public key not configured'))
+    if (!PAYSTACK_PUBLIC_KEY && !(window as any).PaystackPop) {
+      reject(new Error('Paystack public key not configured. Set VITE_PAYSTACK_PUBLIC_KEY or window.__PAYSTACK_PUBLIC_KEY'))
       return
     }
 

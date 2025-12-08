@@ -27,9 +27,12 @@ export const ScholarLiveStream: React.FC = () => {
   const [previewReady, setPreviewReady] = useState(false)
   const [localVideoTrack, setLocalVideoTrack] = useState<any>(null)
   const [currentStreamData, setCurrentStreamData] = useState<any>(null)
+  const [reactionNotification, setReactionNotification] = useState<{ type: 'like' | 'dislike', count: number } | null>(null)
+  const [joinNotification, setJoinNotification] = useState<string | null>(null)
   
   const agoraService = useRef<AgoraService | null>(null)
   const localVideoRef = useRef<HTMLDivElement>(null)
+  const realtimeChannel = useRef<any>(null)
 
   useEffect(() => {
     // Cleanup on unmount
@@ -289,6 +292,76 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
         console.log('   Stream ID:', streamData.id)
         setStreamId(streamData.id)
         setCurrentStreamData(streamData)
+        
+        // Subscribe to realtime reactions and participant joins
+        realtimeChannel.current = supabase
+          .channel(`stream-${streamData.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'stream_reactions',
+              filter: `stream_id=eq.${streamData.id}`
+            },
+            (payload) => {
+              const reaction = payload.new as any
+              console.log('⚡ Reaction received:', reaction.reaction_type)
+              setReactionNotification({ type: reaction.reaction_type, count: 1 })
+              setTimeout(() => setReactionNotification(null), 3000)
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'stream_participants',
+              filter: `stream_id=eq.${streamData.id}`
+            },
+            async (payload) => {
+              const participant = payload.new as any
+              // Fetch user name
+              const { data: userData } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', participant.user_id)
+                .single()
+              
+              if (userData) {
+                console.log('👤 User joined:', userData.full_name)
+                setJoinNotification(`${userData.full_name} joined`)
+                setTimeout(() => setJoinNotification(null), 5000)
+                
+                // Update viewer count from database
+                const { data: streamUpdate } = await supabase
+                  .from('streams')
+                  .select('viewer_count')
+                  .eq('id', streamData.id)
+                  .single()
+                
+                if (streamUpdate) {
+                  setViewerCount(streamUpdate.viewer_count || 0)
+                }
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'streams',
+              filter: `id=eq.${streamData.id}`
+            },
+            (payload) => {
+              const updated = payload.new as any
+              if (updated.viewer_count !== undefined) {
+                setViewerCount(updated.viewer_count)
+              }
+            }
+          )
+          .subscribe()
       }
 
     } catch (err: any) {
@@ -319,17 +392,19 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
   const stopStream = async () => {
     console.log('🛑 Stopping stream...')
     
-    // Immediately update UI state
-    setIsStreaming(false)
-    setViewerCount(0)
+    // Unsubscribe from realtime channel
+    if (realtimeChannel.current) {
+      await realtimeChannel.current.unsubscribe()
+      realtimeChannel.current = null
+    }
     
     try {
-      // Update database first (most critical)
+      // Update database FIRST (most critical) - do this before UI updates
       if (streamId) {
-        console.log('📝 Updating stream in database:', streamId)
+        console.log('📝 Marking stream as inactive in database:', streamId)
         const endTime = new Date().toISOString()
         
-        // Update stream status immediately
+        // Update stream status immediately - this triggers realtime updates to all viewers
         const { error: streamError } = await supabase
           .from('streams')
           .update({
@@ -341,24 +416,15 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
 
         if (streamError) {
           console.error('❌ Error updating stream status:', streamError)
+          throw streamError
         } else {
-          console.log('✅ Stream marked as inactive in database')
+          console.log('✅ Stream marked as inactive - viewers will see this immediately via realtime')
         }
-
-        // Mark all participants as inactive (don't await, let it happen in background)
-        supabase
-          .from('stream_participants')
-          .update({
-            is_active: false,
-            left_at: endTime
-          })
-          .eq('stream_id', streamId)
-          .eq('is_active', true)
-          .then(({ error }) => {
-            if (error) console.error('❌ Error updating participants:', error)
-            else console.log('✅ Participants marked as inactive')
-          })
       }
+      
+      // Now update UI state
+      setIsStreaming(false)
+      setViewerCount(0)
 
       // Then cleanup Agora connection
       if (agoraService.current) {
@@ -497,6 +563,33 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
                     <div className="text-white text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
                       <p className="text-sm">Initializing camera...</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Join Notification */}
+                {joinNotification && (
+                  <div className="absolute top-4 left-4 right-4 flex justify-center animate-in slide-in-from-top duration-300">
+                    <div className="bg-emerald-600/90 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      <span className="font-semibold">{joinNotification}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Reaction Notification */}
+                {reactionNotification && (
+                  <div className="absolute bottom-20 right-4 animate-in zoom-in duration-300">
+                    <div className={`${
+                      reactionNotification.type === 'like' 
+                        ? 'bg-red-500' 
+                        : 'bg-blue-500'
+                    } text-white rounded-full p-4 shadow-lg`}>
+                      {reactionNotification.type === 'like' ? (
+                        <span className="text-3xl">❤️</span>
+                      ) : (
+                        <span className="text-3xl">👎</span>
+                      )}
                     </div>
                   </div>
                 )}

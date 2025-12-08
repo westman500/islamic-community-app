@@ -15,6 +15,7 @@ interface Scholar {
   specialization: string
   availableSlots: string[]
   consultationFee: number
+  isOnline?: boolean
 }
 
 interface Booking {
@@ -44,55 +45,96 @@ export const ConsultationBooking: React.FC = () => {
   useEffect(() => {
     fetchScholars()
     fetchMyBookings()
+
+    // Subscribe to realtime updates on consultation bookings
+    const subscription = supabase
+      .channel('consultation-bookings-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'consultation_bookings',
+        filter: profile?.id ? `user_id=eq.${profile.id}` : undefined
+      }, () => {
+        fetchMyBookings()
+      })
+      .subscribe()
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   const fetchScholars = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, specialization, consultation_fee, available_slots')
+        .select('id, full_name, specialization, specializations, consultation_fee, available_slots, is_online')
         .in('role', ['scholar', 'imam'])
         .order('full_name')
       
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error:', error)
+        setError(`Failed to load scholars: ${error.message}`)
+        throw error
+      }
       
-      const formattedScholars = (data || []).map(s => ({
-        id: s.id,
-        name: s.full_name,
-        specialization: s.specialization || 'Islamic Studies',
-        availableSlots: s.available_slots || [],
-        consultationFee: s.consultation_fee || 0
-      }))
+      console.log('Fetched scholars:', data) // Debug log
       
-      setScholars(formattedScholars)
-    } catch (err) {
+      if (!data || data.length === 0) {
+        console.log('No scholars found in database')
+        setScholars([])
+        return
+      }
+      
+      const formattedScholars = (data || []).map((s: any) => {
+        const fee = typeof s.consultation_fee === 'number' ? s.consultation_fee : Number(s.consultation_fee || 0)
+        console.log(`Scholar ${s.full_name}: fee = ${s.consultation_fee}, parsed = ${fee}`) // Debug log
+        return {
+          id: s.id,
+          name: s.full_name,
+          specialization: s.specialization || (Array.isArray(s.specializations) && s.specializations.length > 0 ? s.specializations[0] : 'Islamic Studies'),
+          availableSlots: Array.isArray(s.available_slots) && s.available_slots.length > 0 
+            ? s.available_slots 
+            : ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
+          consultationFee: fee,
+          isOnline: s.is_online || false
+        }
+      })
+      
+      // Filter scholars with fees > 0
+      const scholarsWithFees = formattedScholars.filter(s => s.consultationFee > 0)
+      console.log('Scholars with fees:', scholarsWithFees) // Debug log
+      setScholars(scholarsWithFees)
+      
+      if (scholarsWithFees.length === 0) {
+        console.log('No scholars with consultation fees set')
+      }
+    } catch (err: any) {
       console.error('Error fetching scholars:', err)
+      setError(`Failed to load scholars: ${err.message || 'Unknown error'}`)
     }
   }
 
   const fetchMyBookings = async () => {
     try {
       if (!profile?.id) return
-      
       const { data, error } = await supabase
         .from('consultation_bookings')
         .select('*, scholar:profiles!scholar_id(full_name)')
         .eq('user_id', profile.id)
         .order('booking_date', { ascending: false })
         .limit(10)
-      
       if (error) throw error
-      
-      const formattedBookings = (data || []).map(b => ({
+      const formattedBookings = (data || []).map((b: any) => ({
         id: b.id,
         scholarId: b.scholar_id,
         scholarName: b.scholar?.full_name || 'Unknown',
         date: b.booking_date,
         time: b.booking_time,
-          topic: 'Questions about Salah',
-          status: 'confirmed',
-        },
-      ])
+        topic: b.topic || 'No topic specified',
+        status: b.status || 'pending'
+      }))
+      setMyBookings(formattedBookings)
     } catch (err) {
       console.error('Error fetching bookings:', err)
     }
@@ -254,31 +296,51 @@ export const ConsultationBooking: React.FC = () => {
                   <label className="block text-sm font-medium mb-2">
                     Select Scholar/Imam
                   </label>
-                  <div className="space-y-2">
-                    {scholars.map((scholar) => (
-                      <div
-                        key={scholar.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                          selectedScholar?.id === scholar.id
-                            ? 'border-primary bg-primary/5'
-                            : 'hover:border-primary/50'
-                        }`}
-                        onClick={() => setSelectedScholar(scholar)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold">{scholar.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {scholar.specialization}
-                            </p>
+                  {scholars.length === 0 ? (
+                    <div className="p-6 bg-muted/50 border rounded-lg text-center">
+                      <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-muted-foreground mb-2">No scholars available at the moment</p>
+                      <p className="text-sm text-muted-foreground">
+                        Scholars need to be online and have consultation fees set to accept bookings.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {scholars.map((scholar) => (
+                        <div
+                          key={scholar.id}
+                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                            selectedScholar?.id === scholar.id
+                              ? 'border-primary bg-primary/5'
+                              : 'hover:border-primary/50'
+                          }`}
+                          onClick={() => setSelectedScholar(scholar)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">{scholar.name}</p>
+                                {scholar.isOnline && (
+                                  <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
+                                    Online
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {scholar.specialization}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-emerald-600">
+                                ₦{scholar.consultationFee.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-muted-foreground">per session</p>
+                            </div>
                           </div>
-                          <p className="text-sm font-semibold">
-                            ₦{scholar.consultationFee}/session
-                          </p>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {selectedScholar && (

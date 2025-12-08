@@ -33,6 +33,7 @@ interface ScholarProfile {
   total_ratings: number
   completed_consultations_count: number
   created_at: string
+  consultation_fee?: number
 }
 
 export const ScholarProfileViewer: React.FC = () => {
@@ -266,6 +267,15 @@ export const ScholarProfileViewer: React.FC = () => {
                 })}
               </div>
             </div>
+            {typeof scholar.consultation_fee === 'number' && (
+              <div className="p-4 border rounded-lg">
+                <div className="flex items-center gap-2 text-gray-600 mb-1">
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-sm">Consultation Fee</span>
+                </div>
+                <div className="text-2xl font-bold text-emerald-700">₦{scholar.consultation_fee}/session</div>
+              </div>
+            )}
           </div>
 
           {/* Bio */}

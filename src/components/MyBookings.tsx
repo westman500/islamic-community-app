@@ -45,6 +45,31 @@ export const MyBookings: React.FC = () => {
 
   useEffect(() => {
     fetchBookings()
+
+    // Realtime subscription for consultation bookings
+    const channel = supabase
+      .channel('my-bookings-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'consultation_bookings',
+        filter: profile?.id ? `user_id=eq.${profile.id}` : undefined
+      }, () => {
+        fetchBookings()
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'activity_bookings',
+        filter: profile?.id ? `user_id=eq.${profile.id}` : undefined
+      }, () => {
+        fetchBookings()
+      })
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
   }, [profile?.id])
 
   const fetchBookings = async () => {

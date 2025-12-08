@@ -27,6 +27,39 @@ export const ScholarWallet: React.FC = () => {
 
   useEffect(() => {
     fetchWalletData()
+
+    // Realtime: balance and transactions updates
+    const channel = supabase
+      .channel('wallet-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+        filter: profile?.id ? `id=eq.${profile.id}` : undefined
+      }, () => {
+        fetchWalletData()
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'masjid_coin_transactions',
+        filter: profile?.id ? `recipient_id=eq.${profile.id}` : undefined
+      }, () => {
+        fetchWalletData()
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'masjid_coin_transactions',
+        filter: profile?.id ? `user_id=eq.${profile.id}` : undefined
+      }, () => {
+        fetchWalletData()
+      })
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
   }, [])
 
   const fetchWalletData = async () => {
@@ -45,20 +78,41 @@ export const ScholarWallet: React.FC = () => {
       setBalance(profileData?.masjid_coin_balance || 0)
       
       // Fetch transactions (donations received and withdrawals)
-      const { data: txData, error: txError } = await supabase
+      // Try primary transaction query with donor join
+      let { data: txData, error: txError } = await supabase
         .from('masjid_coin_transactions')
-        .select('*, donor:profiles!user_id(full_name)')
+        .select('id, amount, type, created_at, user_id, recipient_id, donor:profiles!user_id(full_name)')
         .or(`recipient_id.eq.${profile.id},user_id.eq.${profile.id}`)
         .order('created_at', { ascending: false })
         .limit(20)
-      
-      if (txError) throw txError
-      
-      const formattedTx = (txData || []).map(tx => ({
+
+      if (txError) {
+        // Fallback: fetch without join, resolve donor names separately
+        const alt = await supabase
+          .from('masjid_coin_transactions')
+          .select('id, amount, type, created_at, user_id, recipient_id')
+          .or(`recipient_id.eq.${profile.id},user_id.eq.${profile.id}`)
+          .order('created_at', { ascending: false })
+          .limit(20)
+        txData = alt.data || []
+      }
+
+      // Map donor names; if missing, look up profile names for user_id
+      const userIds = Array.from(new Set((txData || []).map((tx: any) => tx.user_id).filter(Boolean)))
+      let donorMap: Record<string, string> = {}
+      if (userIds.length > 0) {
+        const { data: donors } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds)
+        donors?.forEach((d: any) => { donorMap[d.id] = d.full_name })
+      }
+
+      const formattedTx = (txData || []).map((tx: any) => ({
         id: tx.id,
-        amount: Math.abs(tx.amount),
-        donorName: tx.donor?.full_name || 'Anonymous',
-        date: new Date(tx.created_at).toLocaleDateString(),
+        amount: Math.abs(Number(tx.amount || 0)),
+        donorName: tx.donor?.full_name || donorMap[tx.user_id] || 'Anonymous',
+        date: new Date(tx.created_at).toISOString(),
         type: tx.type === 'donation' ? 'zakat' : 'withdrawal'
       }))
       
@@ -141,7 +195,7 @@ export const ScholarWallet: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold mb-2">
-              {showBalance ? `$${balance.toFixed(2)}` : '****'}
+              {showBalance ? `₦${balance.toFixed(2)}` : '****'}
             </div>
             <p className="text-emerald-100 text-sm">
               From livestream tips, zakat contributions, and charitable donations
@@ -159,7 +213,7 @@ export const ScholarWallet: React.FC = () => {
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-green-600" />
                 <span className="text-2xl font-bold text-green-600">
-                  ${totalZakat.toFixed(2)}
+                  ₦{totalZakat.toFixed(2)}
                 </span>
               </div>
             </CardContent>
@@ -173,7 +227,7 @@ export const ScholarWallet: React.FC = () => {
               <div className="flex items-center gap-2">
                 <ArrowDownToLine className="h-4 w-4 text-blue-600" />
                 <span className="text-2xl font-bold text-blue-600">
-                  ${totalWithdrawals.toFixed(2)}
+                  ₦{totalWithdrawals.toFixed(2)}
                 </span>
               </div>
             </CardContent>
@@ -204,7 +258,7 @@ export const ScholarWallet: React.FC = () => {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Amount ($)</label>
+              <label className="text-sm font-medium">Amount (₦)</label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
@@ -218,7 +272,7 @@ export const ScholarWallet: React.FC = () => {
                 />
               </div>
               <p className="text-xs text-gray-500">
-                Maximum: ${balance.toFixed(2)}
+                Maximum: ₦{balance.toFixed(2)}
               </p>
             </div>
 
@@ -282,7 +336,7 @@ export const ScholarWallet: React.FC = () => {
                           : 'text-blue-600'
                       }`}
                     >
-                      {transaction.type === 'zakat' ? '+' : '-'}$
+                      {transaction.type === 'zakat' ? '+' : '-'}₦
                       {transaction.amount.toFixed(2)}
                     </div>
                   </div>
