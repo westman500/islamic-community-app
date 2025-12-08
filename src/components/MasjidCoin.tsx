@@ -14,6 +14,8 @@ interface Transaction {
   type: 'deposit' | 'livestream' | 'consultation' | 'donation'
   description: string
   date: string
+  payment_status?: string
+  status?: string
 }
 
 export const MasjidCoin: React.FC = () => {
@@ -101,13 +103,21 @@ export const MasjidCoin: React.FC = () => {
       
       if (txError) throw txError
       
-      const formattedTx = (txData || []).map(tx => ({
+      // Only show completed/successful transactions
+      const completedTx = (txData || []).filter(tx => 
+        (tx.payment_status === 'success' || tx.payment_status === 'completed') ||
+        (tx.status === 'completed' && tx.type !== 'deposit')
+      )
+      
+      const formattedTx = completedTx.map(tx => ({
         id: tx.id,
         amount: Math.abs(tx.amount / 100), // Convert from coins to currency
         coins: Math.abs(tx.amount),
         type: tx.type,
         description: tx.description,
-        date: new Date(tx.created_at).toLocaleDateString()
+        date: new Date(tx.created_at).toLocaleDateString(),
+        payment_status: tx.payment_status,
+        status: tx.status
       }))
       
       setTransactions(formattedTx)
@@ -396,9 +406,26 @@ export const MasjidCoin: React.FC = () => {
                         <p className="font-medium text-sm">
                           {transaction.description}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(transaction.date).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500">
+                            {new Date(transaction.date).toLocaleDateString()}
+                          </p>
+                          {transaction.payment_status && (
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                              transaction.payment_status === 'success' || transaction.payment_status === 'completed'
+                                ? 'bg-green-100 text-green-700'
+                                : transaction.payment_status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {transaction.payment_status === 'success' || transaction.payment_status === 'completed'
+                                ? 'Completed'
+                                : transaction.payment_status === 'pending'
+                                ? 'Pending'
+                                : 'Failed'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
