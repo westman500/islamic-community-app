@@ -119,7 +119,7 @@ export const UserSignIn: React.FC = () => {
         {/* Islamic Greeting Banner */}
         <div className="mb-6 text-center">
           <div className="flex justify-center mb-3">
-            <img src="/crescent-logo.svg" alt="Islamic Crescent" className="h-16 w-16" />
+            <img src="/masjid-logo.png" alt="Masjid Logo" className="h-20 w-auto" />
           </div>
           <h2 className="text-2xl font-bold text-emerald-800 mb-1" style={{ fontFamily: '"Amiri", serif' }}>
             السلام عليكم

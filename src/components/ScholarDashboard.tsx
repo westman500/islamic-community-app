@@ -89,12 +89,12 @@ export const ScholarDashboard: React.FC = () => {
           <CardContent className="p-6">
             <div className="flex items-center gap-4 mb-3">
               <div className="relative">
-                <div className="absolute inset-0 bg-yellow-300/30 rounded-full blur-lg animate-pulse"></div>
+                <div className="absolute inset-0 bg-emerald-300/30 rounded-lg blur-lg animate-pulse"></div>
                 <img 
-                  src="/crescent-logo.svg" 
-                  alt="Islamic Crescent" 
-                  className="relative h-16 w-16 drop-shadow-2xl"
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(253, 224, 71, 0.5))' }}
+                  src="/masjid-logo.png" 
+                  alt="Masjid Logo" 
+                  className="relative h-16 w-auto drop-shadow-2xl"
+                  style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.5))' }}
                   crossOrigin="anonymous"
                 />
               </div>

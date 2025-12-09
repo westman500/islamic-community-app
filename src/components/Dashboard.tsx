@@ -420,15 +420,14 @@ export function Dashboard() {
         <div className="flex justify-between items-start">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="absolute inset-0 bg-yellow-300/30 rounded-full blur-lg animate-pulse"></div>
+              <div className="absolute inset-0 bg-emerald-300/30 rounded-lg blur-lg animate-pulse"></div>
               <img 
-                src="/crescent-logo.svg" 
-                alt="Islamic Crescent" 
-                className="relative h-20 w-20 drop-shadow-2xl"
-                style={{ filter: 'drop-shadow(0 0 8px rgba(253, 224, 71, 0.5)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3))' }}
+                src="/masjid-logo.png" 
+                alt="Masjid Logo" 
+                className="relative h-20 w-auto drop-shadow-2xl"
+                style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.5)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3))' }}
                 crossOrigin="anonymous"
               />
-              <div className="absolute -top-1 -right-1 h-4 w-4 bg-yellow-400 rounded-full animate-pulse border-2 border-white shadow-lg"></div>
             </div>
             <div>
               <h1 className="text-4xl font-bold tracking-wider" style={{ fontFamily: '"Amiri", "Arabic Typesetting", serif', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>مسجد</h1>
