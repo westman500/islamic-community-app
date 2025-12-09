@@ -127,7 +127,7 @@ export const ZakatDonation: React.FC = () => {
           type: 'donation',
           description: `Zakat donation to ${selectedScholar.name}`,
           payment_reference: reference,
-          payment_status: 'completed',
+          payment_status: 'success',
           status: 'completed'
         })
 
@@ -141,7 +141,7 @@ export const ZakatDonation: React.FC = () => {
           type: 'donation',
           description: `Zakat received from ${userProfile.full_name}`,
           payment_reference: reference,
-          payment_status: 'completed',
+          payment_status: 'success',
           status: 'completed'
         })
       
