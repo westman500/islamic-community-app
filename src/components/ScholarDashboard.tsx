@@ -91,7 +91,7 @@ export const ScholarDashboard: React.FC = () => {
               <div className="relative">
                 <div className="absolute inset-0 bg-emerald-300/30 rounded-lg blur-lg animate-pulse"></div>
                 <img 
-                  src="/masjid-logo.png" 
+                  src="/masjid-logo-dashboard.png" 
                   alt="Masjid Logo" 
                   className="relative h-16 w-auto drop-shadow-2xl"
                   style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.5))' }}

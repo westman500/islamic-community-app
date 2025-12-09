@@ -422,7 +422,7 @@ export function Dashboard() {
             <div className="relative">
               <div className="absolute inset-0 bg-emerald-300/30 rounded-lg blur-lg animate-pulse"></div>
               <img 
-                src="/masjid-logo.png" 
+                src="/masjid-logo-dashboard.png" 
                 alt="Masjid Logo" 
                 className="relative h-20 w-auto drop-shadow-2xl"
                 style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.5)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3))' }}
