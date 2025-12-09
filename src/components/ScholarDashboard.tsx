@@ -87,7 +87,24 @@ export const ScholarDashboard: React.FC = () => {
         {/* Welcome Section */}
         <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-none shadow-lg text-white">
           <CardContent className="p-6">
-            <h2 className="text-2xl font-bold mb-2">Welcome, {profile?.full_name}</h2>
+            <div className="flex items-center gap-4 mb-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-yellow-300/30 rounded-full blur-lg animate-pulse"></div>
+                <img 
+                  src="/crescent-logo.svg" 
+                  alt="Islamic Crescent" 
+                  className="relative h-16 w-16 drop-shadow-2xl"
+                  style={{ filter: 'drop-shadow(0 0 8px rgba(253, 224, 71, 0.5))' }}
+                  crossOrigin="anonymous"
+                />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">Welcome, {profile?.full_name}</h2>
+                <p className="text-emerald-100 text-sm mt-1">
+                  Scholar Dashboard
+                </p>
+              </div>
+            </div>
             <p className="text-emerald-100">
               Here's an overview of your performance and activities
             </p>

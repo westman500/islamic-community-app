@@ -26,11 +26,14 @@ export const CompactPrayerTimes: React.FC = () => {
 
   useEffect(() => {
     // Auto-slide every 3 seconds
-    const slideInterval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % (prayerTimes.length + 1))
-    }, 3000)
+    if (prayerTimes.length > 0) {
+      const totalSlides = prayerTimes.length + 1 // +1 for Jummah
+      const slideInterval = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % totalSlides)
+      }, 3000)
 
-    return () => clearInterval(slideInterval)
+      return () => clearInterval(slideInterval)
+    }
   }, [prayerTimes.length])
 
   const fetchPrayerTimes = async () => {
@@ -141,29 +144,25 @@ export const CompactPrayerTimes: React.FC = () => {
   // Add Jummah to the carousel
   const allPrayers = [...prayerTimes, { name: "Jumu'ah", time: '1:30 PM', arabic: 'الجمعة' }]
 
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index)
-  }
-
   return (
     <Card className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-lg">
-      <CardContent className="p-4">
+      <CardContent className="p-3">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            <h3 className="font-bold text-lg">Prayer Times</h3>
+            <Clock className="h-4 w-4" />
+            <h3 className="font-bold text-sm">Prayer Times</h3>
           </div>
           <div className="flex items-center gap-1 text-xs opacity-90">
             <MapPin className="h-3 w-3" />
-            <span>{location}</span>
+            <span className="text-xs">{location}</span>
           </div>
         </div>
 
-        {/* Carousel Container */}
-        <div className="relative overflow-hidden h-24">
+        {/* Carousel Container - Seamless auto-sliding */}
+        <div className="relative overflow-hidden h-20">
           <div 
-            className="flex transition-transform duration-500 ease-in-out"
+            className="flex transition-transform duration-700 ease-in-out"
             style={{ transform: `translateX(-${currentSlide * 100}%)` }}
           >
             {allPrayers.map((prayer, index) => (
@@ -171,7 +170,7 @@ export const CompactPrayerTimes: React.FC = () => {
                 key={index}
                 className="min-w-full flex items-center justify-center"
               >
-                <div className={`text-center p-3 rounded-lg w-full ${
+                <div className={`text-center p-2 rounded-lg w-full ${
                   prayer.name === "Jumu'ah"
                     ? 'bg-green-500/30 border border-green-300'
                     : isPrayerNext(prayer.name)
@@ -180,33 +179,19 @@ export const CompactPrayerTimes: React.FC = () => {
                     ? 'bg-emerald-800/50'
                     : 'bg-white/10'
                 }`}>
-                  <div className="text-sm font-bold mb-1">{prayer.arabic}</div>
-                  <div className="text-base font-semibold mb-1">{prayer.name}</div>
-                  <div className="text-xl font-bold">{prayer.time}</div>
+                  <div className="text-xs font-bold mb-0.5">{prayer.arabic}</div>
+                  <div className="text-sm font-semibold mb-0.5">{prayer.name}</div>
+                  <div className="text-lg font-bold">{prayer.time}</div>
                   {prayer.name === "Jumu'ah" && (
-                    <div className="text-xs mt-1 opacity-75">Every Friday</div>
+                    <div className="text-xs mt-0.5 opacity-75">Every Friday</div>
                   )}
                   {isPrayerNext(prayer.name) && prayer.name !== "Jumu'ah" && (
-                    <div className="text-xs mt-1 font-semibold">🔔 Next</div>
+                    <div className="text-xs mt-0.5 font-semibold">🔔 Next</div>
                   )}
                 </div>
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Carousel Indicators */}
-        <div className="flex justify-center gap-1.5 mt-2">
-          {allPrayers.map((_, index) => (
-            <div
-              key={index}
-              className={`h-1.5 rounded-full transition-all ${
-                index === currentSlide 
-                  ? 'w-4 bg-white' 
-                  : 'w-1.5 bg-white/40'
-              }`}
-            />
-          ))}
         </div>
 
       </CardContent>
