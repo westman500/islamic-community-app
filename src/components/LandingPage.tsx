@@ -45,7 +45,14 @@ export function LandingPage() {
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img src="/masjid-logo.png" alt="Masjid" className="h-10 w-auto" />
+            <img 
+              src="/masjid-logo.png" 
+              alt="Masjid" 
+              className="h-12 w-auto"
+              style={{
+                filter: 'drop-shadow(0 2px 8px rgba(5, 150, 105, 0.3))'
+              }}
+            />
           </div>
           <div className="flex gap-2">
             <Button 
@@ -73,7 +80,11 @@ export function LandingPage() {
             <img 
               src="/masjid-logo.png" 
               alt="Masjid Mobile" 
-              className="h-32 w-auto relative z-10 drop-shadow-2xl"
+              className="h-48 w-auto relative z-10"
+              style={{
+                filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 40px rgba(16, 185, 129, 0.6)) drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3))',
+                transform: 'scale(1.1)'
+              }}
             />
           </div>
         </div>
