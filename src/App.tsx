@@ -49,6 +49,7 @@ import { ConsultationBooking } from './components/ConsultationBooking'
 import { ScreenshotUtility } from './components/ScreenshotUtility'
 import { IslamicReels } from './components/IslamicReels'
 import { ActivitiesAndRestaurants } from './components/ActivitiesAndRestaurants'
+import { LandingPage } from './components/LandingPage'
 
 function App() {
   // Only show demo features (screenshot utility) in development mode on localhost
@@ -64,7 +65,7 @@ function App() {
         <div id="app-root" className="min-h-screen bg-background">
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<SplashScreen />} />
+            <Route path="/" element={<LandingPage />} />
             <Route path="/signin" element={<UserSignIn />} />
             <Route path="/signup" element={<UserSignUp />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
