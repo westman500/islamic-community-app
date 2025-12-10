@@ -488,13 +488,13 @@ export const MasjidCoin: React.FC = () => {
                     <div className="text-right">
                       <div
                         className={`font-bold ${
-                          transaction.type === 'deposit'
+                          transaction.amount >= 0
                             ? 'text-green-600'
                             : 'text-red-600'
                         }`}
                       >
-                        {transaction.type === 'deposit' ? '+' : '-'}
-                        {transaction.coins.toLocaleString()}
+                        {transaction.amount >= 0 ? '+' : '-'}
+                        {Math.abs(transaction.coins).toLocaleString()}
                       </div>
                       <p className="text-xs text-gray-500">
                         ${transaction.amount.toFixed(2)}

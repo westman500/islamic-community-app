@@ -24,60 +24,91 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   void initialized
 
   useEffect(() => {
-    // Get initial session - Always check localStorage first for persistence
-    console.log('🔐 AuthContext: Initializing session...')
+    let isMounted = true
     
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('🔐 Initial session check:', session ? `Session found for ${session.user.email}` : 'No session')
+    // Enhanced session initialization with comprehensive recovery
+    const initializeAuth = async () => {
+      console.log('🔐 AuthContext: Initializing authentication...')
       
-      // Restore session state even after app force close
-      if (session) {
-        console.log('✅ Restoring active session')
-        setSession(session)
-        setUser(session?.user ?? null)
+      try {
+        // STEP 1: Try to get existing session from Supabase
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
-        // Update activity timestamp on session restore
-        localStorage.setItem('masjid-last-activity', new Date().toISOString())
+        if (!isMounted) return
         
-        fetchProfile(session.user.id)
-      } else {
-        console.log('⚠️ No active session found, attempting refresh-token restore')
-        // Attempt to restore using stored refresh token
-        try {
-          const raw = localStorage.getItem('supabase.auth.token')
-          if (raw) {
-            const parsed = JSON.parse(raw)
-            const refreshToken = parsed?.currentSession?.refresh_token || parsed?.refreshToken
-            const accessToken = parsed?.currentSession?.access_token || parsed?.accessToken
+        if (session) {
+          console.log('✅ Active session found:', session.user.email)
+          setSession(session)
+          setUser(session.user)
+          localStorage.setItem('masjid-last-activity', new Date().toISOString())
+          await fetchProfile(session.user.id)
+          setLoading(false)
+          setInitialized(true)
+          return
+        }
+        
+        // STEP 2: No active session - try to recover from stored auth
+        console.log('🔄 No active session, attempting recovery...')
+        
+        // Try multiple storage keys (Supabase uses different keys in different versions)
+        const possibleKeys = ['masjid-auth', 'sb-masjid-auth', 'supabase.auth.token']
+        let recovered = false
+        
+        for (const key of possibleKeys) {
+          try {
+            const storedAuth = localStorage.getItem(key)
+            if (!storedAuth) continue
+            
+            const parsed = JSON.parse(storedAuth)
+            const refreshToken = parsed?.refresh_token || parsed?.currentSession?.refresh_token
+            
             if (refreshToken) {
-              console.log('🔁 Found refresh token, attempting setSession restore')
-              const { data: restored, error: restoreError } = await supabase.auth.setSession({
-                refresh_token: refreshToken,
-                access_token: accessToken || ''
+              console.log(`🔑 Found refresh token in '${key}', attempting refresh...`)
+              
+              const { data, error: refreshError } = await supabase.auth.refreshSession({
+                refresh_token: refreshToken
               })
-              if (!restoreError && restored?.session) {
-                console.log('✅ Session restored from refresh token')
-                setSession(restored.session)
-                setUser(restored.session.user)
+              
+              if (!isMounted) return
+              
+              if (data?.session && !refreshError) {
+                console.log('✅ Session restored successfully!')
+                setSession(data.session)
+                setUser(data.session.user)
                 localStorage.setItem('masjid-last-activity', new Date().toISOString())
-                fetchProfile(restored.session.user.id)
-                return
+                await fetchProfile(data.session.user.id)
+                recovered = true
+                break
               } else {
-                console.warn('⚠️ Refresh-token restore failed:', restoreError?.message)
+                console.warn(`⚠️ Refresh failed for '${key}':`, refreshError?.message)
               }
             }
+          } catch (parseError) {
+            console.warn(`⚠️ Failed to parse stored auth from '${key}'`)
           }
-        } catch (restoreErr) {
-          console.error('❌ Error during refresh-token restore:', restoreErr)
         }
-        setLoading(false)
-        setInitialized(true)
+        
+        if (!isMounted) return
+        
+        if (!recovered) {
+          console.log('ℹ️ No session to recover - user needs to log in')
+        }
+        
+      } catch (error) {
+        console.error('❌ Auth initialization error:', error)
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+          setInitialized(true)
+        }
       }
-    }).catch(error => {
-      console.error('❌ Error getting session:', error)
-      setLoading(false)
-      setInitialized(true)
-    })
+    }
+    
+    initializeAuth()
+    
+    return () => {
+      isMounted = false
+    }
 
     // Check and enforce 30-day inactivity logout
     const checkSessionExpiry = () => {
@@ -99,11 +130,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true
     }
     
-    // Track app visibility to update activity on app resume
-    const handleVisibilityChange = () => {
+    // Track app visibility and refresh session if needed
+    const handleVisibilityChange = async () => {
       if (!document.hidden) {
-        console.log('App resumed, updating activity timestamp')
+        console.log('📱 App became visible, checking session...')
         localStorage.setItem('masjid-last-activity', new Date().toISOString())
+        
+        // Refresh session if user has been away for a while
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession()
+          
+          if (session) {
+            // Check if token is about to expire (within 5 minutes)
+            const expiresAt = session.expires_at ? session.expires_at * 1000 : 0
+            const now = Date.now()
+            const fiveMinutes = 5 * 60 * 1000
+            
+            if (expiresAt - now < fiveMinutes) {
+              console.log('🔄 Token expiring soon, refreshing...')
+              const { data, error: refreshError } = await supabase.auth.refreshSession()
+              
+              if (data?.session && !refreshError) {
+                console.log('✅ Session refreshed on visibility change')
+                setSession(data.session)
+                setUser(data.session.user)
+              }
+            } else {
+              console.log('✅ Session still valid')
+            }
+          } else if (!error) {
+            console.log('ℹ️ No session on visibility change')
+          }
+        } catch (err) {
+          console.warn('⚠️ Session check on visibility change failed:', err)
+        }
       }
     }
     
@@ -127,29 +187,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {}
     })
     
-    // Listen for auth changes
+    // Listen for auth changes with enhanced handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session ? 'Session exists' : 'No session')
+        console.log('🔐 Auth state changed:', event, session ? `User: ${session.user.email}` : 'No session')
         
-        // Check session expiry on any auth state change
-        if (session && !checkSessionExpiry()) {
-          return // Session expired, will be signed out
-        }
-        
-        setSession(session)
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          // Fetch profile in background without blocking
-          fetchProfile(session.user.id).catch(err => {
-            console.error('Background profile fetch failed:', err)
-          })
-        } else if (event === 'SIGNED_OUT') {
-          setProfile(null)
-          setLoading(false)
-          setInitialized(false)
-          localStorage.removeItem('masjid-last-activity')
+        // Handle different auth events
+        switch (event) {
+          case 'SIGNED_IN':
+          case 'TOKEN_REFRESHED':
+            console.log('✅ Session active:', event)
+            if (session) {
+              setSession(session)
+              setUser(session.user)
+              localStorage.setItem('masjid-last-activity', new Date().toISOString())
+              
+              // Check session expiry
+              if (!checkSessionExpiry()) {
+                console.warn('⚠️ Session expired due to inactivity')
+                return
+              }
+              
+              // Fetch/update profile
+              fetchProfile(session.user.id).catch(err => {
+                console.error('Profile fetch failed:', err)
+              })
+            }
+            break
+            
+          case 'SIGNED_OUT':
+            console.log('👋 User signed out')
+            setSession(null)
+            setUser(null)
+            setProfile(null)
+            setLoading(false)
+            localStorage.removeItem('masjid-last-activity')
+            break
+            
+          case 'USER_UPDATED':
+            if (session) {
+              console.log('📝 User updated')
+              setSession(session)
+              setUser(session.user)
+            }
+            break
+            
+          default:
+            // Handle any other events
+            if (session) {
+              setSession(session)
+              setUser(session.user)
+            } else {
+              // Only clear session if explicitly signed out
+              // Don't clear on transient events like TOKEN_REFRESH failures
+              if (event === 'SIGNED_OUT') {
+                setSession(null)
+                setUser(null)
+                setProfile(null)
+              }
+            }
         }
       }
     )
@@ -261,12 +357,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signIn = async (email: string, password: string): Promise<void> => {
-    console.log('SignIn: Starting authentication for', email)
+    console.log('🔐 SignIn: Starting authentication for', email)
     
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     
     if (error) {
-      console.error('SignIn: Authentication failed', error)
+      console.error('❌ SignIn: Authentication failed', error)
       if (error.message.includes('Email not confirmed')) {
         throw new Error('Please verify your email address. Check your inbox for the confirmation link.')
       } else if (error.message.includes('Invalid login credentials')) {
@@ -280,11 +376,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('Authentication failed. Please try again.')
     }
     
-    console.log('SignIn: Authentication successful')
+    console.log('✅ SignIn: Authentication successful')
     
-    // Update session immediately
+    // CRITICAL: Update session immediately and persist activity
     setSession(data.session)
     setUser(data.user)
+    localStorage.setItem('masjid-last-activity', new Date().toISOString())
+    
+    // Ensure session is stored properly
+    if (data.session) {
+      try {
+        // Force storage update to ensure persistence
+        localStorage.setItem('masjid-auth', JSON.stringify({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_at: data.session.expires_at,
+          user: data.session.user
+        }))
+        console.log('✅ Session persisted to localStorage')
+      } catch (storageError) {
+        console.warn('⚠️ Failed to persist session:', storageError)
+      }
+    }
     
     // Fetch profile in background
     fetchProfile(data.user.id).catch(err => {
@@ -292,7 +405,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Don't block sign-in if profile fetch fails
     })
     
-    console.log('SignIn: Sign-in complete')
+    console.log('🎉 SignIn: Complete - session secured')
   }
 
   const signUp = async (email: string, password: string, role: UserRole, fullName: string) => {

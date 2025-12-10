@@ -17,7 +17,8 @@ export const QiblaDirection: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [permissionGranted, setPermissionGranted] = useState(false)
   const compassRef = useRef<number>(0)
-  const smoothingFactor = 0.1 // Lower = smoother but slower response
+  const animationFrameRef = useRef<number | null>(null)
+  const smoothingFactor = 0.15 // Balanced smoothness and responsiveness
 
   // Kaaba coordinates (precise location)
   const KAABA = { latitude: 21.422487, longitude: 39.826206 }
@@ -83,9 +84,12 @@ export const QiblaDirection: React.FC = () => {
     )
   }
 
-  // Watch device orientation with smoothing
+  // Watch device orientation with real-time smooth updates
   useEffect(() => {
     if (!permissionGranted) return
+
+    let latestHeading = compassRef.current
+    let isAnimating = true
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.alpha !== null) {
@@ -94,15 +98,12 @@ export const QiblaDirection: React.FC = () => {
         
         // On Android, alpha is measured from magnetic north
         // On iOS, it's from true north
-        // Adjust for magnetic declination if needed
         
         // Convert to 0-360 range
         heading = (360 - heading) % 360
         
-        // Apply exponential smoothing to reduce jitter
-        compassRef.current = compassRef.current + smoothingFactor * (heading - compassRef.current)
-        
-        setDeviceHeading(compassRef.current)
+        // Store the latest heading from sensor
+        latestHeading = heading
       }
     }
 
@@ -110,17 +111,47 @@ export const QiblaDirection: React.FC = () => {
       // Use absolute orientation if available (provides true north on supported devices)
       if (event.absolute && event.alpha !== null) {
         let heading = (360 - event.alpha) % 360
-        compassRef.current = compassRef.current + smoothingFactor * (heading - compassRef.current)
-        setDeviceHeading(compassRef.current)
+        latestHeading = heading
       }
+    }
+
+    // Smooth animation loop using requestAnimationFrame for real-time updates
+    const animate = () => {
+      if (!isAnimating) return
+
+      // Calculate shortest path between current and target heading
+      let diff = latestHeading - compassRef.current
+      
+      // Normalize difference to -180 to 180 range (shortest rotation)
+      if (diff > 180) diff -= 360
+      if (diff < -180) diff += 360
+      
+      // Apply exponential smoothing for smooth motion
+      compassRef.current += diff * smoothingFactor
+      
+      // Normalize to 0-360 range
+      compassRef.current = (compassRef.current + 360) % 360
+      
+      // Update React state (throttled to avoid too many re-renders)
+      setDeviceHeading(compassRef.current)
+      
+      // Continue animation
+      animationFrameRef.current = requestAnimationFrame(animate)
     }
 
     if (window.DeviceOrientationEvent) {
       window.addEventListener('deviceorientation', handleOrientation, true)
       window.addEventListener('deviceorientationabsolute', handleAbsoluteOrientation as any, true)
+      
+      // Start animation loop
+      animate()
     }
 
     return () => {
+      isAnimating = false
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
       window.removeEventListener('deviceorientation', handleOrientation, true)
       window.removeEventListener('deviceorientationabsolute', handleAbsoluteOrientation as any, true)
     }
@@ -200,7 +231,7 @@ export const QiblaDirection: React.FC = () => {
                   className="absolute inset-0 rounded-full border-8 border-emerald-600 bg-gradient-to-br from-emerald-50 to-white shadow-xl"
                   style={{
                     transform: `rotate(${-deviceHeading}deg)`,
-                    transition: 'transform 0.05s linear',
+                    transition: 'none', // Remove transition for real-time updates
                   }}
                 >
                   {/* Cardinal directions */}
@@ -236,7 +267,7 @@ export const QiblaDirection: React.FC = () => {
                   className="absolute inset-0 flex items-center justify-center"
                   style={{
                     transform: `rotate(${relativeQibla}deg)`,
-                    transition: 'transform 0.05s linear',
+                    transition: 'none', // Remove transition for real-time updates
                   }}
                 >
                   <div className="relative">

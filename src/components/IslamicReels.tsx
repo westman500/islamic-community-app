@@ -6,6 +6,8 @@ import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
 import { Heart, ThumbsDown, MessageCircle, Share2, Flag, Upload, Film, Eye, AlertTriangle, X, Bookmark } from 'lucide-react'
+import { useNotification } from '../contexts/NotificationContext'
+import { notifyReelUploaded, notifyCoinReward } from '../utils/pushNotifications'
 
 interface Reel {
   id: string
@@ -36,6 +38,7 @@ interface Reel {
 
 export const IslamicReels: React.FC = () => {
   const { profile } = useAuth()
+  const { showNotification } = useNotification()
   const [reels, setReels] = useState<Reel[]>([])
   const [currentReelIndex, setCurrentReelIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -43,6 +46,7 @@ export const IslamicReels: React.FC = () => {
   const [showFlagModal, setShowFlagModal] = useState(false)
   const [selectedReel, setSelectedReel] = useState<Reel | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [viewTracked, setViewTracked] = useState(false)
 
   // Upload form state
   const [uploadForm, setUploadForm] = useState({
@@ -66,8 +70,25 @@ export const IslamicReels: React.FC = () => {
     // Auto-play current reel
     if (videoRef.current && reels.length > 0) {
       videoRef.current.play().catch(console.error)
+      // Reset view tracking when reel changes
+      setViewTracked(false)
     }
   }, [currentReelIndex, reels])
+
+  // Define current reel before useEffect
+  const currentReel = reels[currentReelIndex]
+
+  // Track view after watching for 3 seconds
+  useEffect(() => {
+    if (!currentReel || viewTracked || !profile?.id) return
+
+    const timer = setTimeout(async () => {
+      await trackReelView(currentReel.id)
+      setViewTracked(true)
+    }, 3000) // Track after 3 seconds
+
+    return () => clearTimeout(timer)
+  }, [currentReel, viewTracked, profile])
 
   const fetchReels = async () => {
     try {
@@ -115,6 +136,52 @@ export const IslamicReels: React.FC = () => {
       console.error('Error fetching reels:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const trackReelView = async (reelId: string) => {
+    try {
+      if (!profile?.id) return
+
+      // Insert view record (database will handle duplicates and trigger coin rewards)
+      const { error } = await supabase
+        .from('reel_views')
+        .insert({
+          reel_id: reelId,
+          user_id: profile.id,
+          watched_duration_seconds: 0,
+          completed: false
+        })
+
+      if (error && error.code !== '23505') { // Ignore duplicate key errors
+        console.error('Error tracking view:', error)
+      } else {
+        console.log('✅ View tracked for reel:', reelId)
+        
+        // Check if user earned coins (will be shown via database trigger notification)
+        const { data: rewards } = await supabase
+          .from('reel_rewards')
+          .select('*')
+          .eq('reel_id', reelId)
+          .eq('user_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        if (rewards && rewards.length > 0) {
+          const latestReward = rewards[0]
+          // Show notification for coin reward
+          await notifyCoinReward(
+            latestReward.coins_awarded,
+            `Your reel reached ${latestReward.milestone_views} views!`
+          )
+          showNotification(
+            `🎁 You earned ${latestReward.coins_awarded} coins! Your reel reached ${latestReward.milestone_views} views!`,
+            'success'
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Error in trackReelView:', error)
     }
   }
 
@@ -377,7 +444,19 @@ export const IslamicReels: React.FC = () => {
       if (insertError) throw insertError
 
       setUploadProgress(100)
-      alert('Reel uploaded successfully! It will be visible after moderation approval.')
+      
+      // Show success notification
+      showNotification(
+        '🎥 Reel uploaded successfully! It will be visible after moderation approval.',
+        'success'
+      )
+      
+      // Send push notification
+      await notifyReelUploaded(
+        profile.full_name || 'A user',
+        uploadForm.title
+      )
+      
       setShowUploadModal(false)
       setUploadForm({ title: '', description: '', category: 'islamic_reminder', videoFile: null })
       setUploadProgress(0)
@@ -387,8 +466,6 @@ export const IslamicReels: React.FC = () => {
       setUploadProgress(0)
     }
   }
-
-  const currentReel = reels[currentReelIndex]
 
   if (loading) {
     return (

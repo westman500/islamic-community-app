@@ -33,14 +33,12 @@ export const ScholarConsultationManager: React.FC = () => {
 
   useEffect(() => {
     fetchBookings()
-    // Subscribe to consultations to reflect busy state and booking updates
+    // Subscribe to consultation bookings to reflect busy state and booking updates
     const channel = supabase
       .channel('consultation-status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'consultations', filter: profile?.id ? `scholar_id=eq.${profile.id}` : undefined }, async () => {
-        await refreshBusyState()
-      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'consultation_bookings', filter: profile?.id ? `scholar_id=eq.${profile.id}` : undefined }, () => {
         fetchBookings()
+        refreshBusyState()
       })
       .subscribe()
 
@@ -54,12 +52,12 @@ export const ScholarConsultationManager: React.FC = () => {
   const refreshBusyState = async () => {
     if (!profile?.id) return
     const { data } = await supabase
-      .from('consultations')
-      .select('id, started_at, actual_ended_at, status')
+      .from('consultation_bookings')
+      .select('id, status')
       .eq('scholar_id', profile.id)
-      .is('actual_ended_at', null)
+      .eq('status', 'confirmed')
       .limit(1)
-    const active = (data || []).some(c => c.started_at && c.status !== 'completed')
+    const active = (data || []).length > 0
     setIsBusy(active)
   }
 
@@ -110,17 +108,28 @@ export const ScholarConsultationManager: React.FC = () => {
   const confirmBooking = async (bookingId: string) => {
     setLoading(true)
     try {
+      console.log('✅ Confirming booking:', bookingId)
+      
       const { error } = await supabase
         .from('consultation_bookings')
-        .update({ status: 'confirmed' })
+        .update({ 
+          status: 'confirmed',
+          scholar_accepted: true
+        })
         .eq('id', bookingId)
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Error confirming booking:', error)
+        throw error
+      }
+
+      console.log('✅ Booking confirmed successfully')
       
       await fetchBookings()
-    } catch (err) {
-      console.error('Error confirming booking:', err)
-      alert('Failed to confirm booking')
+      await refreshBusyState()
+    } catch (err: any) {
+      console.error('❌ Error confirming booking:', err)
+      alert('Failed to confirm booking: ' + (err.message || 'Unknown error'))
     } finally {
       setLoading(false)
     }
@@ -148,17 +157,42 @@ export const ScholarConsultationManager: React.FC = () => {
   const completeBooking = async (bookingId: string) => {
     setLoading(true)
     try {
+      console.log('🎯 Marking consultation as complete:', bookingId)
+      
       const { error } = await supabase
         .from('consultation_bookings')
         .update({ status: 'completed' })
         .eq('id', bookingId)
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Error updating booking status:', error)
+        throw error
+      }
+
+      console.log('✅ Booking status updated to completed')
+
+      // Set scholar back online after completing consultation
+      if (profile?.id) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ is_online: true })
+          .eq('id', profile.id)
+
+        if (profileError) {
+          console.error('⚠️ Error setting scholar online:', profileError)
+        } else {
+          console.log('✅ Scholar set back online')
+          setIsAvailable(true)
+        }
+      }
       
       await fetchBookings()
-    } catch (err) {
-      console.error('Error completing booking:', err)
-      alert('Failed to complete booking')
+      await refreshBusyState()
+      
+      console.log('🎉 Consultation marked as complete successfully!')
+    } catch (err: any) {
+      console.error('❌ Error completing booking:', err)
+      alert('Failed to complete booking: ' + (err.message || 'Unknown error'))
     } finally {
       setLoading(false)
     }
@@ -173,7 +207,7 @@ export const ScholarConsultationManager: React.FC = () => {
     pending: bookings.filter(b => b.status === 'pending').length,
     confirmed: bookings.filter(b => b.status === 'confirmed').length,
     completed: bookings.filter(b => b.status === 'completed').length,
-    totalEarnings: bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + b.fee, 0),
+    totalEarnings: bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.fee * 100), 0),
   }
 
   if (!permissions.canManageConsultations) {
@@ -216,25 +250,25 @@ export const ScholarConsultationManager: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="p-4 bg-secondary rounded-lg text-center">
-              <p className="text-2xl font-bold">{stats.total}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="p-3 bg-secondary rounded-lg text-center">
+              <p className="text-xl font-bold">{stats.total}</p>
               <p className="text-xs text-muted-foreground">Total</p>
             </div>
-            <div className="p-4 bg-yellow-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-yellow-800">{stats.pending}</p>
+            <div className="p-3 bg-yellow-50 rounded-lg text-center">
+              <p className="text-xl font-bold text-yellow-800">{stats.pending}</p>
               <p className="text-xs text-yellow-800">Pending</p>
             </div>
-            <div className="p-4 bg-blue-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-blue-800">{stats.confirmed}</p>
+            <div className="p-3 bg-blue-50 rounded-lg text-center">
+              <p className="text-xl font-bold text-blue-800">{stats.confirmed}</p>
               <p className="text-xs text-blue-800">Confirmed</p>
             </div>
-            <div className="p-4 bg-green-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-green-800">{stats.completed}</p>
+            <div className="p-3 bg-green-50 rounded-lg text-center">
+              <p className="text-xl font-bold text-green-800">{stats.completed}</p>
               <p className="text-xs text-green-800">Completed</p>
             </div>
-            <div className="p-4 bg-primary/10 rounded-lg text-center">
-              <p className="text-2xl font-bold text-primary">${stats.totalEarnings}</p>
+            <div className="p-3 bg-primary/10 rounded-lg text-center col-span-2 sm:col-span-1">
+              <p className="text-xl font-bold text-primary">₦{stats.totalEarnings.toLocaleString()}</p>
               <p className="text-xs text-primary">Earnings</p>
             </div>
           </div>
@@ -299,7 +333,7 @@ export const ScholarConsultationManager: React.FC = () => {
                           {booking.time}
                         </div>
                         <span className="font-semibold text-primary">
-                          ${booking.fee}
+                          ₦{(booking.fee * 100).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -314,25 +348,29 @@ export const ScholarConsultationManager: React.FC = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {booking.status === 'pending' && (
                       <>
                         <Button
                           size="sm"
                           onClick={() => confirmBooking(booking.id)}
                           disabled={loading}
+                          className="flex-1 min-w-[100px]"
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
-                          Confirm
+                          <span className="hidden sm:inline">Confirm</span>
+                          <span className="sm:hidden">✓</span>
                         </Button>
                         <Button
                           variant="destructive"
                           size="sm"
                           onClick={() => cancelBooking(booking.id)}
                           disabled={loading}
+                          className="flex-1 min-w-[100px]"
                         >
                           <XCircle className="h-4 w-4 mr-1" />
-                          Decline
+                          <span className="hidden sm:inline">Decline</span>
+                          <span className="sm:hidden">✗</span>
                         </Button>
                       </>
                     )}
@@ -341,26 +379,29 @@ export const ScholarConsultationManager: React.FC = () => {
                         <Button
                           size="sm"
                           onClick={() => navigate(`/consultation/${booking.id}/messages`)}
+                          className="flex-1 min-w-[80px]"
                         >
-                          <MessageCircle className="h-4 w-4 mr-1" />
-                          Chat
+                          <MessageCircle className="h-4 w-4" />
+                          <span className="ml-1 hidden sm:inline">Chat</span>
                         </Button>
                         <Button
                           size="sm"
                           onClick={() => completeBooking(booking.id)}
                           disabled={loading}
+                          className="flex-1 min-w-[100px]"
                         >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Mark Complete
+                          <CheckCircle className="h-4 w-4" />
+                          <span className="ml-1 hidden sm:inline">Complete</span>
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => cancelBooking(booking.id)}
                           disabled={loading}
+                          className="flex-1 min-w-[80px]"
                         >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Cancel
+                          <XCircle className="h-4 w-4" />
+                          <span className="ml-1 hidden sm:inline">Cancel</span>
                         </Button>
                       </>
                     )}

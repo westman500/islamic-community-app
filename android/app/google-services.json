@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "551145999950",
+    "project_id": "masjid-mobile-b6d9f",
+    "storage_bucket": "masjid-mobile-b6d9f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:551145999950:android:94a0560cd73d2e52433d1f",
+        "android_client_info": {
+          "package_name": "com.masjid.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTfI9mDkwQfpMjF6WE52kB0qSvItaZ77Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

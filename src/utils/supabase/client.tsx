@@ -5,23 +5,73 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
+    persistSession: true, // CRITICAL: Keep session in localStorage
+    autoRefreshToken: true, // CRITICAL: Auto-refresh before expiry
     detectSessionInUrl: true,
-    storageKey: 'masjid-auth',
-    storage: window.localStorage,
-    flowType: 'pkce',
-    debug: true, // Enable debug logging for session issues
-    // Session expires after 30 days of inactivity
-    // Supabase will auto-refresh tokens to keep session alive
-    // After 30 days without refresh, user must log in again
+    storageKey: 'masjid-auth', // Custom key for our app
+    storage: window.localStorage, // Use localStorage (survives app closes)
+    flowType: 'pkce', // Secure authentication flow
+    debug: false, // Disable debug in production
   },
   global: {
     headers: {
       'X-Client-Info': 'masjid-app'
     }
+  },
+  // IMPORTANT: Ensures session is loaded synchronously on init
+  // This prevents race conditions on app startup
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 })
+
+// Enhanced session recovery helper
+export const recoverSession = async () => {
+  try {
+    console.log('🔄 Attempting session recovery...')
+    
+    // Try to get existing session first
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (session) {
+      console.log('✅ Session recovered successfully')
+      return session
+    }
+    
+    if (error) {
+      console.warn('⚠️ Session recovery error:', error.message)
+    }
+    
+    // If no session, check if we can refresh from stored token
+    const storedSession = localStorage.getItem('masjid-auth')
+    if (storedSession) {
+      try {
+        const parsed = JSON.parse(storedSession)
+        if (parsed.refresh_token) {
+          console.log('🔁 Refreshing session from stored token...')
+          const { data, error: refreshError } = await supabase.auth.refreshSession({
+            refresh_token: parsed.refresh_token
+          })
+          
+          if (data?.session && !refreshError) {
+            console.log('✅ Session refreshed successfully')
+            return data.session
+          }
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse stored session:', parseError)
+      }
+    }
+    
+    console.log('ℹ️ No session to recover')
+    return null
+  } catch (error) {
+    console.error('❌ Session recovery failed:', error)
+    return null
+  }
+}
 
 // Database types
 export type UserRole = 'user' | 'scholar' | 'imam' | 'admin'

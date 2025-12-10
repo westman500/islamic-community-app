@@ -119,7 +119,7 @@ export const LivestreamDiscovery: React.FC = () => {
             .select('stream_id, payment_status')
             .eq('user_id', profile.id)
             .in('stream_id', streamIds)
-            .eq('payment_status', 'completed')
+            .eq('payment_status', 'success')
           accessData = access
         } catch (optionalError) {
           console.warn('Optional data fetch failed:', optionalError)

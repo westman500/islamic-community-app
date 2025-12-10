@@ -9,6 +9,7 @@ import { useParams } from 'react-router-dom'
 import { FloatingReactions, triggerReaction } from './FloatingReactions'
 import { ZakatModal } from './ZakatModal'
 import { initializePaystackPayment, generatePaymentReference } from '../utils/paystack'
+import { useNotification } from '../contexts/NotificationContext'
 
 interface ActiveStream {
   id: string
@@ -23,6 +24,7 @@ interface ActiveStream {
 export const UserPrayerServiceViewer: React.FC = () => {
   const { profile } = useAuth()
   const { channelName } = useParams<{ channelName?: string }>()
+  const { showNotification } = useNotification()
   
   console.log('UserPrayerServiceViewer loaded with channelName:', channelName)
   const [activeStreams, setActiveStreams] = useState<ActiveStream[]>([])
@@ -285,33 +287,39 @@ export const UserPrayerServiceViewer: React.FC = () => {
       if (accessError) throw accessError
 
       // Initialize Paystack payment
-      await initializePaystackPayment(
-        profile.email || '',
-        fee,
-        paymentReference,
-        async (reference) => {
-          // Payment successful - webhook will handle database update
-          // Retry joining stream with bypass
-          setTimeout(() => {
-            joinStream(stream, true)
-          }, 2000)
-        },
-        () => {
-          // Payment cancelled
-          supabase
-            .from('stream_access_payments')
-            .delete()
-            .eq('id', accessRecordId)
-            .then(() => {
-              setError('Payment cancelled. Please pay to access this stream.')
-            })
-        },
-        {
-          transaction_type: 'livestream',
-          stream_id: stream.id,
-          scholar_id: stream.scholarId
-        }
-      )
+      try {
+        await initializePaystackPayment({
+          email: profile.email || '',
+          amount: fee,
+          reference: paymentReference,
+          metadata: {
+            project: 'masjid-app',
+            user_id: profile.id,
+            transaction_type: 'donation',
+            recipient_id: stream.scholarId,
+            coins: Math.floor(fee * 0.01)
+          }
+        })
+        
+        // Payment successful - webhook will handle database update
+        showNotification(
+          `Payment successful! ₦${fee} paid. Joining "${stream.title}"...`,
+          'payment'
+        )
+        
+        // Retry joining stream with bypass
+        setTimeout(() => {
+          joinStream(stream, true)
+        }, 2000)
+      } catch (error) {
+        // Payment cancelled or failed
+        await supabase
+          .from('stream_access_payments')
+          .delete()
+          .eq('id', accessRecordId)
+        
+        setError('Payment cancelled. Please pay to access this stream.')
+      }
     } catch (err: any) {
       setError(`Payment error: ${err.message}`)
     }
@@ -341,7 +349,7 @@ export const UserPrayerServiceViewer: React.FC = () => {
           .select('*')
           .eq('stream_id', stream.id)
           .eq('user_id', profile?.id)
-          .eq('payment_status', 'completed')
+          .eq('payment_status', 'success')
           .single()
 
         if (accessError && accessError.code !== 'PGRST116') { // PGRST116 = no rows
@@ -413,6 +421,12 @@ export const UserPrayerServiceViewer: React.FC = () => {
       })
 
       setIsConnected(true)
+
+      // Show success notification
+      showNotification(
+        `Successfully joined "${stream.title}" by ${stream.scholarName}`,
+        'success'
+      )
 
       // Track participant in database
       await supabase.from('stream_participants').insert({

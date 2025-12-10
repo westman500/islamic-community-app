@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
+import { NotificationProvider } from './contexts/NotificationContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { initPushNotifications } from './utils/pushNotifications'
 
 // Auth components
 import { UserSignIn } from './components/UserSignIn'
@@ -58,12 +61,18 @@ function App() {
     window.location.hostname === 'localhost' || 
     window.location.hostname === '127.0.0.1'
   )
+
+  // Initialize push notifications when app loads
+  useEffect(() => {
+    initPushNotifications().catch(console.error)
+  }, [])
   
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div id="app-root" className="min-h-screen bg-background">
-          <Routes>
+        <NotificationProvider>
+          <div id="app-root" className="min-h-screen bg-background">
+            <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/signin" element={<UserSignIn />} />
@@ -379,7 +388,8 @@ function App() {
           
           {/* Screenshot utility - only in development */}
           {isDevelopment && <ScreenshotUtility />}
-        </div>
+          </div>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   )

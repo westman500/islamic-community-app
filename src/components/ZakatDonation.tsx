@@ -6,6 +6,8 @@ import { Heart, DollarSign, Coins } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
+import { useNotification } from '../contexts/NotificationContext'
+import { notifyDonationReceived } from '../utils/pushNotifications'
 
 interface Scholar {
   id: string
@@ -16,10 +18,12 @@ interface Scholar {
 
 export const ZakatDonation: React.FC = () => {
   const { profile } = useAuth()
+  const { showNotification } = useNotification()
   const [scholars, setScholars] = useState<Scholar[]>([])
   const [selectedScholar, setSelectedScholar] = useState<Scholar | null>(null)
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingScholars, setLoadingScholars] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
@@ -29,23 +33,34 @@ export const ZakatDonation: React.FC = () => {
 
   const fetchScholars = async () => {
     try {
+      setLoadingScholars(true)
+      console.log('Fetching scholars and imams...')
+      
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, specialization')
-        .in('role', ['scholar', 'imam'])
+        .select('id, full_name, specializations, role')
+        .or('role.eq.scholar,role.eq.imam')
         .order('full_name')
       
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching scholars:', error)
+        throw error
+      }
+      
+      console.log('Fetched scholars:', data?.length || 0, data)
       
       const formattedScholars = (data || []).map(s => ({
         id: s.id,
-        name: s.full_name,
+        name: s.full_name || 'Unknown',
         specialization: s.specialization || 'Islamic Studies'
       }))
       
       setScholars(formattedScholars)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching scholars:', err)
+      setError('Failed to load scholars: ' + err.message)
+    } finally {
+      setLoadingScholars(false)
     }
   }
 
@@ -132,12 +147,13 @@ export const ZakatDonation: React.FC = () => {
         })
 
       // Create transaction record for scholar (credit)
+      // IMPORTANT: recipient_id must be scholar.id so it appears in their wallet
       await supabase
         .from('masjid_coin_transactions')
         .insert({
-          user_id: selectedScholar.id,
-          recipient_id: user.id,
-          amount: coinsAmount,
+          user_id: selectedScholar.id,  // Scholar is the receiver
+          recipient_id: selectedScholar.id,  // For wallet filtering
+          amount: coinsAmount,  // Positive amount for income
           type: 'donation',
           description: `Zakat received from ${userProfile.full_name}`,
           payment_reference: reference,
@@ -146,6 +162,14 @@ export const ZakatDonation: React.FC = () => {
         })
       
       setSuccess(true)
+      showNotification(`Zakat donation of ${coinsAmount} coins sent to ${selectedScholar.name}. May Allah accept your charity!`, 'success')
+      
+      // Send push notification to scholar
+      if (profile) {
+        const nairaAmount = coinsAmount * 100 // Convert coins to Naira
+        await notifyDonationReceived(profile.full_name || 'A donor', nairaAmount)
+      }
+      
       setAmount('')
       setSelectedScholar(null)
       
@@ -208,33 +232,47 @@ export const ZakatDonation: React.FC = () => {
                 <label className="block text-sm font-medium mb-2">
                   Select Scholar/Imam to Support
                 </label>
-                <div className="space-y-2">
-                  {scholars.map((scholar) => (
-                    <div
-                      key={scholar.id}
-                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                        selectedScholar?.id === scholar.id
-                          ? 'border-primary bg-primary/5'
-                          : 'hover:border-primary/50'
-                      }`}
-                      onClick={() => setSelectedScholar(scholar)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">{scholar.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {scholar.specialization}
-                          </p>
-                        </div>
-                        {selectedScholar?.id === scholar.id && (
-                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                            <span className="text-white text-xs">✓</span>
+                {loadingScholars ? (
+                  <div className="p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading scholars...</p>
+                  </div>
+                ) : scholars.length === 0 ? (
+                  <div className="p-6 text-center border border-dashed rounded-lg">
+                    <p className="text-muted-foreground mb-2">No scholars or imams registered yet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Scholars and imams need to register with their roles to appear here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {scholars.map((scholar) => (
+                      <div
+                        key={scholar.id}
+                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                          selectedScholar?.id === scholar.id
+                            ? 'border-primary bg-primary/5'
+                            : 'hover:border-primary/50'
+                        }`}
+                        onClick={() => setSelectedScholar(scholar)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{scholar.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {scholar.specialization}
+                            </p>
                           </div>
-                        )}
+                          {selectedScholar?.id === scholar.id && (
+                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <span className="text-white text-xs">✓</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Amount input */}

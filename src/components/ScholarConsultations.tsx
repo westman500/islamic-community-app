@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
+import { useNotification } from '../contexts/NotificationContext'
 import { supabase } from '../utils/supabase/client'
 import { Calendar, Clock, User, MessageCircle, CheckCircle, AlertCircle, Settings } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
@@ -22,6 +23,7 @@ interface ConsultationBooking {
 
 export const ScholarConsultations: React.FC = () => {
   const { profile } = useAuth()
+  const { showNotification } = useNotification()
   const [consultations, setConsultations] = useState<ConsultationBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [activeChatBookingId, setActiveChatBookingId] = useState<string | null>(null)
@@ -291,6 +293,10 @@ export const ScholarConsultations: React.FC = () => {
                     size="sm"
                     className="w-full bg-emerald-600 hover:bg-emerald-700"
                     onClick={() => {
+                      showNotification(
+                        `Starting consultation with ${booking.user.full_name}. Duration: ${booking.consultation_duration} minutes.`,
+                        'info'
+                      )
                       setActiveChatBookingId(booking.id)
                       setActiveChatUser({
                         id: booking.user_id,

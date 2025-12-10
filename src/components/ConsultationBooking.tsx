@@ -7,13 +7,15 @@ import { Calendar, Clock, MessageSquare } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
+import { useNotification } from '../contexts/NotificationContext'
 import { initializePaystackPayment, generatePaymentReference } from '../utils/paystack'
+import { notifyConsultationBooked } from '../utils/pushNotifications'
+import { useNavigate } from 'react-router-dom'
 
 interface Scholar {
   id: string
   name: string
   specialization: string
-  availableSlots: string[]
   consultationFee: number
   consultationDuration?: number
   isOnline?: boolean
@@ -23,19 +25,21 @@ interface Booking {
   id: string
   scholarId: string
   scholarName: string
-  date: string
-  time: string
   topic: string
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  createdAt: string
+  sessionStarted: boolean
+  scholarAccepted: boolean
+  amountPaid: number
 }
 
 export const ConsultationBooking: React.FC = () => {
   const permissions = usePermissions()
   const { profile } = useAuth()
+  const { showNotification } = useNotification()
+  const navigate = useNavigate()
   const [scholars, setScholars] = useState<Scholar[]>([])
   const [selectedScholar, setSelectedScholar] = useState<Scholar | null>(null)
-  const [selectedDate, setSelectedDate] = useState('')
-  const [selectedTime, setSelectedTime] = useState('')
   const [topic, setTopic] = useState('')
   const [myBookings, setMyBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(false)
@@ -45,17 +49,24 @@ export const ConsultationBooking: React.FC = () => {
 
   useEffect(() => {
     fetchScholars()
+  }, [])
+
+  useEffect(() => {
+    if (!profile?.id) return
+
+    console.log('Profile loaded, fetching bookings for:', profile.id)
     fetchMyBookings()
 
     // Subscribe to realtime updates on consultation bookings
     const subscription = supabase
-      .channel('consultation-bookings-updates')
+      .channel(`consultation-bookings-updates-${profile.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'consultation_bookings',
-        filter: profile?.id ? `user_id=eq.${profile.id}` : undefined
+        filter: `user_id=eq.${profile.id}`
       }, () => {
+        console.log('Booking update detected, refreshing...')
         fetchMyBookings()
       })
       .subscribe()
@@ -63,14 +74,15 @@ export const ConsultationBooking: React.FC = () => {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [profile?.id])
 
   const fetchScholars = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, specializations, consultation_fee, consultation_duration, available_slots, is_online')
+        .select('id, full_name, specializations, consultation_fee, consultation_duration, is_online')
         .in('role', ['scholar', 'imam'])
+        .eq('is_online', true)
         .order('full_name')
       
       if (error) {
@@ -94,9 +106,6 @@ export const ConsultationBooking: React.FC = () => {
           id: s.id,
           name: s.full_name,
           specialization: Array.isArray(s.specializations) && s.specializations.length > 0 ? s.specializations[0] : 'Islamic Studies',
-          availableSlots: Array.isArray(s.available_slots) && s.available_slots.length > 0 
-            ? s.available_slots 
-            : ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
           consultationFee: fee,
           consultationDuration: s.consultation_duration || 30,
           isOnline: s.is_online || false
@@ -119,26 +128,50 @@ export const ConsultationBooking: React.FC = () => {
 
   const fetchMyBookings = async () => {
     try {
-      if (!profile?.id) return
+      if (!profile?.id) {
+        console.log('No profile ID available')
+        return
+      }
+      
+      console.log('Fetching bookings for user:', profile.id)
+      
       const { data, error } = await supabase
         .from('consultation_bookings')
         .select('*, scholar:profiles!scholar_id(full_name)')
         .eq('user_id', profile.id)
-        .order('booking_date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(10)
-      if (error) throw error
+      
+      if (error) {
+        console.error('Supabase error fetching bookings:', error)
+        throw error
+      }
+      
+      console.log('Fetched bookings:', data)
+      
+      if (!data || data.length === 0) {
+        console.log('No bookings found for user')
+        setMyBookings([])
+        return
+      }
+      
       const formattedBookings = (data || []).map((b: any) => ({
         id: b.id,
         scholarId: b.scholar_id,
         scholarName: b.scholar?.full_name || 'Unknown',
-        date: b.booking_date,
-        time: b.booking_time,
         topic: b.topic || 'No topic specified',
-        status: b.status || 'pending'
+        status: b.status || 'pending',
+        createdAt: b.created_at,
+        sessionStarted: !!b.session_started_at,
+        scholarAccepted: b.scholar_accepted || false,
+        amountPaid: b.amount_paid || 0
       }))
+      
+      console.log('Formatted bookings:', formattedBookings)
       setMyBookings(formattedBookings)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching bookings:', err)
+      setError(`Failed to load bookings: ${err.message}`)
     }
   }
 
@@ -148,8 +181,13 @@ export const ConsultationBooking: React.FC = () => {
       return
     }
 
-    if (!selectedScholar || !selectedDate || !selectedTime || !topic.trim()) {
-      setError('Please fill in all fields')
+    if (!selectedScholar || !topic.trim()) {
+      setError('Please select a scholar and enter a topic')
+      return
+    }
+
+    if (!selectedScholar.isOnline) {
+      setError('Scholar is currently offline. Please try again when they are online.')
       return
     }
 
@@ -162,6 +200,20 @@ export const ConsultationBooking: React.FC = () => {
     setLoading(true)
 
     try {
+      // Check for existing active bookings with this scholar
+      const { data: existingBookings, error: checkError } = await supabase
+        .from('consultation_bookings')
+        .select('id, status')
+        .eq('user_id', profile.id)
+        .eq('scholar_id', selectedScholar.id)
+        .in('status', ['pending', 'confirmed'])
+
+      if (checkError) throw checkError
+
+      if (existingBookings && existingBookings.length > 0) {
+        throw new Error(`You already have an active booking with ${selectedScholar.name}. Please cancel it first or wait for it to complete.`)
+      }
+
       const bookingId = crypto.randomUUID()
       const paymentReference = `CONSULT_${profile.id}_${Date.now()}`
       const CONVERSION_RATE = 0.01 // 100 Naira = 1 Coin
@@ -191,27 +243,71 @@ export const ConsultationBooking: React.FC = () => {
 
       if (deductError) throw new Error('Failed to deduct coins from your balance')
 
-      // Add coins to scholar's balance
+      // IMPORTANT: Create booking FIRST before handling money
+      // This way if booking fails, no coins are transferred
+      const now = new Date().toISOString()
+      const { error: bookingError } = await supabase
+        .from('consultation_bookings')
+        .insert({
+          id: bookingId,
+          user_id: profile.id,
+          scholar_id: selectedScholar.id,
+          booking_date: now.split('T')[0],
+          booking_time: now.split('T')[1].substring(0, 5),
+          topic: topic,
+          payment_status: 'completed',
+          payment_reference: paymentReference,
+          amount_paid: coinsRequired,
+          consultation_duration: selectedScholar.consultationDuration || 30,
+          status: 'pending',
+          scholar_accepted: false
+        })
+
+      // If booking creation fails, restore user's balance and exit
+      if (bookingError) {
+        console.error('❌ Booking creation failed:', bookingError)
+        // Rollback: restore user's coins
+        await supabase
+          .from('profiles')
+          .update({ masjid_coin_balance: currentBalance })
+          .eq('id', profile.id)
+        
+        throw new Error(bookingError.message || 'Failed to create booking')
+      }
+      
+      console.log('✅ Booking created successfully')
+
+      // Booking created successfully, now transfer coins to scholar
       const { data: scholarProfile, error: scholarProfileError } = await supabase
         .from('profiles')
         .select('masjid_coin_balance')
         .eq('id', selectedScholar.id)
         .single()
 
-      if (scholarProfileError) throw new Error('Failed to fetch scholar balance')
+      if (scholarProfileError) {
+        console.error('❌ Failed to fetch scholar balance:', scholarProfileError)
+        throw new Error('Failed to fetch scholar balance')
+      }
 
       const scholarBalance = scholarProfile?.masjid_coin_balance || 0
       const newScholarBalance = scholarBalance + coinsRequired
+
+      console.log(`💰 Transferring ${coinsRequired} coins to scholar (${scholarBalance} → ${newScholarBalance})`)
 
       const { error: creditError } = await supabase
         .from('profiles')
         .update({ masjid_coin_balance: newScholarBalance })
         .eq('id', selectedScholar.id)
 
-      if (creditError) throw new Error('Failed to credit scholar')
+      if (creditError) {
+        console.error('❌ Failed to credit scholar:', creditError)
+        throw new Error('Failed to credit scholar')
+      }
+
+      console.log('✅ Scholar credited successfully')
 
       // Create transaction record for user (debit)
-      await supabase
+      const { error: debitTxError } = await supabase
         .from('masjid_coin_transactions')
         .insert({
           user_id: profile.id,
@@ -220,54 +316,59 @@ export const ConsultationBooking: React.FC = () => {
           type: 'consultation',
           description: `Consultation with ${selectedScholar.name}`,
           payment_reference: paymentReference,
-          payment_status: 'success',
+          payment_status: 'completed',
           status: 'completed'
         })
 
+      if (debitTxError) {
+        console.error('⚠️ Failed to create debit transaction record:', debitTxError)
+      } else {
+        console.log('✅ Debit transaction recorded')
+      }
+
       // Create transaction record for scholar (credit)
-      await supabase
+      // IMPORTANT: user_id is who receives, recipient_id should match for filtering
+      const { error: creditTxError } = await supabase
         .from('masjid_coin_transactions')
         .insert({
-          user_id: selectedScholar.id,
-          recipient_id: profile.id,
-          amount: coinsRequired,
+          user_id: selectedScholar.id,  // Scholar is the receiver
+          recipient_id: selectedScholar.id,  // For wallet filtering
+          amount: coinsRequired,  // Positive amount for income
           type: 'consultation',
           description: `Consultation fee from ${profile.full_name}`,
           payment_reference: paymentReference,
-          payment_status: 'success',
+          payment_status: 'completed',
           status: 'completed'
         })
 
-      // Create confirmed booking with consultation duration
-      const { error: bookingError } = await supabase
-        .from('consultation_bookings')
-        .insert({
-          id: bookingId,
-          user_id: profile.id,
-          scholar_id: selectedScholar.id,
-          booking_date: selectedDate,
-          booking_time: selectedTime,
-          topic: topic,
-          payment_status: 'success',
-          payment_reference: paymentReference,
-          amount_paid: coinsRequired,
-          consultation_duration: selectedScholar.consultationDuration || 30,
-          status: 'confirmed'
-        })
-
-      if (bookingError) throw bookingError
+      if (creditTxError) {
+        console.error('⚠️ Failed to create credit transaction record:', creditTxError)
+      } else {
+        console.log('✅ Credit transaction recorded for scholar')
+      }
 
       // Success!
+      console.log('🎉 Booking completed successfully!')
       setSuccess(true)
       setSelectedScholar(null)
-      setSelectedDate('')
-      setSelectedTime('')
       setTopic('')
+      
+      // Show notification
+      showNotification(
+        `Payment successful! ${coinsRequired} coins deducted. Redirecting to chat...`,
+        'payment'
+      )
+      
+      // Send push notification to scholar
+      await notifyConsultationBooked(selectedScholar.name, selectedScholar.consultationDuration || 30)
       
       // Refresh bookings
       await fetchMyBookings()
       
-      setTimeout(() => setSuccess(false), 5000)
+      // Navigate to chatbox after short delay
+      setTimeout(() => {
+        navigate(`/consultation/${bookingId}/messages`)
+      }, 1500)
 
     } catch (err: any) {
       console.error('Booking error:', err)
@@ -279,10 +380,97 @@ export const ConsultationBooking: React.FC = () => {
 
   const cancelBooking = async (bookingId: string) => {
     try {
-      // TODO: API call to cancel booking
-      setMyBookings(myBookings.filter(b => b.id !== bookingId))
-    } catch (err) {
+      const booking = myBookings.find(b => b.id === bookingId)
+      if (!booking) return
+
+      // Check if session has started - can't cancel after session starts
+      if (booking.sessionStarted) {
+        showNotification('Cannot cancel consultation after session has started', 'error')
+        return
+      }
+
+      if (!confirm(`Cancel consultation with ${booking.scholarName}? You will be refunded ${booking.amountPaid} coins.`)) {
+        return
+      }
+
+      setLoading(true)
+
+      // Fetch booking details to get scholar_id and amount
+      const { data: bookingData, error: fetchError } = await supabase
+        .from('consultation_bookings')
+        .select('scholar_id, amount_paid, user_id')
+        .eq('id', bookingId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      const coinsToRefund = bookingData.amount_paid || 0
+
+      // Update booking status to cancelled
+      const { error: cancelError } = await supabase
+        .from('consultation_bookings')
+        .update({ status: 'cancelled', payment_status: 'refunded' })
+        .eq('id', bookingId)
+
+      if (cancelError) throw cancelError
+
+      // Refund coins to user
+      const { data: userProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', bookingData.user_id)
+        .single()
+
+      if (userError) throw userError
+
+      const newUserBalance = (userProfile?.masjid_coin_balance || 0) + coinsToRefund
+      await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newUserBalance })
+        .eq('id', bookingData.user_id)
+
+      // Deduct coins from scholar
+      const { data: scholarProfile, error: scholarError } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', bookingData.scholar_id)
+        .single()
+
+      if (scholarError) throw scholarError
+
+      const newScholarBalance = Math.max(0, (scholarProfile?.masjid_coin_balance || 0) - coinsToRefund)
+      await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: newScholarBalance })
+        .eq('id', bookingData.scholar_id)
+
+      // Create refund transaction records
+      await supabase.from('masjid_coin_transactions').insert([
+        {
+          user_id: bookingData.user_id,
+          recipient_id: bookingData.scholar_id,
+          amount: coinsToRefund,
+          type: 'refund',
+          description: `Refund for cancelled consultation with ${booking.scholarName}`,
+          status: 'completed'
+        },
+        {
+          user_id: bookingData.scholar_id,
+          recipient_id: bookingData.user_id,
+          amount: -coinsToRefund,
+          type: 'refund',
+          description: `Refund issued for cancelled consultation`,
+          status: 'completed'
+        }
+      ])
+
+      showNotification(`Consultation cancelled. ${coinsToRefund} coins refunded to your account.`, 'success')
+      await fetchMyBookings()
+    } catch (err: any) {
       console.error('Error cancelling booking:', err)
+      showNotification(err.message || 'Failed to cancel booking', 'error')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -314,7 +502,10 @@ export const ConsultationBooking: React.FC = () => {
         </Button>
         <Button
           variant={showMyBookings ? 'default' : 'outline'}
-          onClick={() => setShowMyBookings(true)}
+          onClick={() => {
+            setShowMyBookings(true)
+            fetchMyBookings() // Refresh bookings when clicking
+          }}
         >
           My Bookings ({myBookings.length})
         </Button>
@@ -328,7 +519,7 @@ export const ConsultationBooking: React.FC = () => {
               Book a Consultation
             </CardTitle>
             <CardDescription>
-              Schedule a private consultation with our scholars and imams
+              Book an instant consultation with available scholars and imams
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -353,9 +544,9 @@ export const ConsultationBooking: React.FC = () => {
                   {scholars.length === 0 ? (
                     <div className="p-6 bg-muted/50 border rounded-lg text-center">
                       <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-muted-foreground mb-2">No scholars available at the moment</p>
+                      <p className="text-muted-foreground mb-2">No scholars online at the moment</p>
                       <p className="text-sm text-muted-foreground">
-                        Scholars need to be online and have consultation fees set to accept bookings.
+                        Scholars must be online to accept instant consultations. Please check back later.
                       </p>
                     </div>
                   ) : (
@@ -411,37 +602,6 @@ export const ConsultationBooking: React.FC = () => {
 
                 {selectedScholar && (
                   <>
-                    {/* Date selection */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Select Date
-                      </label>
-                      <Input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                    </div>
-
-                    {/* Time selection */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Select Time Slot
-                      </label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {selectedScholar.availableSlots.map((time) => (
-                          <Button
-                            key={time}
-                            variant={selectedTime === time ? 'default' : 'outline'}
-                            onClick={() => setSelectedTime(time)}
-                          >
-                            {time}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
                     {/* Topic */}
                     <div>
                       <label className="block text-sm font-medium mb-2">
@@ -454,6 +614,13 @@ export const ConsultationBooking: React.FC = () => {
                         placeholder="Brief description of what you'd like to discuss..."
                       />
                     </div>
+                    
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-900">
+                        ℹ️ This will start an instant consultation with {selectedScholar.name}. 
+                        Duration: {selectedScholar.consultationDuration || 30} minutes
+                      </p>
+                    </div>
                   </>
                 )}
 
@@ -465,11 +632,11 @@ export const ConsultationBooking: React.FC = () => {
 
                 <Button
                   onClick={handleBooking}
-                  disabled={loading || !selectedScholar || !selectedDate || !selectedTime || !topic}
+                  disabled={loading || !selectedScholar || !topic || !selectedScholar?.isOnline}
                   className="w-full"
                   size="lg"
                 >
-                  {loading ? 'Processing...' : `Book & Pay ₦${selectedScholar?.consultationFee || 0}`}
+                  {loading ? 'Processing...' : `Start Consultation & Pay ₦${selectedScholar?.consultationFee || 0}`}
                 </Button>
               </>
             )}
@@ -482,10 +649,22 @@ export const ConsultationBooking: React.FC = () => {
             <CardDescription>View and manage your consultation bookings</CardDescription>
           </CardHeader>
           <CardContent>
-            {myBookings.length === 0 ? (
+            {error && (
+              <div className="mb-4 p-3 bg-destructive/10 border border-destructive rounded-md">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
+            
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading bookings...</p>
+              </div>
+            ) : myBookings.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No consultation bookings yet</p>
+                <p className="text-sm mt-2">Book a consultation with an online scholar to get started</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -498,15 +677,9 @@ export const ConsultationBooking: React.FC = () => {
                       <div className="flex-1">
                         <h3 className="font-semibold mb-1">{booking.scholarName}</h3>
                         <p className="text-sm text-muted-foreground mb-2">{booking.topic}</p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            {new Date(booking.date).toLocaleDateString()}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {booking.time}
-                          </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          {new Date(booking.createdAt).toLocaleString()}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
@@ -516,15 +689,29 @@ export const ConsultationBooking: React.FC = () => {
                           booking.status === 'completed' ? 'bg-green-100 text-green-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {booking.status}
+                          {booking.sessionStarted ? 'Session Active' : booking.status}
                         </span>
-                        {booking.status === 'confirmed' && (
+                        
+                        {/* Join Chat button for pending/confirmed bookings */}
+                        {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                          <Button
+                            size="sm"
+                            onClick={() => navigate(`/consultation/${booking.id}/messages`)}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            💬 Join Chat
+                          </Button>
+                        )}
+                        
+                        {/* Cancel button - only show if session hasn't started */}
+                        {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.sessionStarted && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => cancelBooking(booking.id)}
+                            disabled={loading}
                           >
-                            Cancel
+                            Cancel & Refund
                           </Button>
                         )}
                       </div>

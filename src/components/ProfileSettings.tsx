@@ -16,9 +16,18 @@ export const ProfileSettings: React.FC = () => {
   
   // Pricing fields for scholars/imams
   const [consultationFee, setConsultationFee] = useState(0)
+  const [consultationDuration, setConsultationDuration] = useState(30)
   const [livestreamFee, setLivestreamFee] = useState(0)
   const [liveConsultationFee, setLiveConsultationFee] = useState(0)
   const [isOnline, setIsOnline] = useState(false)
+  
+  // Bank account fields for withdrawals
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
+  const [bankCode, setBankCode] = useState('')
+  const [bankName, setBankName] = useState('')
+  const [bankAccountName, setBankAccountName] = useState('')
+  const [banks, setBanks] = useState<Array<{ name: string; code: string }>>([])
+  const [verifyingAccount, setVerifyingAccount] = useState(false)
   
   const [verificationStatus, setVerificationStatus] = useState({
     phone_verified: false,
@@ -32,9 +41,14 @@ export const ProfileSettings: React.FC = () => {
     if (profile) {
       setPhoneNumber(profile.phone_number || '')
       setConsultationFee(profile.consultation_fee || 0)
+      setConsultationDuration(profile.consultation_duration || 30)
       setLivestreamFee(profile.livestream_fee || 0)
       setLiveConsultationFee(profile.live_consultation_fee || 0)
       setIsOnline(profile.is_online || false)
+      setBankAccountNumber(profile.bank_account_number || '')
+      setBankCode(profile.bank_code || '')
+      setBankName(profile.bank_name || '')
+      setBankAccountName(profile.bank_account_name || '')
       setVerificationStatus({
         phone_verified: profile.phone_verified || false,
         email_verified: profile.email_verified || false,
@@ -43,7 +57,61 @@ export const ProfileSettings: React.FC = () => {
         smileid_verified: profile.smileid_verified || false
       })
     }
+    // Fetch Nigerian banks
+    fetchNigerianBanks()
   }, [profile])
+
+  const fetchNigerianBanks = async () => {
+    try {
+      const response = await fetch('https://api.paystack.co/bank?currency=NGN')
+      const data = await response.json()
+      if (data.status && data.data) {
+        // Filter out duplicates by bank code
+        const uniqueBanks = data.data.reduce((acc: Array<{ name: string; code: string }>, bank: any) => {
+          if (!acc.find(b => b.code === bank.code)) {
+            acc.push({ name: bank.name, code: bank.code })
+          }
+          return acc
+        }, [])
+        setBanks(uniqueBanks)
+      }
+    } catch (error) {
+      console.error('Error fetching banks:', error)
+    }
+  }
+
+  const verifyBankAccount = async (accountNumber: string, bankCode: string) => {
+    if (accountNumber.length !== 10 || !bankCode) return
+    
+    setVerifyingAccount(true)
+    setMessage('')
+    
+    try {
+      const response = await fetch(
+        `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_PAYSTACK_SECRET_KEY}`
+          }
+        }
+      )
+      
+      const data = await response.json()
+      
+      if (data.status && data.data) {
+        setBankAccountName(data.data.account_name)
+        setMessage(`✓ Account verified: ${data.data.account_name}`)
+      } else {
+        setMessage('Could not verify account. Please check account number and bank.')
+        setBankAccountName('')
+      }
+    } catch (error) {
+      console.error('Error verifying account:', error)
+      setMessage('Error verifying account. Please try again.')
+    } finally {
+      setVerifyingAccount(false)
+    }
+  }
 
   const handleSavePhoneNumber = async () => {
     if (!phoneNumber.trim()) {
@@ -79,6 +147,7 @@ export const ProfileSettings: React.FC = () => {
         .from('profiles')
         .update({
           consultation_fee: consultationFee,
+          consultation_duration: consultationDuration,
           livestream_fee: livestreamFee,
           live_consultation_fee: liveConsultationFee
         })
@@ -86,7 +155,7 @@ export const ProfileSettings: React.FC = () => {
 
       if (error) throw error
 
-      setMessage('Pricing updated successfully!')
+      setMessage('Pricing and duration updated successfully!')
     } catch (err: any) {
       setMessage(`Error: ${err.message}`)
     } finally {
@@ -109,6 +178,52 @@ export const ProfileSettings: React.FC = () => {
 
       setIsOnline(newStatus)
       setMessage(`Availability set to ${newStatus ? 'Online' : 'Offline'}`)
+    } catch (err: any) {
+      setMessage(`Error: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSaveBankAccount = async () => {
+    if (!bankAccountNumber || !bankCode || !bankName || !bankAccountName) {
+      setMessage('Please fill in all bank account fields')
+      return
+    }
+
+    if (bankAccountNumber.length !== 10) {
+      setMessage('Account number must be exactly 10 digits')
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      console.log('Saving bank account:', {
+        bank_account_number: bankAccountNumber.trim(),
+        bank_code: bankCode.trim(),
+        bank_name: bankName.trim(),
+        bank_account_name: bankAccountName.trim()
+      })
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          bank_account_number: bankAccountNumber.trim(),
+          bank_code: bankCode.trim(),
+          bank_name: bankName.trim(),
+          bank_account_name: bankAccountName.trim()
+        })
+        .eq('id', profile?.id || '')
+
+      if (error) {
+        console.error('❌ Bank account save error:', error)
+        throw error
+      }
+
+      console.log('✅ Bank account saved successfully')
+      setMessage('✅ Bank account details saved successfully!')
     } catch (err: any) {
       setMessage(`Error: ${err.message}`)
     } finally {
@@ -292,14 +407,15 @@ export const ProfileSettings: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium mb-2">Phone Number</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Input
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 placeholder="+1234567890"
+                className="flex-1 min-w-[200px]"
               />
-              <Button onClick={handleSavePhoneNumber} disabled={loading}>
+              <Button onClick={handleSavePhoneNumber} disabled={loading} className="min-w-[80px]">
                 Save
               </Button>
             </div>
@@ -556,6 +672,23 @@ export const ProfileSettings: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium mb-2">
+                Consultation Duration (minutes)
+              </label>
+              <Input
+                type="number"
+                min="5"
+                step="5"
+                value={consultationDuration}
+                onChange={(e) => setConsultationDuration(Number(e.target.value))}
+                placeholder="e.g., 30"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Default duration for consultation sessions (e.g., 15min/1000₦, 30min/2000₦)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
                 Livestream Access Fee (₦)
               </label>
               <Input
@@ -597,6 +730,97 @@ export const ProfileSettings: React.FC = () => {
             {message && (
               <div className={`p-3 rounded ${
                 message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+              }`}>
+                {message}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Bank Account for Withdrawals (Scholars/Imams) */}
+      {isScholarOrImam && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bank Account for Withdrawals</CardTitle>
+            <p className="text-sm text-gray-600 mt-2">
+              Add your bank account details to receive withdrawal payments via Paystack
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Select Bank
+              </label>
+              <select
+                value={bankCode}
+                onChange={(e) => {
+                  const selectedBank = banks.find(b => b.code === e.target.value)
+                  setBankCode(e.target.value)
+                  setBankName(selectedBank?.name || '')
+                  if (bankAccountNumber.length === 10 && e.target.value) {
+                    verifyBankAccount(bankAccountNumber, e.target.value)
+                  }
+                }}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="">-- Select your bank --</option>
+                {banks.map((bank) => (
+                  <option key={bank.code} value={bank.code}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Account Number
+              </label>
+              <Input
+                type="text"
+                maxLength={10}
+                value={bankAccountNumber}
+                onChange={(e) => {
+                  setBankAccountNumber(e.target.value)
+                  if (e.target.value.length === 10 && bankCode) {
+                    verifyBankAccount(e.target.value, bankCode)
+                  }
+                }}
+                placeholder="Enter 10-digit account number"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {verifyingAccount && 'Verifying account...'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Account Name
+              </label>
+              <Input
+                type="text"
+                value={bankAccountName}
+                disabled
+                placeholder="Will be auto-filled after verification"
+                className="bg-gray-50"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Automatically verified from your bank
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleSaveBankAccount} 
+              disabled={loading || !bankAccountName}
+              className="w-full"
+            >
+              Save Bank Account
+            </Button>
+
+            {message && (
+              <div className={`p-3 rounded ${
+                message.includes('Error') || message.includes('Could not') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
               }`}>
                 {message}
               </div>
@@ -648,6 +872,33 @@ export const ProfileSettings: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Account Deletion - Available to All Users */}
+      <Card className="border-red-200">
+        <CardHeader className="bg-red-50">
+          <CardTitle className="text-red-900 flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Danger Zone
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-1">Delete Account</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={() => navigate('/delete-account')}
+              className="w-full sm:w-auto"
+            >
+              Delete My Account
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

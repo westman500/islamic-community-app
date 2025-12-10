@@ -8,6 +8,8 @@ import { AgoraService } from '../utils/agora'
 import { supabase } from '../utils/supabase/client'
 import { Video, VideoOff, Mic, MicOff, Users, StopCircle } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
+import { useNotification } from '../contexts/NotificationContext'
+import { notifyLivestreamStarting } from '../utils/pushNotifications'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 declare global {
   interface Window { Capacitor?: { isNativePlatform?: () => boolean } }
@@ -16,6 +18,7 @@ declare global {
 export const ScholarLiveStream: React.FC = () => {
   const { profile } = useAuth()
   const permissions = usePermissions()
+  const { showNotification } = useNotification()
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamTitle, setStreamTitle] = useState('')
   const [channelName, setChannelName] = useState('')
@@ -225,6 +228,15 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
       console.log('  - Audio enabled:', tracks.audioTrack?.enabled)
       console.log('  - Audio track label:', tracks.audioTrack?.getTrackLabel())
 
+      // Show success notification
+      showNotification(
+        `🎥 You are now live! Viewers can join "${streamTitle}"`,
+        'success'
+      )
+
+      // Send push notification to followers
+      await notifyLivestreamStarting(profile.full_name || 'A scholar', streamTitle)
+
       // Listen for viewer joins/leaves
       agoraService.current.onUserJoined(async (user) => {
         setViewerCount((prev) => {
@@ -399,7 +411,19 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
     }
     
     try {
-      // Update database FIRST (most critical) - do this before UI updates
+      // CRITICAL: Stop and close tracks FIRST to release camera/mic permissions
+      if (agoraService.current) {
+        console.log('🔌 Stopping camera and microphone tracks...')
+        await agoraService.current.leaveChannel()
+        agoraService.current = null
+        console.log('✅ Camera and microphone released')
+      }
+      
+      // Clear local video track reference
+      setLocalVideoTrack(null)
+      setPreviewReady(false)
+      
+      // Update database after releasing devices
       if (streamId) {
         console.log('📝 Marking stream as inactive in database:', streamId)
         const endTime = new Date().toISOString()
@@ -425,21 +449,15 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
       // Now update UI state
       setIsStreaming(false)
       setViewerCount(0)
-
-      // Then cleanup Agora connection
-      if (agoraService.current) {
-        console.log('🔌 Disconnecting from Agora...')
-        await agoraService.current.leaveChannel()
-        agoraService.current = null
-        console.log('✅ Disconnected from Agora')
-      }
+      setVideoEnabled(true)
+      setAudioEnabled(true)
 
       // Reset state
       setChannelName('')
       setStreamId(null)
       setError('')
       
-      console.log('✅ Stream stopped successfully')
+      console.log('✅ Stream stopped successfully - all permissions released')
 
     } catch (err: any) {
       console.error('❌ Error stopping stream:', err)
@@ -447,6 +465,8 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
       // Still reset state even if there's an error
       setChannelName('')
       setStreamId(null)
+      setLocalVideoTrack(null)
+      setPreviewReady(false)
     }
   }
 

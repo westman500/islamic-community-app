@@ -223,7 +223,7 @@ export default function ConsultationChat({
             type: 'consultation_extension',
             description: `Extended consultation with ${scholarName}`,
             payment_reference: paymentRef,
-            payment_status: 'success',
+            payment_status: 'completed',
             status: 'completed'
           },
           {
@@ -233,7 +233,7 @@ export default function ConsultationChat({
             type: 'consultation_extension',
             description: `Extension fee from ${profile?.full_name}`,
             payment_reference: paymentRef,
-            payment_status: 'success',
+            payment_status: 'completed',
             status: 'completed'
           }
         ])
