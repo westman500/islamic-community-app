@@ -111,8 +111,8 @@ export const MasjidCoin: React.FC = () => {
       
       const formattedTx = completedTx.map(tx => ({
         id: tx.id,
-        amount: Math.abs(tx.amount / 100), // Convert from coins to currency
-        coins: Math.abs(tx.amount),
+        amount: tx.amount / 100, // Convert from coins to currency (keep sign)
+        coins: tx.amount, // Keep the sign - negative for payments, positive for deposits
         type: tx.type,
         description: tx.description,
         date: new Date(tx.created_at).toLocaleDateString(),
@@ -488,13 +488,13 @@ export const MasjidCoin: React.FC = () => {
                     <div className="text-right">
                       <div
                         className={`font-bold ${
-                          transaction.amount >= 0
+                          transaction.coins >= 0
                             ? 'text-green-600'
                             : 'text-red-600'
                         }`}
                       >
-                        {transaction.amount >= 0 ? '+' : '-'}
-                        {Math.abs(transaction.coins).toLocaleString()}
+                        {transaction.coins >= 0 ? '+' : ''}
+                        {transaction.coins.toLocaleString()}
                       </div>
                       <p className="text-xs text-gray-500">
                         ${transaction.amount.toFixed(2)}
