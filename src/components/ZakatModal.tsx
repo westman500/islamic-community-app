@@ -59,44 +59,18 @@ export const ZakatModal = ({ isOpen, onClose, scholarId, streamTitle }: ZakatMod
         return
       }
 
-      // Record transaction
-      const { error: txError } = await supabase
-        .from('masjid_coin_transactions')
-        .insert({
-          user_id: profile.id,
-          amount: -amount,
-          type: 'donation',
-          description: `Zakat donation during livestream: ${streamTitle}`,
-          recipient_id: scholarId
-        })
+      // Use edge function to process zakat (bypasses RLS)
+      const { data: zakatData, error: zakatError } = await supabase.functions.invoke('process-zakat', {
+        body: {
+          userId: profile.id,
+          scholarId,
+          amount,
+          streamTitle
+        }
+      })
 
-      if (txError) throw txError
-
-      // Update user balance
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ masjid_coin_balance: balance - amount })
-        .eq('id', profile.id)
-
-      if (updateError) throw updateError
-
-      // Update scholar balance
-      const { data: scholarData, error: scholarError } = await supabase
-        .from('profiles')
-        .select('masjid_coin_balance')
-        .eq('id', scholarId)
-        .single()
-
-      if (scholarError) throw scholarError
-
-      const scholarBalance = scholarData.masjid_coin_balance || 0
-      
-      const { error: scholarUpdateError } = await supabase
-        .from('profiles')
-        .update({ masjid_coin_balance: scholarBalance + amount })
-        .eq('id', scholarId)
-
-      if (scholarUpdateError) throw scholarUpdateError
+      if (zakatError) throw zakatError
+      if (!zakatData?.success) throw new Error(zakatData?.error || 'Zakat processing failed')
 
       setMessage(`✅ Successfully donated ${amount} coins! May Allah accept your Zakat.`)
       

@@ -428,7 +428,7 @@ export const IslamicReels: React.FC = () => {
 
       setUploadProgress(80)
 
-      // Insert reel record (pending approval)
+      // Insert reel record (auto-approved for now)
       const { error: insertError } = await supabase
         .from('islamic_reels')
         .insert({
@@ -437,8 +437,8 @@ export const IslamicReels: React.FC = () => {
           description: uploadForm.description,
           category: uploadForm.category,
           video_url: publicUrl,
-          is_approved: false,
-          moderation_status: 'pending'
+          is_approved: true,
+          moderation_status: 'approved'
         })
 
       if (insertError) throw insertError
@@ -447,7 +447,7 @@ export const IslamicReels: React.FC = () => {
       
       // Show success notification
       showNotification(
-        '🎥 Reel uploaded successfully! It will be visible after moderation approval.',
+        '🎥 Reel uploaded successfully! It is now visible to all users.',
         'success'
       )
       

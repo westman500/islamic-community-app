@@ -40,10 +40,14 @@ export const UserPrayerServiceViewer: React.FC = () => {
   const [showZakatModal, setShowZakatModal] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isPiP, setIsPiP] = useState(false)
+  const [comments, setComments] = useState<Array<{id: string, message: string, user_name: string, created_at: string}>>([])
+  const [newComment, setNewComment] = useState('')
+  const [sendingComment, setSendingComment] = useState(false)
   
   const agoraService = useRef<AgoraService | null>(null)
   const remoteVideoRef = useRef<HTMLDivElement>(null)
   const videoContainerRef = useRef<HTMLDivElement>(null)
+  const commentsEndRef = useRef<HTMLDivElement>(null)
 
   // Fetch active streams and subscribe to realtime changes
   useEffect(() => {
@@ -287,39 +291,37 @@ export const UserPrayerServiceViewer: React.FC = () => {
       if (accessError) throw accessError
 
       // Initialize Paystack payment
-      try {
-        await initializePaystackPayment({
-          email: profile.email || '',
-          amount: fee,
-          reference: paymentReference,
-          metadata: {
-            project: 'masjid-app',
-            user_id: profile.id,
-            transaction_type: 'donation',
-            recipient_id: stream.scholarId,
-            coins: Math.floor(fee * 0.01)
-          }
-        })
-        
-        // Payment successful - webhook will handle database update
-        showNotification(
-          `Payment successful! ₦${fee} paid. Joining "${stream.title}"...`,
-          'payment'
-        )
-        
-        // Retry joining stream with bypass
-        setTimeout(() => {
-          joinStream(stream, true)
-        }, 2000)
-      } catch (error) {
-        // Payment cancelled or failed
-        await supabase
-          .from('stream_access_payments')
-          .delete()
-          .eq('id', accessRecordId)
-        
-        setError('Payment cancelled. Please pay to access this stream.')
-      }
+      await initializePaystackPayment(
+        profile.email || '',
+        fee,
+        paymentReference,
+        async (reference) => {
+          // Payment successful - webhook will handle database update
+          showNotification(
+            `Payment successful! ₦${fee} paid. Joining "${stream.title}"...`,
+            'payment'
+          )
+          // Retry joining stream with bypass
+          setTimeout(() => {
+            joinStream(stream, true)
+          }, 2000)
+        },
+        () => {
+          // Payment cancelled
+          supabase
+            .from('stream_access_payments')
+            .delete()
+            .eq('id', accessRecordId)
+            .then(() => {
+              setError('Payment cancelled. Please pay to access this stream.')
+            })
+        },
+        {
+          transaction_type: 'livestream',
+          stream_id: stream.id,
+          scholar_id: stream.scholarId
+        }
+      )
     } catch (err: any) {
       setError(`Payment error: ${err.message}`)
     }
@@ -435,6 +437,13 @@ export const UserPrayerServiceViewer: React.FC = () => {
         is_active: true
       })
 
+      // Increment viewer count using database function
+      await supabase.rpc('increment_viewer_count', { stream_uuid: stream.id })
+      console.log('✅ Viewer count incremented for stream:', stream.id)
+
+      // Load existing comments
+      fetchComments(stream.id)
+
     } catch (err: any) {
       console.error('❌ Error joining stream:', err)
       
@@ -458,32 +467,174 @@ export const UserPrayerServiceViewer: React.FC = () => {
 
   const leaveStream = async () => {
     try {
+      console.log('🚪 Leaving stream...')
+      
+      // Cleanup Agora connection
       if (agoraService.current) {
-        await agoraService.current.leaveChannel()
+        try {
+          await agoraService.current.leaveChannel()
+          console.log('✅ Left Agora channel')
+        } catch (agoraError) {
+          console.error('⚠️ Error leaving Agora channel:', agoraError)
+        }
         agoraService.current = null
       }
 
       // Update participant record in database
-      if (selectedStream) {
-        await supabase
-          .from('stream_participants')
-          .update({
-            is_active: false,
-            left_at: new Date().toISOString()
-          })
-          .eq('stream_id', selectedStream.id)
-          .eq('user_id', profile?.id)
-          .eq('is_active', true)
+      if (selectedStream && profile?.id) {
+        try {
+          const { error } = await supabase
+            .from('stream_participants')
+            .update({
+              is_active: false,
+              left_at: new Date().toISOString()
+            })
+            .eq('stream_id', selectedStream.id)
+            .eq('user_id', profile.id)
+            .eq('is_active', true)
+          
+          if (error) {
+            console.error('⚠️ Error updating participant status:', error)
+          } else {
+            console.log('✅ Participant status updated')
+          }
+
+          // Decrement viewer count using database function
+          await supabase.rpc('decrement_viewer_count', { stream_uuid: selectedStream.id })
+          console.log('✅ Viewer count decremented for stream:', selectedStream.id)
+        } catch (dbError) {
+          console.error('⚠️ Database error:', dbError)
+        }
       }
 
+      // Reset state
       setIsConnected(false)
       setSelectedStream(null)
+      setError('')
+      
+      console.log('✅ Successfully left stream')
       
     } catch (err: any) {
-      console.error('Error leaving stream:', err)
+      console.error('❌ Error leaving stream:', err)
       setError(err.message || 'Failed to leave stream')
+    } finally {
+      // Force cleanup regardless of errors
+      setIsConnected(false)
+      agoraService.current = null
     }
   }
+
+  // Fetch comments for the stream
+  const fetchComments = async (streamId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('stream_comments')
+        .select(`
+          id,
+          message,
+          created_at,
+          user_id,
+          profiles:user_id (full_name)
+        `)
+        .eq('stream_id', streamId)
+        .order('created_at', { ascending: true })
+        .limit(100)
+
+      if (error) throw error
+
+      const formattedComments = (data || []).map((comment: any) => ({
+        id: comment.id,
+        message: comment.message,
+        user_name: comment.profiles?.full_name || 'Anonymous',
+        created_at: comment.created_at
+      }))
+
+      setComments(formattedComments)
+      
+      // Scroll to bottom
+      setTimeout(() => {
+        commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    } catch (error) {
+      console.error('Error fetching comments:', error)
+    }
+  }
+
+  // Send a new comment
+  const sendComment = async () => {
+    if (!newComment.trim() || !selectedStream || !profile) return
+
+    setSendingComment(true)
+    try {
+      const { error } = await supabase
+        .from('stream_comments')
+        .insert({
+          stream_id: selectedStream.id,
+          user_id: profile.id,
+          message: newComment.trim()
+        })
+
+      if (error) throw error
+
+      setNewComment('')
+      // Comment will be added via real-time subscription
+    } catch (error) {
+      console.error('Error sending comment:', error)
+      showNotification('Failed to send comment', 'error')
+    } finally {
+      setSendingComment(false)
+    }
+  }
+
+  // Subscribe to real-time comments
+  useEffect(() => {
+    if (!selectedStream) return
+
+    const commentsChannel = supabase
+      .channel(`stream-comments:${selectedStream.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'stream_comments',
+          filter: `stream_id=eq.${selectedStream.id}`
+        },
+        async (payload) => {
+          // Fetch the full comment with user info
+          const { data } = await supabase
+            .from('stream_comments')
+            .select(`
+              id,
+              message,
+              created_at,
+              profiles:user_id (full_name)
+            `)
+            .eq('id', payload.new.id)
+            .single()
+
+          if (data) {
+            const newComment = {
+              id: data.id,
+              message: data.message,
+              user_name: (data.profiles as any)?.full_name || 'Anonymous',
+              created_at: data.created_at
+            }
+            setComments(prev => [...prev, newComment])
+            
+            // Scroll to bottom
+            setTimeout(() => {
+              commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+            }, 100)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      commentsChannel.unsubscribe()
+    }
+  }, [selectedStream])
 
   const toggleAudio = async () => {
     try {
@@ -842,8 +993,8 @@ export const UserPrayerServiceViewer: React.FC = () => {
 
               {/* Viewer controls */}
               <div className="space-y-3">
-                {/* Reactions */}
-                <div className="flex items-center justify-center gap-4">
+                {/* Reactions and Zakat */}
+                <div className="flex items-center justify-center gap-2">
                   <Button
                     variant={hasLiked ? 'default' : 'outline'}
                     size="lg"
@@ -864,13 +1015,55 @@ export const UserPrayerServiceViewer: React.FC = () => {
                   </Button>
                   <Button
                     variant="outline"
-                    size="lg"
+                    size="sm"
                     onClick={handleZakat}
-                    className="flex-1 border-green-500 text-green-600 hover:bg-green-50"
+                    className="border-green-500 text-green-600 hover:bg-green-50 px-3"
                   >
-                    <Heart className="h-5 w-5 mr-2" />
-                    Zakat
+                    <Heart className="h-4 w-4 mr-1" />
+                    <span className="text-xs">Zakat</span>
                   </Button>
+                </div>
+
+                {/* Comments Section */}
+                <div className="border rounded-lg p-3 space-y-2">
+                  <h3 className="text-sm font-semibold mb-2">Live Chat</h3>
+                  
+                  {/* Comments Display */}
+                  <div className="h-32 overflow-y-auto space-y-2 mb-2 bg-gray-50 rounded p-2">
+                    {comments.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-4">No messages yet. Be the first to comment!</p>
+                    ) : (
+                      comments.map((comment) => (
+                        <div key={comment.id} className="text-xs">
+                          <span className="font-semibold text-emerald-600">{comment.user_name}: </span>
+                          <span className="text-gray-700">{comment.message}</span>
+                        </div>
+                      ))
+                    )}
+                    <div ref={commentsEndRef} />
+                  </div>
+
+                  {/* Comment Input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && !sendingComment && sendComment()}
+                      placeholder="Type a message..."
+                      className="flex-1 text-sm px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      maxLength={200}
+                      disabled={sendingComment}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={sendComment}
+                      disabled={!newComment.trim() || sendingComment}
+                      className="px-4"
+                    >
+                      {sendingComment ? '...' : 'Send'}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Audio and leave controls */}

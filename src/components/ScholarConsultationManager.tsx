@@ -274,11 +274,12 @@ export const ScholarConsultationManager: React.FC = () => {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               variant={filter === 'all' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilter('all')}
+              className="text-xs px-2.5 py-1.5 h-8"
             >
               All ({bookings.length})
             </Button>
@@ -286,6 +287,7 @@ export const ScholarConsultationManager: React.FC = () => {
               variant={filter === 'pending' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilter('pending')}
+              className="text-xs px-2.5 py-1.5 h-8"
             >
               Pending ({stats.pending})
             </Button>
@@ -293,6 +295,7 @@ export const ScholarConsultationManager: React.FC = () => {
               variant={filter === 'confirmed' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilter('confirmed')}
+              className="text-xs px-2.5 py-1.5 h-8"
             >
               Confirmed ({stats.confirmed})
             </Button>
@@ -300,8 +303,9 @@ export const ScholarConsultationManager: React.FC = () => {
               variant={filter === 'completed' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilter('completed')}
+              className="text-xs px-2.5 py-1.5 h-8"
             >
-              Completed ({stats.completed})
+              Done ({stats.completed})
             </Button>
           </div>
 

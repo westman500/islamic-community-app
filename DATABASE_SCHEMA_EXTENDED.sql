@@ -29,6 +29,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS average_rating NUMERIC DEFAULT 0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS total_ratings INTEGER DEFAULT 0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS specializations TEXT[];
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
 
 -- Add new columns to consultations table
 ALTER TABLE consultations ADD COLUMN IF NOT EXISTS price NUMERIC;

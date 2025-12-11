@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Islamic Community</string>
-    <string name="title_activity_main">Islamic Community</string>
+    <string name="app_name">Masjid</string>
+    <string name="title_activity_main">Masjid</string>
     <string name="package_name">com.masjid.app</string>
     <string name="custom_url_scheme">com.masjid.app</string>
 </resources>

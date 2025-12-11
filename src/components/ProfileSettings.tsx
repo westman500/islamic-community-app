@@ -14,6 +14,10 @@ export const ProfileSettings: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   
+  // Profile picture state
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  
   // Pricing fields for scholars/imams
   const [consultationFee, setConsultationFee] = useState(0)
   const [consultationDuration, setConsultationDuration] = useState(30)
@@ -40,6 +44,7 @@ export const ProfileSettings: React.FC = () => {
   useEffect(() => {
     if (profile) {
       setPhoneNumber(profile.phone_number || '')
+      setAvatarUrl(profile.avatar_url || profile.profile_picture_url || '')
       setConsultationFee(profile.consultation_fee || 0)
       setConsultationDuration(profile.consultation_duration || 30)
       setLivestreamFee(profile.livestream_fee || 0)
@@ -135,6 +140,74 @@ export const ProfileSettings: React.FC = () => {
       setMessage(`Error: ${err.message}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !profile?.id) return
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage('Error: Image must be less than 5MB')
+      return
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setMessage('Error: Please upload an image file')
+      return
+    }
+
+    setUploadingAvatar(true)
+    setMessage('')
+
+    try {
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${profile.id}.${fileExt}`
+      const filePath = `${profile.id}/${fileName}`
+
+      // Delete old avatar if exists
+      if (avatarUrl) {
+        const oldPath = avatarUrl.split('/avatars/').pop()
+        if (oldPath) {
+          await supabase.storage.from('avatars').remove([oldPath])
+        }
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          avatar_url: publicUrl,
+          profile_picture_url: publicUrl
+        })
+        .eq('id', profile.id)
+
+      if (updateError) throw updateError
+
+      setAvatarUrl(publicUrl)
+      setMessage('✅ Profile picture updated successfully!')
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error)
+      setMessage(`Error: ${error.message}`)
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
@@ -390,6 +463,39 @@ export const ProfileSettings: React.FC = () => {
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Profile Picture */}
+          <div className="flex flex-col items-center space-y-4 pb-4 border-b">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                {avatarUrl ? (
+                  <img 
+                    src={avatarUrl} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Camera className="w-8 h-8 text-gray-400" />
+                )}
+              </div>
+              <label className="absolute bottom-0 right-0 bg-emerald-600 text-white p-2 rounded-full cursor-pointer hover:bg-emerald-700 shadow-lg">
+                <Camera className="w-4 h-4" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                  disabled={uploadingAvatar}
+                />
+              </label>
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium">{profile?.full_name}</p>
+              <p className="text-xs text-gray-500">
+                {uploadingAvatar ? 'Uploading...' : 'Click camera icon to upload photo'}
+              </p>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-2">Full Name</label>
             <Input value={profile?.full_name || ''} disabled />

@@ -59,7 +59,11 @@ export const ConsultationBooking: React.FC = () => {
 
     // Subscribe to realtime updates on consultation bookings
     const subscription = supabase
-      .channel(`consultation-bookings-updates-${profile.id}`)
+      .channel(`consultation-bookings:${profile.id}`, {
+        config: {
+          broadcast: { self: false }
+        }
+      })
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -69,10 +73,21 @@ export const ConsultationBooking: React.FC = () => {
         console.log('Booking update detected, refreshing...')
         fetchMyBookings()
       })
-      .subscribe()
+      .subscribe((status) => {
+        console.log('📡 Booking subscription status:', status)
+        if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Booking subscription error')
+        }
+      })
+
+    // Poll for updates every 10 seconds as fallback
+    const pollInterval = setInterval(() => {
+      fetchMyBookings()
+    }, 10000)
 
     return () => {
       subscription.unsubscribe()
+      clearInterval(pollInterval)
     }
   }, [profile?.id])
 

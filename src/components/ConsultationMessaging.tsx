@@ -4,8 +4,8 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
-import { Send, Clock, AlertCircle, Plus } from 'lucide-react'
-import { useParams } from 'react-router-dom'
+import { Send, Clock, AlertCircle, Plus, ArrowLeft } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
 
 interface Message {
   id: string
@@ -45,6 +45,7 @@ interface Consultation {
 export const ConsultationMessaging: React.FC = () => {
   const { consultationId } = useParams<{ consultationId: string }>()
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [consultation, setConsultation] = useState<Consultation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
@@ -84,19 +85,28 @@ export const ConsultationMessaging: React.FC = () => {
 
   // Timer countdown for active sessions
   useEffect(() => {
-    if (!consultation || consultation.status === 'completed') {
+    if (!consultation) {
       setIsActive(false)
       setTimeRemaining(null)
+      return
+    }
+
+    if (consultation.status === 'completed') {
+      setIsActive(false)
+      setTimeRemaining(null)
+      console.log('⏸️ Session completed, timer stopped')
       return
     }
 
     if (!consultation.session_started_at || !consultation.session_ends_at) {
       setIsActive(false)
       setTimeRemaining(null)
+      console.log('⏸️ Session not started yet, no timer')
       return
     }
 
     setIsActive(true)
+    console.log('⏱️ Timer activated - Session ends at:', consultation.session_ends_at)
 
     const updateTimer = () => {
       const now = new Date().getTime()
@@ -104,8 +114,10 @@ export const ConsultationMessaging: React.FC = () => {
       const remaining = Math.max(0, Math.floor((endTime - now) / 1000))
       
       setTimeRemaining(remaining)
+      console.log(`⏱️ Time remaining: ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`)
 
-      if (remaining === 0) {
+      if (remaining === 0 && consultation.status !== 'completed') {
+        console.log('⏰ TIME UP! Triggering session timeout')
         handleSessionTimeout()
       }
     }
@@ -113,8 +125,11 @@ export const ConsultationMessaging: React.FC = () => {
     updateTimer()
     const interval = setInterval(updateTimer, 1000)
 
-    return () => clearInterval(interval)
-  }, [consultation])
+    return () => {
+      console.log('🧹 Cleaning up timer')
+      clearInterval(interval)
+    }
+  }, [consultation, consultation?.status, consultation?.session_started_at, consultation?.session_ends_at])
 
   const fetchConsultation = async () => {
     try {
@@ -196,13 +211,23 @@ export const ConsultationMessaging: React.FC = () => {
   }
 
   const subscribeToMessages = () => {
-    // Create unique channel name with user ID to avoid conflicts
-    const channelName = `messages_${consultationId}_${profile?.id}_${Date.now()}`
+    // Remove any existing subscription first
+    if (messageSubscription.current) {
+      supabase.removeChannel(messageSubscription.current)
+    }
+
+    // Create unique channel name
+    const channelName = `messages:${consultationId}`
     
     console.log('🔔 Subscribing to messages with channel:', channelName)
     
     messageSubscription.current = supabase
-      .channel(channelName)
+      .channel(channelName, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: profile?.id }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -256,17 +281,29 @@ export const ConsultationMessaging: React.FC = () => {
         console.log('📡 Message subscription status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('✅ Successfully subscribed to messages!')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Subscription error, retrying in 2s...')
+          setTimeout(() => subscribeToMessages(), 2000)
         }
       })
   }
 
   const subscribeToConsultationUpdates = () => {
-    const channelName = `consultation_booking_${consultationId}_${Date.now()}`
+    // Remove any existing subscription first
+    if (consultationSubscription.current) {
+      supabase.removeChannel(consultationSubscription.current)
+    }
+
+    const channelName = `consultation:${consultationId}`
     
     console.log('Subscribing to consultation updates with channel:', channelName)
     
     consultationSubscription.current = supabase
-      .channel(channelName)
+      .channel(channelName, {
+        config: {
+          broadcast: { self: false }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -288,9 +325,24 @@ export const ConsultationMessaging: React.FC = () => {
         console.log('📡 Consultation subscription status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('✅ Successfully subscribed to consultation updates!')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Consultation subscription error, retrying in 2s...')
+          setTimeout(() => subscribeToConsultationUpdates(), 2000)
         }
       })
   }
+
+  // Add polling as fallback for mobile where websockets might be unreliable
+  useEffect(() => {
+    if (!consultationId) return
+
+    // Poll for new messages every 5 seconds as a fallback
+    const pollInterval = setInterval(() => {
+      fetchMessages()
+    }, 5000)
+
+    return () => clearInterval(pollInterval)
+  }, [consultationId])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -521,6 +573,12 @@ export const ConsultationMessaging: React.FC = () => {
   }
 
   const handleSessionTimeout = async () => {
+    // Prevent multiple timeout calls
+    if (consultation?.status === 'completed') {
+      console.log('⚠️ Session already completed, skipping timeout')
+      return
+    }
+
     try {
       console.log('⏰ Session timeout - completing consultation...')
       
@@ -530,6 +588,7 @@ export const ConsultationMessaging: React.FC = () => {
           status: 'completed'
         })
         .eq('id', consultationId)
+        .eq('status', 'confirmed') // Only update if still confirmed
 
       if (updateError) {
         console.error('❌ Error updating booking status:', updateError)
@@ -555,7 +614,7 @@ export const ConsultationMessaging: React.FC = () => {
       const { error: msgError } = await supabase.from('consultation_messages').insert({
         booking_id: consultationId,
         sender_id: profile?.id,
-        message: 'Consultation time has expired. Session closed automatically.'
+        message: '⏰ Consultation time has expired. Session closed automatically.'
       })
 
       if (msgError) {
@@ -563,7 +622,13 @@ export const ConsultationMessaging: React.FC = () => {
       }
 
       console.log('✅ Session ended successfully')
-      fetchConsultation()
+      
+      // Refresh consultation data to reflect completed status
+      await fetchConsultation()
+      
+      // Show alert to user
+      alert('⏰ Time is up! The consultation session has ended.')
+      
     } catch (err: any) {
       console.error('❌ Error ending session:', err)
       alert('Failed to end session: ' + err.message)
@@ -665,41 +730,65 @@ export const ConsultationMessaging: React.FC = () => {
     <div className="w-full max-w-4xl mx-auto p-4">
       <Card className="h-[calc(100vh-8rem)] flex flex-col">
         <CardHeader className="border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Consultation: {consultation.topic}</CardTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                With {isScholar ? consultation.user.full_name : consultation.scholar.full_name}
-              </p>
-              <p className="text-xs text-gray-500">
-                {new Date(consultation.booking_date).toLocaleDateString()} at {consultation.booking_time}
-              </p>
-            </div>
-
-            {/* Timer and Status */}
-            <div className="text-right space-y-2">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                consultation.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
-                consultation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {consultation.status === 'confirmed' && isActive ? 'Active Session' : 
-                 consultation.status === 'pending' && !consultation.scholar_accepted ? 'Awaiting Scholar' :
-                 consultation.status === 'pending' && consultation.scholar_accepted ? 'Waiting to Start' :
-                 consultation.status}
-              </span>
-              
-              {isActive && timeRemaining !== null && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-600" />
-                    <div className="text-xl font-bold text-blue-600">
-                      {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
-                    </div>
-                  </div>
-                  <div className="text-xs text-blue-600 mt-1">Time Left</div>
+          <div className="flex items-start gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(isScholar ? '/manage-consultations' : '/my-bookings')}
+              className="mt-1"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Consultation: {consultation.topic}</CardTitle>
+                  <p className="text-sm text-gray-600 mt-1">
+                    With {isScholar ? consultation.user.full_name : consultation.scholar.full_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(consultation.booking_date).toLocaleDateString()} at {consultation.booking_time}
+                  </p>
                 </div>
-              )}
+
+                {/* Timer and Status */}
+                <div className="text-right space-y-2">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    consultation.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
+                    consultation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    consultation.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {consultation.status === 'confirmed' && isActive ? '🟢 Active Session' : 
+                     consultation.status === 'pending' && !consultation.scholar_accepted ? '⏳ Awaiting Scholar' :
+                     consultation.status === 'pending' && consultation.scholar_accepted ? '⏳ Waiting to Start' :
+                     consultation.status === 'completed' ? '✅ Completed' :
+                     consultation.status}
+                  </span>
+                  
+                  {isActive && timeRemaining !== null && (
+                    <div className={`border-2 rounded-lg px-4 py-3 ${
+                      timeRemaining <= 300 ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-300'
+                    }`}>
+                      <div className="flex items-center justify-center gap-2">
+                        <Clock className={`w-5 h-5 ${
+                          timeRemaining <= 300 ? 'text-red-600' : 'text-blue-600'
+                        }`} />
+                        <div className={`text-2xl font-bold ${
+                          timeRemaining <= 300 ? 'text-red-600' : 'text-blue-600'
+                        }`}>
+                          {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
+                        </div>
+                      </div>
+                      <div className={`text-xs font-medium mt-1 text-center ${
+                        timeRemaining <= 300 ? 'text-red-600' : 'text-blue-600'
+                      }`}>
+                        {timeRemaining <= 300 ? '⚠️ Time Running Out!' : 'Time Remaining'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

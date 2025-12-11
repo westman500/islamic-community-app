@@ -418,21 +418,21 @@ export function Dashboard() {
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-6 shadow-lg">
         <div className="flex justify-between items-start">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-emerald-300/30 rounded-lg blur-lg animate-pulse"></div>
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className="relative flex-shrink-0">
+              <div className="absolute inset-0 bg-emerald-300/30 rounded-full blur-lg animate-pulse"></div>
               <img 
                 src="/masjid-logo-dashboard.png" 
                 alt="Masjid Logo" 
-                className="relative h-20 w-auto drop-shadow-2xl"
-                style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.5)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3))' }}
+                className="relative h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 object-contain drop-shadow-2xl"
+                style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))' }}
                 crossOrigin="anonymous"
               />
             </div>
-            <div>
-              <h1 className="text-4xl font-bold tracking-wider" style={{ fontFamily: '"Amiri", "Arabic Typesetting", serif', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>مسجد</h1>
-              <p className="text-xs text-emerald-100 mt-0.5">{getIslamicGreeting()}</p>
-              <p className="text-emerald-200 text-sm font-semibold mt-1">As-salamu alaykum, {fullName}</p>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-wider truncate" style={{ fontFamily: '"Amiri", "Arabic Typesetting", serif', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>مسجد</h1>
+              <p className="text-xs text-emerald-100 mt-0.5 truncate">{getIslamicGreeting()}</p>
+              <p className="text-emerald-200 text-xs sm:text-sm font-semibold mt-1 truncate">As-salamu alaykum, {fullName}</p>
             </div>
           </div>
           <div className="flex flex-col items-end space-y-1">
@@ -611,7 +611,6 @@ export function Dashboard() {
             </>
           ) : (
             <>
-              <NavButton icon={Wallet} label="Wallet" onClick={() => navigate('/coin-wallet')} />
               <NavButton icon={Calendar} label="Activities" onClick={() => navigate('/activity-categories')} />
               <NavButton icon={Bell} label="Bookings" onClick={() => navigate('/my-bookings')} />
             </>

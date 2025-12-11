@@ -82,6 +82,35 @@ export const ScholarLiveStream: React.FC = () => {
     }
   }, [localVideoTrack, videoEnabled])
 
+  // Poll viewer count and reactions while streaming (fallback for real-time)
+  useEffect(() => {
+    if (!isStreaming || !streamId) return
+
+    const pollStreamData = async () => {
+      try {
+        const { data } = await supabase
+          .from('streams')
+          .select('viewer_count, likes_count, dislikes_count')
+          .eq('id', streamId)
+          .single()
+
+        if (data) {
+          console.log('📊 Polled stream data - Viewers:', data.viewer_count, 'Likes:', data.likes_count, 'Dislikes:', data.dislikes_count)
+          setViewerCount(data.viewer_count || 0)
+          // You can add likes/dislikes state if needed
+        }
+      } catch (error) {
+        console.error('Error polling stream data:', error)
+      }
+    }
+
+    // Poll every 5 seconds
+    const interval = setInterval(pollStreamData, 5000)
+    pollStreamData() // Initial poll
+
+    return () => clearInterval(interval)
+  }, [isStreaming, streamId])
+
   const startStream = async () => {
     if (!streamTitle.trim()) {
       setError('Please enter a stream title')
