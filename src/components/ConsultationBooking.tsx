@@ -577,9 +577,9 @@ export const ConsultationBooking: React.FC = () => {
                             </div>
                             <div className="text-right">
                               <p className="text-lg font-bold text-emerald-600 flex items-center gap-1">
-                                💰 {Math.floor(scholar.consultationFee * 0.01).toLocaleString()}
+                                ₦{scholar.consultationFee.toLocaleString()}
                               </p>
-                              <p className="text-xs text-muted-foreground">coins (₦{scholar.consultationFee.toLocaleString()})</p>
+                              <p className="text-xs text-muted-foreground">{Math.floor(scholar.consultationFee * 0.01)} coins</p>
                             </div>
                           </div>
                         </div>
