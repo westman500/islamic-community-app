@@ -84,5 +84,5 @@ SELECT 'Livestream features ready: comments table, viewer count functions, real-
 -- Show existing streams
 SELECT id, channel, title, viewer_count, likes_count, dislikes_count 
 FROM streams 
-WHERE is_live = true 
+WHERE is_active = true 
 LIMIT 5;
