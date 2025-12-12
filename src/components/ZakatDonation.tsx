@@ -113,24 +113,8 @@ export const ZakatDonation: React.FC = () => {
 
       if (deductError) throw new Error('Failed to deduct coins from your balance')
 
-      // Add coins to scholar's balance
-      const { data: scholarProfile, error: scholarProfileError } = await supabase
-        .from('profiles')
-        .select('masjid_coin_balance')
-        .eq('id', selectedScholar.id)
-        .single()
-
-      if (scholarProfileError) throw new Error('Failed to fetch scholar balance')
-
-      const scholarBalance = scholarProfile?.masjid_coin_balance || 0
-      const newScholarBalance = scholarBalance + coinsAmount
-
-      const { error: creditError } = await supabase
-        .from('profiles')
-        .update({ masjid_coin_balance: newScholarBalance })
-        .eq('id', selectedScholar.id)
-
-      if (creditError) throw new Error('Failed to credit scholar')
+      // Note: Scholar balance will be automatically updated by database trigger
+      console.log(`💰 Scholar will be credited ${coinsAmount} coins via database trigger`)
 
       // Create transaction record for user (debit)
       await supabase

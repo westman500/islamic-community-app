@@ -196,19 +196,8 @@ export default function ConsultationChat({
 
       if (deductError) throw new Error('Failed to deduct coins')
 
-      // Credit scholar
-      const { data: scholarProfile } = await supabase
-        .from('profiles')
-        .select('masjid_coin_balance')
-        .eq('id', scholarId)
-        .single()
-
-      const scholarBalance = scholarProfile?.masjid_coin_balance || 0
-
-      await supabase
-        .from('profiles')
-        .update({ masjid_coin_balance: scholarBalance + EXTENSION_COST })
-        .eq('id', scholarId)
+      // Note: Scholar balance will be automatically updated by database trigger
+      console.log(`💰 Scholar will be credited ${EXTENSION_COST} coins via database trigger`)
 
       // Create transaction records
       const paymentRef = `EXT-${Date.now()}`
@@ -228,7 +217,7 @@ export default function ConsultationChat({
           },
           {
             user_id: scholarId,
-            recipient_id: profile?.id,
+            recipient_id: scholarId,
             amount: EXTENSION_COST,
             type: 'consultation_extension',
             description: `Extension fee from ${profile?.full_name}`,

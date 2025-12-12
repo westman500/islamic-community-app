@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Heart, DollarSign, TrendingUp, ArrowDownToLine, Eye, EyeOff } from 'lucide-react'
+import { Heart, DollarSign, TrendingUp, ArrowDownToLine, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
@@ -183,7 +183,7 @@ export const ScholarWallet: React.FC = () => {
         // Determine transaction type based on direction and type
         if (isIncoming) {
           // Money coming IN to scholar
-          if (tx.type === 'donation') {
+          if (tx.type === 'donation' || tx.type === 'donation_received') {
             transactionType = 'zakat'
           } else if (tx.type === 'consultation') {
             transactionType = 'consultation'
@@ -370,14 +370,28 @@ export const ScholarWallet: React.FC = () => {
                 <Heart className="h-6 w-6" />
                 <CardTitle className="text-white">Zakat & Consultation Balance</CardTitle>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-emerald-600"
-                onClick={() => setShowBalance(!showBalance)}
-              >
-                {showBalance ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-emerald-600"
+                  onClick={async () => {
+                    await fetchWalletData()
+                    toast.success('Balance refreshed!')
+                  }}
+                  title="Refresh Balance"
+                >
+                  <RefreshCw className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-emerald-600"
+                  onClick={() => setShowBalance(!showBalance)}
+                >
+                  {showBalance ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

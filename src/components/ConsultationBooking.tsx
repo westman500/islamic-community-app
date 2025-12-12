@@ -292,34 +292,8 @@ export const ConsultationBooking: React.FC = () => {
       
       console.log('✅ Booking created successfully')
 
-      // Booking created successfully, now transfer coins to scholar
-      const { data: scholarProfile, error: scholarProfileError } = await supabase
-        .from('profiles')
-        .select('masjid_coin_balance')
-        .eq('id', selectedScholar.id)
-        .single()
-
-      if (scholarProfileError) {
-        console.error('❌ Failed to fetch scholar balance:', scholarProfileError)
-        throw new Error('Failed to fetch scholar balance')
-      }
-
-      const scholarBalance = scholarProfile?.masjid_coin_balance || 0
-      const newScholarBalance = scholarBalance + coinsRequired
-
-      console.log(`💰 Transferring ${coinsRequired} coins to scholar (${scholarBalance} → ${newScholarBalance})`)
-
-      const { error: creditError } = await supabase
-        .from('profiles')
-        .update({ masjid_coin_balance: newScholarBalance })
-        .eq('id', selectedScholar.id)
-
-      if (creditError) {
-        console.error('❌ Failed to credit scholar:', creditError)
-        throw new Error('Failed to credit scholar')
-      }
-
-      console.log('✅ Scholar credited successfully')
+      // Note: Scholar balance will be automatically updated by database trigger when transaction is created
+      console.log(`💰 Scholar will be credited ${coinsRequired} coins (₦${coinsRequired * 100}) via database trigger`)
 
       // Create transaction record for user (debit)
       const { error: debitTxError } = await supabase

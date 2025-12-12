@@ -175,16 +175,6 @@ export function Dashboard() {
 
   const userFeatures = [
     {
-      title: 'Masjid Coin Wallet',
-      description: 'Digital currency',
-      detail: 'Deposit funds and use coins for streams, consultations, and donations',
-      icon: Wallet,
-      color: 'bg-amber-50',
-      iconColor: 'text-amber-600',
-      buttonColor: 'bg-amber-500 hover:bg-amber-600',
-      path: '/coin-wallet'
-    },
-    {
       title: 'Join Live Streams',
       description: 'Watch prayers & lectures',
       detail: 'Join existing streams from scholars and imams',
@@ -424,7 +414,7 @@ export function Dashboard() {
               <img 
                 src="/masjid-logo-dashboard.png" 
                 alt="Masjid Logo" 
-                className="relative h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 object-contain drop-shadow-2xl"
+                className="relative h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 object-contain drop-shadow-2xl"
                 style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))' }}
                 crossOrigin="anonymous"
               />

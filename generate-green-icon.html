@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Green Background Icon</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        canvas {
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #059669;
+        }
+        .preview {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        .size-label {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Green Background App Icon Generator</h1>
+    <div class="preview">
+        <div>
+            <div class="size-label">1024x1024 (Source)</div>
+            <canvas id="canvas" width="1024" height="1024"></canvas>
+        </div>
+    </div>
+    <button onclick="downloadIcon()">Download Icon (icon.png)</button>
+    <p>After downloading, run: <code>npx @capacitor/assets generate --android</code></p>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Green background (#10b981 - emerald-500)
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(0, 0, 1024, 1024);
+        
+        // Draw white mosque icon (simplified geometric design)
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 8;
+        
+        // Center the design
+        const centerX = 512;
+        const centerY = 512;
+        const scale = 1.5; // Make icon bigger
+        
+        // Main dome (top center)
+        ctx.beginPath();
+        ctx.arc(centerX, centerY - 120 * scale, 80 * scale, Math.PI, 0, false);
+        ctx.fill();
+        
+        // Crescent on top of dome
+        ctx.save();
+        ctx.translate(centerX, centerY - 200 * scale);
+        ctx.rotate(-Math.PI / 6);
+        ctx.beginPath();
+        ctx.arc(0, 0, 30 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.fillStyle = '#10b981';
+        ctx.arc(15 * scale, 0, 30 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = '#ffffff';
+        
+        // Main building body
+        ctx.fillRect(centerX - 140 * scale, centerY - 40 * scale, 280 * scale, 180 * scale);
+        
+        // Left minaret
+        ctx.fillRect(centerX - 200 * scale, centerY - 100 * scale, 40 * scale, 240 * scale);
+        // Left minaret dome
+        ctx.beginPath();
+        ctx.arc(centerX - 180 * scale, centerY - 100 * scale, 30 * scale, Math.PI, 0, false);
+        ctx.fill();
+        // Left minaret crescent
+        ctx.beginPath();
+        ctx.arc(centerX - 180 * scale, centerY - 140 * scale, 12 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.fillStyle = '#10b981';
+        ctx.arc(centerX - 172 * scale, centerY - 140 * scale, 12 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        
+        // Right minaret
+        ctx.fillRect(centerX + 160 * scale, centerY - 100 * scale, 40 * scale, 240 * scale);
+        // Right minaret dome
+        ctx.beginPath();
+        ctx.arc(centerX + 180 * scale, centerY - 100 * scale, 30 * scale, Math.PI, 0, false);
+        ctx.fill();
+        // Right minaret crescent
+        ctx.beginPath();
+        ctx.arc(centerX + 180 * scale, centerY - 140 * scale, 12 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.fillStyle = '#10b981';
+        ctx.arc(centerX + 188 * scale, centerY - 140 * scale, 12 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        
+        // Main entrance arch
+        ctx.beginPath();
+        ctx.arc(centerX, centerY + 60 * scale, 50 * scale, Math.PI, 0, false);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
+        
+        // Door
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(centerX - 50 * scale, centerY + 60 * scale, 100 * scale, 80 * scale);
+        
+        // Windows (decorative arches)
+        // Left window
+        ctx.beginPath();
+        ctx.arc(centerX - 80 * scale, centerY, 25 * scale, Math.PI, 0, false);
+        ctx.fill();
+        ctx.fillRect(centerX - 105 * scale, centerY, 50 * scale, 40 * scale);
+        
+        // Right window
+        ctx.beginPath();
+        ctx.arc(centerX + 80 * scale, centerY, 25 * scale, Math.PI, 0, false);
+        ctx.fill();
+        ctx.fillRect(centerX + 55 * scale, centerY, 50 * scale, 40 * scale);
+        
+        function downloadIcon() {
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'icon.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert('Icon downloaded! Now move it to the resources/ folder and run:\\nnpx @capacitor/assets generate --android');
+            });
+        }
+    </script>
+</body>
+</html>

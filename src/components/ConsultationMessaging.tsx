@@ -4,7 +4,8 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
-import { Send, Clock, AlertCircle, Plus, ArrowLeft } from 'lucide-react'
+import { sendPushNotification } from '../utils/pushNotifications'
+import { Send, Clock, AlertCircle, ArrowLeft } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 
 interface Message {
@@ -15,6 +16,7 @@ interface Message {
   created_at: string
   sender?: {
     full_name: string
+    avatar_url?: string
   }
 }
 
@@ -36,9 +38,12 @@ interface Consultation {
   scholar_accepted_at: string | null
   scholar: {
     full_name: string
+    avatar_url?: string
+    is_online?: boolean
   }
   user: {
     full_name: string
+    avatar_url?: string
   }
 }
 
@@ -52,12 +57,12 @@ export const ConsultationMessaging: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [isActive, setIsActive] = useState(false)
-  const [extensionMinutes, setExtensionMinutes] = useState(15)
-  const [showExtensionRequest, setShowExtensionRequest] = useState(false)
+  const [otherPersonTyping, setOtherPersonTyping] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageSubscription = useRef<any>(null)
   const consultationSubscription = useRef<any>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (consultationId) {
@@ -160,8 +165,8 @@ export const ConsultationMessaging: React.FC = () => {
         .from('consultation_bookings')
         .select(`
           *,
-          scholar:profiles!scholar_id(full_name),
-          user:profiles!user_id(full_name)
+          scholar:profiles!scholar_id(full_name, avatar_url, consultation_duration, is_online),
+          user:profiles!user_id(full_name, avatar_url)
         `)
         .eq('id', consultationId)
         .single()
@@ -193,7 +198,7 @@ export const ConsultationMessaging: React.FC = () => {
         .from('consultation_messages')
         .select(`
           *,
-          sender:profiles!sender_id(full_name)
+          sender:profiles!sender_id(full_name, avatar_url)
         `)
         .eq('booking_id', consultationId)
         .order('created_at', { ascending: true })
@@ -229,6 +234,35 @@ export const ConsultationMessaging: React.FC = () => {
         }
       })
       .on(
+        'broadcast',
+        { event: 'typing' },
+        (payload) => {
+          if (payload.payload?.userId !== profile?.id) {
+            setOtherPersonTyping(true)
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+            typingTimeoutRef.current = setTimeout(() => setOtherPersonTyping(false), 3000)
+          }
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'typing' },
+        (payload) => {
+          console.log('👤 Typing indicator received:', payload)
+          if (payload.payload.userId !== profile?.id) {
+            setOtherPersonTyping(true)
+            // Clear any existing timeout
+            if (typingTimeoutRef.current) {
+              clearTimeout(typingTimeoutRef.current)
+            }
+            // Hide typing indicator after 3 seconds
+            typingTimeoutRef.current = setTimeout(() => {
+              setOtherPersonTyping(false)
+            }, 3000)
+          }
+        }
+      )
+      .on(
         'postgres_changes',
         {
           event: 'INSERT',
@@ -250,7 +284,7 @@ export const ConsultationMessaging: React.FC = () => {
             .from('consultation_messages')
             .select(`
               *,
-              sender:profiles!sender_id(full_name)
+              sender:profiles!sender_id(full_name, avatar_url)
             `)
             .eq('id', payload.new.id)
             .single()
@@ -339,7 +373,8 @@ export const ConsultationMessaging: React.FC = () => {
     // Poll for new messages every 5 seconds as a fallback
     const pollInterval = setInterval(() => {
       fetchMessages()
-    }, 5000)
+      fetchConsultation() // Also poll consultation status for real-time updates
+    }, 3000) // Poll every 3 seconds for faster updates
 
     return () => clearInterval(pollInterval)
   }, [consultationId])
@@ -352,6 +387,9 @@ export const ConsultationMessaging: React.FC = () => {
     e.preventDefault()
 
     if (!newMessage.trim()) return
+
+    // Clear typing indicator
+    setOtherPersonTyping(false)
 
     try {
       console.log('Sending message:', newMessage.trim())
@@ -366,7 +404,7 @@ export const ConsultationMessaging: React.FC = () => {
         })
         .select(`
           *,
-          sender:profiles!sender_id(full_name)
+          sender:profiles!sender_id(full_name, avatar_url)
         `)
         .single()
 
@@ -400,12 +438,13 @@ export const ConsultationMessaging: React.FC = () => {
 
       console.log('Accepting consultation:', consultationId)
       
-      // Update booking to mark scholar as accepted
+      // Update booking to mark scholar as accepted AND set status to confirmed
       const { error: updateError } = await supabase
         .from('consultation_bookings')
         .update({
           scholar_accepted: true,
-          scholar_accepted_at: new Date().toISOString()
+          scholar_accepted_at: new Date().toISOString(),
+          status: 'confirmed'
         })
         .eq('id', consultationId)
 
@@ -414,7 +453,24 @@ export const ConsultationMessaging: React.FC = () => {
         throw updateError
       }
 
-      console.log('✅ Consultation accepted, sending system message')
+      console.log('✅ Consultation accepted and confirmed, sending system message')
+      
+      // Send push notification to user
+      try {
+        await sendPushNotification(consultation.user_id, {
+          title: 'Consultation Accepted!',
+          body: `${consultation.scholar.full_name} has accepted your consultation request`,
+          type: 'consultation',
+          data: {
+            consultationId: consultationId,
+            scholarName: consultation.scholar.full_name
+          }
+        })
+        console.log('✅ Push notification sent to user')
+      } catch (notifError) {
+        console.error('Failed to send push notification:', notifError)
+        // Don't fail the whole operation if notification fails
+      }
       
       // Send system message with .select() to get it back immediately
       const { data: newMsg, error: msgError } = await supabase
@@ -426,7 +482,7 @@ export const ConsultationMessaging: React.FC = () => {
         })
         .select(`
           *,
-          sender:profiles!sender_id(full_name)
+          sender:profiles!sender_id(full_name, avatar_url)
         `)
         .single()
 
@@ -507,71 +563,23 @@ export const ConsultationMessaging: React.FC = () => {
     }
   }
 
-  const handleRequestTimeExtension = async () => {
-    if (!extensionMinutes || extensionMinutes < 5) {
-      alert('Please enter at least 5 minutes')
-      return
-    }
-
-    try {
-      // Calculate additional cost (assume same rate as original)
-      const pricePerMinute = (consultation?.price || 0) / (consultation?.duration_minutes || 60)
-      const additionalCost = pricePerMinute * extensionMinutes
-
-      const { error } = await supabase.from('time_extension_requests').insert({
-        consultation_id: consultationId,
-        requested_by: profile?.id,
-        additional_minutes: extensionMinutes,
-        additional_cost: additionalCost,
-        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 min expiry
+  // Time extension and formatting functions removed for now
+  // Can be re-added when time extension feature is implemented
+  
+  // Handle input change and broadcast typing indicator
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value)
+    
+    // Broadcast typing indicator
+    if (messageSubscription.current && e.target.value.trim()) {
+      messageSubscription.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: profile?.id }
       })
-
-      if (error) throw error
-
-      // Send system message
-      await supabase.from('consultation_messages').insert({
-        booking_id: consultationId,
-        sender_id: profile?.id,
-        message: `Requesting ${extensionMinutes} more minutes ($${additionalCost.toFixed(2)})`
-      })
-
-      setShowExtensionRequest(false)
-      alert('Time extension request sent!')
-    } catch (err: any) {
-      console.error('Error requesting extension:', err)
-      alert('Failed to send request')
     }
   }
-
-  // Function to approve time extension requests (called when user clicks approve button)
-  // @ts-ignore - Function will be used when time extension UI is added
-  const handleApproveExtension = async (requestId: string, additionalMinutes: number) => {
-    try {
-      // Update extension request
-      await supabase
-        .from('time_extension_requests')
-        .update({ 
-          status: 'approved',
-          responded_at: new Date().toISOString()
-        })
-        .eq('id', requestId)
-
-      // Note: Time extension tracking would require additional schema columns
-      // For now, we just approve the extension and update the transaction
-
-      // Send system message
-      await supabase.from('consultation_messages').insert({
-        booking_id: consultationId,
-        sender_id: profile?.id,
-        message: `Time extension approved: +${additionalMinutes} minutes`
-      })
-
-      fetchConsultation()
-    } catch (err: any) {
-      console.error('Error approving extension:', err)
-    }
-  }
-
+  
   const handleSessionTimeout = async () => {
     // Prevent multiple timeout calls
     if (consultation?.status === 'completed') {
@@ -687,12 +695,6 @@ export const ConsultationMessaging: React.FC = () => {
     }
   }
 
-  const formatTime = (ms: number) => {
-    const minutes = Math.floor(ms / 60000)
-    const seconds = Math.floor((ms % 60000) / 1000)
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
-
   const isScholar = profile?.id === consultation?.scholar_id
 
   if (loading) {
@@ -739,15 +741,50 @@ export const ConsultationMessaging: React.FC = () => {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
+            
+            {/* Scholar/User Profile Picture */}
+            {!isScholar && consultation.scholar?.avatar_url && (
+              <div className="relative flex-shrink-0">
+                <img 
+                  src={consultation.scholar.avatar_url} 
+                  alt={consultation.scholar.full_name} 
+                  className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                />
+                {consultation.scholar.is_online && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                )}
+              </div>
+            )}
+            
+            {isScholar && consultation.user?.avatar_url && (
+              <div className="flex-shrink-0">
+                <img 
+                  src={consultation.user.avatar_url} 
+                  alt={consultation.user.full_name} 
+                  className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                />
+              </div>
+            )}
+            
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Consultation: {consultation.topic}</CardTitle>
-                  <p className="text-sm text-gray-600 mt-1">
-                    With {isScholar ? consultation.user.full_name : consultation.scholar.full_name}
-                  </p>
+                  <CardTitle className="text-lg">Consultation: {consultation.topic}</CardTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-gray-600">
+                      With {isScholar ? consultation.user.full_name : consultation.scholar.full_name}
+                    </p>
+                    {!isScholar && consultation.scholar?.is_online && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        🟢 Online
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">
                     {new Date(consultation.booking_date).toLocaleDateString()} at {consultation.booking_time}
+                    {!isScholar && consultation.consultation_duration && (
+                      <span className="ml-2">• {consultation.consultation_duration} min session</span>
+                    )}
                   </p>
                 </div>
 
@@ -767,23 +804,23 @@ export const ConsultationMessaging: React.FC = () => {
                   </span>
                   
                   {isActive && timeRemaining !== null && (
-                    <div className={`border-2 rounded-lg px-4 py-3 ${
+                    <div className={`border rounded-md px-2 py-1.5 ${
                       timeRemaining <= 300 ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-300'
                     }`}>
-                      <div className="flex items-center justify-center gap-2">
-                        <Clock className={`w-5 h-5 ${
+                      <div className="flex items-center gap-1.5">
+                        <Clock className={`w-3.5 h-3.5 ${
                           timeRemaining <= 300 ? 'text-red-600' : 'text-blue-600'
                         }`} />
-                        <div className={`text-2xl font-bold ${
+                        <div className={`text-sm font-bold ${
                           timeRemaining <= 300 ? 'text-red-600' : 'text-blue-600'
                         }`}>
                           {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
                         </div>
-                      </div>
-                      <div className={`text-xs font-medium mt-1 text-center ${
-                        timeRemaining <= 300 ? 'text-red-600' : 'text-blue-600'
-                      }`}>
-                        {timeRemaining <= 300 ? '⚠️ Time Running Out!' : 'Time Remaining'}
+                        <span className={`text-[10px] font-medium ${
+                          timeRemaining <= 300 ? 'text-red-600' : 'text-blue-600'
+                        }`}>
+                          {timeRemaining <= 300 ? '⚠️' : 'left'}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -834,12 +871,28 @@ export const ConsultationMessaging: React.FC = () => {
         <CardContent className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.map((msg) => {
             const isOwnMessage = msg.sender_id === profile?.id
+            const senderAvatar = msg.sender?.avatar_url
 
             return (
               <div
                 key={msg.id}
-                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-2 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
               >
+                {!isOwnMessage && (
+                  <div className="flex-shrink-0">
+                    {senderAvatar ? (
+                      <img 
+                        src={senderAvatar} 
+                        alt={msg.sender?.full_name || 'User'} 
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-semibold">
+                        {msg.sender?.full_name?.charAt(0) || '?'}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div
                   className={`max-w-[70%] rounded-lg p-3 ${
                     isOwnMessage
@@ -860,9 +913,38 @@ export const ConsultationMessaging: React.FC = () => {
                     })}
                   </p>
                 </div>
+                {isOwnMessage && (
+                  <div className="flex-shrink-0">
+                    {profile?.avatar_url ? (
+                      <img 
+                        src={profile.avatar_url} 
+                        alt={profile?.full_name || 'You'} 
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-semibold">
+                        {profile?.full_name?.charAt(0) || 'Y'}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
+          {otherPersonTyping && (
+            <div className="flex justify-start">
+              <div className="max-w-[70%] rounded-lg p-3 bg-gray-100">
+                <div className="flex items-center gap-2 text-gray-500 text-sm">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                  <span>typing...</span>
+                </div>
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </CardContent>
 
@@ -876,7 +958,7 @@ export const ConsultationMessaging: React.FC = () => {
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <Input
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={handleInputChange}
                 placeholder="Type your message..."
                 className="flex-1"
               />

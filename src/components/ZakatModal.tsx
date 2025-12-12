@@ -59,18 +59,59 @@ export const ZakatModal = ({ isOpen, onClose, scholarId, streamTitle }: ZakatMod
         return
       }
 
-      // Use edge function to process zakat (bypasses RLS)
-      const { data: zakatData, error: zakatError } = await supabase.functions.invoke('process-zakat', {
-        body: {
-          userId: profile.id,
-          scholarId,
-          amount,
-          streamTitle
-        }
-      })
+      // Record transaction (negative amount for payment)
+      const { error: txError } = await supabase
+        .from('masjid_coin_transactions')
+        .insert({
+          user_id: profile.id,
+          amount: -amount, // Negative for payment
+          type: 'donation',
+          description: `Zakat donation during livestream: ${streamTitle}`,
+          recipient_id: scholarId,
+          payment_status: 'completed'
+        })
 
-      if (zakatError) throw zakatError
-      if (!zakatData?.success) throw new Error(zakatData?.error || 'Zakat processing failed')
+      if (txError) throw txError
+
+      // Update user balance (deduct)
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ masjid_coin_balance: balance - amount })
+        .eq('id', profile.id)
+
+      if (updateError) throw updateError
+
+      // Credit scholar wallet (positive transaction for scholar)
+      const { error: scholarTxError } = await supabase
+        .from('masjid_coin_transactions')
+        .insert({
+          user_id: scholarId,
+          amount: amount, // Positive for receipt
+          type: 'donation',
+          description: `Zakat received from ${profile.full_name || 'a member'}`,
+          recipient_id: profile.id,
+          payment_status: 'completed'
+        })
+
+      if (scholarTxError) {
+        console.error('Error creating scholar transaction:', scholarTxError)
+        // Don't throw - user donation already processed
+      }
+
+      // Update scholar balance (credit)
+      const { data: scholarData } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', scholarId)
+        .single()
+
+      if (scholarData) {
+        const scholarBalance = scholarData.masjid_coin_balance || 0
+        await supabase
+          .from('profiles')
+          .update({ masjid_coin_balance: scholarBalance + amount })
+          .eq('id', scholarId)
+      }
 
       setMessage(`✅ Successfully donated ${amount} coins! May Allah accept your Zakat.`)
       

@@ -383,12 +383,27 @@ export const UserPrayerServiceViewer: React.FC = () => {
           await agoraService.current!.subscribeUser(user, mediaType)
           
           if (mediaType === 'video') {
+            // Wait for container to be ready
+            await new Promise(resolve => setTimeout(resolve, 100))
+            
             const videoTrack = agoraService.current!.getRemoteVideoTrack(user)
             if (videoTrack && remoteVideoRef.current) {
-              console.log('▶️ Playing remote video track')
-              videoTrack.play(remoteVideoRef.current)
+              console.log('▶️ Playing remote video track in container')
+              
+              // Ensure container is visible
+              if (remoteVideoRef.current.style) {
+                remoteVideoRef.current.style.width = '100%'
+                remoteVideoRef.current.style.height = '100%'
+              }
+              
+              // Play video with autoplay
+              await videoTrack.play(remoteVideoRef.current, { fit: 'contain' })
+              console.log('✅ Video track playing successfully')
             } else {
-              console.warn('⚠️ No video track or container for remote user')
+              console.error('❌ No video track or container:', { 
+                hasTrack: !!videoTrack, 
+                hasContainer: !!remoteVideoRef.current 
+              })
             }
           } else if (mediaType === 'audio') {
             const audioTrack = agoraService.current!.getRemoteAudioTrack(user)
@@ -469,7 +484,10 @@ export const UserPrayerServiceViewer: React.FC = () => {
     try {
       console.log('🚪 Leaving stream...')
       
-      // Cleanup Agora connection
+      const streamToLeave = selectedStream
+      const userId = profile?.id
+      
+      // Cleanup Agora connection first
       if (agoraService.current) {
         try {
           await agoraService.current.leaveChannel()
@@ -481,7 +499,7 @@ export const UserPrayerServiceViewer: React.FC = () => {
       }
 
       // Update participant record in database
-      if (selectedStream && profile?.id) {
+      if (streamToLeave && userId) {
         try {
           const { error } = await supabase
             .from('stream_participants')
@@ -489,8 +507,8 @@ export const UserPrayerServiceViewer: React.FC = () => {
               is_active: false,
               left_at: new Date().toISOString()
             })
-            .eq('stream_id', selectedStream.id)
-            .eq('user_id', profile.id)
+            .eq('stream_id', streamToLeave.id)
+            .eq('user_id', userId)
             .eq('is_active', true)
           
           if (error) {
@@ -500,27 +518,33 @@ export const UserPrayerServiceViewer: React.FC = () => {
           }
 
           // Decrement viewer count using database function
-          await supabase.rpc('decrement_viewer_count', { stream_uuid: selectedStream.id })
-          console.log('✅ Viewer count decremented for stream:', selectedStream.id)
+          await supabase.rpc('decrement_viewer_count', { stream_uuid: streamToLeave.id })
+          console.log('✅ Viewer count decremented for stream:', streamToLeave.id)
         } catch (dbError) {
           console.error('⚠️ Database error:', dbError)
         }
       }
 
-      // Reset state
+      // Reset state immediately
       setIsConnected(false)
       setSelectedStream(null)
       setError('')
+      setComments([])
+      setNewComment('')
+      setAudioEnabled(true)
       
-      console.log('✅ Successfully left stream')
+      console.log('✅ Successfully left stream - UI reset')
+      
+      // Show notification
+      showNotification('Left the stream', 'success')
       
     } catch (err: any) {
       console.error('❌ Error leaving stream:', err)
-      setError(err.message || 'Failed to leave stream')
-    } finally {
-      // Force cleanup regardless of errors
+      // Even on error, force cleanup
       setIsConnected(false)
+      setSelectedStream(null)
       agoraService.current = null
+      showNotification(err.message || 'Error leaving stream, but you have been disconnected', 'error')
     }
   }
 
@@ -590,8 +614,14 @@ export const UserPrayerServiceViewer: React.FC = () => {
   useEffect(() => {
     if (!selectedStream) return
 
+    console.log('🔔 Setting up real-time comments subscription for stream:', selectedStream.id)
+
     const commentsChannel = supabase
-      .channel(`stream-comments:${selectedStream.id}`)
+      .channel(`stream-comments:${selectedStream.id}`, {
+        config: {
+          broadcast: { self: true }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -601,6 +631,8 @@ export const UserPrayerServiceViewer: React.FC = () => {
           filter: `stream_id=eq.${selectedStream.id}`
         },
         async (payload) => {
+          console.log('💬 New comment received via real-time:', payload.new)
+          
           // Fetch the full comment with user info
           const { data } = await supabase
             .from('stream_comments')
@@ -620,6 +652,7 @@ export const UserPrayerServiceViewer: React.FC = () => {
               user_name: (data.profiles as any)?.full_name || 'Anonymous',
               created_at: data.created_at
             }
+            console.log('✅ Adding comment to UI:', newComment)
             setComments(prev => [...prev, newComment])
             
             // Scroll to bottom
@@ -629,12 +662,53 @@ export const UserPrayerServiceViewer: React.FC = () => {
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('📡 Comments subscription status:', status)
+      })
 
     return () => {
+      console.log('🔕 Unsubscribing from comments')
       commentsChannel.unsubscribe()
     }
   }, [selectedStream])
+
+  // Fallback: Poll for new comments every 3 seconds
+  useEffect(() => {
+    if (!selectedStream || !isConnected) return
+
+    const pollComments = setInterval(async () => {
+      if (comments.length > 0) {
+        const lastCommentTime = comments[comments.length - 1]?.created_at
+        const { data } = await supabase
+          .from('stream_comments')
+          .select(`
+            id,
+            message,
+            created_at,
+            profiles:user_id (full_name)
+          `)
+          .eq('stream_id', selectedStream.id)
+          .gt('created_at', lastCommentTime)
+          .order('created_at', { ascending: true })
+
+        if (data && data.length > 0) {
+          console.log('🔄 Polling found', data.length, 'new comments')
+          const newComments = data.map((comment: any) => ({
+            id: comment.id,
+            message: comment.message,
+            user_name: comment.profiles?.full_name || 'Anonymous',
+            created_at: comment.created_at
+          }))
+          setComments(prev => [...prev, ...newComments])
+          setTimeout(() => {
+            commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+          }, 100)
+        }
+      }
+    }, 3000) // Poll every 3 seconds
+
+    return () => clearInterval(pollComments)
+  }, [selectedStream, isConnected, comments])
 
   const toggleAudio = async () => {
     try {

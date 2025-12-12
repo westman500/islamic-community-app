@@ -17,6 +17,8 @@ interface Scholar {
   certificate_verified: boolean
   is_online: boolean
   consultation_fee?: number
+  consultation_duration?: number
+  avatar_url?: string
 }
 
 export const AvailableScholars: React.FC = () => {
@@ -180,7 +182,7 @@ export const AvailableScholars: React.FC = () => {
                     {typeof (scholar as any).consultation_fee === 'number' && (scholar as any).consultation_fee > 0 && (
                       <div className="col-span-3 -mt-1 mb-2 text-right">
                         <span className="text-xs px-2 py-1 rounded bg-emerald-50 text-emerald-700 font-semibold">
-                          ₦{(scholar as any).consultation_fee}/session
+                          ₦{(scholar as any).consultation_fee}/{(scholar as any).consultation_duration || 30}min
                         </span>
                       </div>
                     )}
