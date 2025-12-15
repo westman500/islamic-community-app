@@ -300,13 +300,17 @@ export const ConsultationBooking: React.FC = () => {
       
       console.log('✅ Booking created successfully')
 
-      // Create transaction record for user (debit)
+      // Create two transaction records for proper accounting:
+      // 1. Debit transaction for user (negative amount, no recipient_id)
+      // 2. Credit transaction for scholar (positive amount, with recipient_id)
+      // Database trigger will automatically update both balances
+      
       const { error: debitTxError } = await supabase
         .from('masjid_coin_transactions')
         .insert({
           user_id: profile.id,
-          recipient_id: selectedScholar.id,
-          amount: -coinsRequired,
+          recipient_id: null, // No recipient for debit transaction
+          amount: -coinsRequired, // Negative for debit
           type: 'consultation',
           description: `Consultation with ${selectedScholar.name}`,
           payment_reference: paymentReference,
@@ -315,19 +319,19 @@ export const ConsultationBooking: React.FC = () => {
         })
 
       if (debitTxError) {
-        console.error('⚠️ Failed to create debit transaction record:', debitTxError)
-      } else {
-        console.log('✅ Debit transaction recorded')
+        console.error('❌ Failed to create debit transaction:', debitTxError)
+        throw new Error('Failed to process consultation payment')
       }
 
+      console.log('✅ Debit transaction recorded')
+
       // Create transaction record for scholar (credit)
-      // IMPORTANT: user_id is who receives, recipient_id should match for filtering
       const { error: creditTxError } = await supabase
         .from('masjid_coin_transactions')
         .insert({
-          user_id: selectedScholar.id,  // Scholar is the receiver
-          recipient_id: selectedScholar.id,  // For wallet filtering
-          amount: coinsRequired,  // Positive amount for income
+          user_id: profile.id, // User who made the payment
+          recipient_id: selectedScholar.id, // Scholar receives the credit
+          amount: coinsRequired, // Positive for credit
           type: 'consultation',
           description: `Consultation fee from ${profile.full_name}`,
           payment_reference: paymentReference,
@@ -336,10 +340,13 @@ export const ConsultationBooking: React.FC = () => {
         })
 
       if (creditTxError) {
-        console.error('⚠️ Failed to create credit transaction record:', creditTxError)
-      } else {
-        console.log('✅ Credit transaction recorded for scholar')
+        console.error('❌ Failed to create credit transaction:', creditTxError)
+        throw new Error('Failed to credit scholar')
       }
+
+      console.log('✅ Credit transaction recorded')
+      console.log(`✅ Consultation payment complete. Database trigger will update balances.`)
+      console.log(`   User: -${coinsRequired} coins | Scholar: +${coinsRequired} coins`)
 
       // Success!
       console.log('🎉 Booking completed successfully!')
