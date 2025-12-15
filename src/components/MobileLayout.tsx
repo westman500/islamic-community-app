@@ -41,13 +41,13 @@ export function MobileLayout({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-24">
         {children}
       </div>
 
       {/* Bottom Navigation */}
       {showBottomNav && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl mx-auto gap-0.5">
             <NavButton 
               icon={MapPin} 
@@ -76,19 +76,9 @@ export function MobileLayout({
                   label="Manage" 
                   onClick={() => navigate('/manage-consultations')} 
                 />
-                <NavButton 
-                  icon={Wallet} 
-                  label="Wallet" 
-                  onClick={() => navigate('/wallet')} 
-                />
               </>
             ) : (
               <>
-                <NavButton 
-                  icon={Wallet} 
-                  label="Wallet" 
-                  onClick={() => navigate('/coin-wallet')} 
-                />
                 <NavButton 
                   icon={Calendar} 
                   label="Activities" 

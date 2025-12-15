@@ -21,12 +21,12 @@ export const ScholarDashboard: React.FC = () => {
   useEffect(() => {
     // TODO: Fetch actual stats from database
     setStats({
-      totalConsultations: 24,
-      totalEarnings: 1250,
-      totalStreams: 15,
-      totalViewers: 340,
-      upcomingBookings: 3,
-      completedConsultations: 21
+      totalConsultations: 0,
+      totalEarnings: 0,
+      totalStreams: 0,
+      totalViewers: 0,
+      upcomingBookings: 0,
+      completedConsultations: 0
     })
   }, [])
 

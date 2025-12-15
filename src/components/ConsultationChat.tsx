@@ -38,10 +38,93 @@ export default function ConsultationChat({
   const [timeRemaining, setTimeRemaining] = useState(consultationDuration * 60) // convert to seconds
   const [isActive, setIsActive] = useState(true)
   const [isExtending, setIsExtending] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<number | null>(null)
 
   const isScholar = profile?.role === 'scholar' || profile?.role === 'imam'
+
+  // Initialize timer based on when consultation actually started
+  useEffect(() => {
+    const initializeTimer = async () => {
+      try {
+        console.log('🔍 Fetching booking data for timer initialization...', { bookingId, consultationDuration })
+        
+        const { data, error } = await supabase
+          .from('consultation_bookings')
+          .select('started_at, consultation_duration')
+          .eq('id', bookingId)
+          .single()
+
+        if (error) {
+          console.error('❌ Error fetching booking:', error)
+          // Fallback to prop value if database query fails
+          console.log('⚠️ Using fallback timer with consultationDuration prop:', consultationDuration)
+          setTimeRemaining(consultationDuration * 60)
+          setIsInitialized(true)
+          return
+        }
+
+        console.log('✅ Booking data fetched:', data)
+
+        // Use consultation_duration from database, fallback to prop
+        const duration = data.consultation_duration || consultationDuration
+        console.log('⏱️ Consultation duration:', duration, 'minutes')
+
+        if (data.started_at) {
+          // Calculate elapsed time since consultation started
+          const startTime = new Date(data.started_at).getTime()
+          const now = new Date().getTime()
+          const elapsedSeconds = Math.floor((now - startTime) / 1000)
+          const totalSeconds = duration * 60
+          const remaining = Math.max(0, totalSeconds - elapsedSeconds)
+
+          console.log(`⏰ Timer initialized from started_at:`)
+          console.log(`  - Start time: ${new Date(data.started_at).toLocaleString()}`)
+          console.log(`  - Elapsed: ${elapsedSeconds}s (${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s)`)
+          console.log(`  - Total: ${totalSeconds}s (${duration}m)`)
+          console.log(`  - Remaining: ${remaining}s (${Math.floor(remaining / 60)}m ${remaining % 60}s)`)
+          
+          setTimeRemaining(remaining)
+          
+          if (remaining <= 0) {
+            console.log('⏰ Timer expired')
+            setIsActive(false)
+          }
+        } else {
+          // First time opening chat - set started_at timestamp
+          console.log('⏰ First time opening chat - setting started_at timestamp')
+          const now = new Date().toISOString()
+          
+          const { error: updateError } = await supabase
+            .from('consultation_bookings')
+            .update({ started_at: now })
+            .eq('id', bookingId)
+
+          if (updateError) {
+            console.error('❌ Error setting started_at:', updateError)
+          } else {
+            console.log('✅ started_at set to:', now)
+          }
+          
+          // Set full duration for new consultation
+          const totalSeconds = duration * 60
+          console.log(`⏰ Starting new timer: ${totalSeconds}s (${duration}m)`)
+          setTimeRemaining(totalSeconds)
+        }
+        
+        setIsInitialized(true)
+        console.log('✅ Timer initialization complete')
+      } catch (error) {
+        console.error('❌ Fatal error initializing timer:', error)
+        // Ensure timer still works with fallback
+        setTimeRemaining(consultationDuration * 60)
+        setIsInitialized(true)
+      }
+    }
+
+    initializeTimer()
+  }, [bookingId, consultationDuration])
 
   // Format time remaining
   const formatTime = (seconds: number) => {
@@ -52,29 +135,44 @@ export default function ConsultationChat({
 
   // Timer countdown
   useEffect(() => {
-    if (!isActive || timeRemaining <= 0) {
-      if (timerRef.current) clearInterval(timerRef.current)
-      if (timeRemaining <= 0) {
-        setIsActive(false)
-        handleTimeExpired()
+    if (!isInitialized || !isActive) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
       }
       return
     }
 
+    console.log('⏰ Starting countdown interval')
+    
     timerRef.current = setInterval(() => {
       setTimeRemaining(prev => {
-        if (prev <= 1) {
+        const newValue = prev - 1
+        
+        // Log every 30 seconds for debugging
+        if (newValue % 30 === 0) {
+          console.log(`⏰ Timer tick: ${Math.floor(newValue / 60)}:${(newValue % 60).toString().padStart(2, '0')}`)
+        }
+        
+        if (newValue <= 0) {
+          console.log('⏰ Timer reached 0 - expiring consultation')
           setIsActive(false)
+          handleTimeExpired()
           return 0
         }
-        return prev - 1
+        
+        return newValue
       })
     }, 1000)
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
+      if (timerRef.current) {
+        console.log('⏰ Cleaning up countdown interval')
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
     }
-  }, [isActive, timeRemaining])
+  }, [isInitialized, isActive])
 
   // Handle time expiration
   const handleTimeExpired = async () => {
@@ -261,12 +359,18 @@ export default function ConsultationChat({
         }`}>
           <div className="flex items-center gap-2">
             <Clock className={`w-5 h-5 ${timeRemaining < 300 ? 'text-red-600' : 'text-green-600'}`} />
-            <span className={`font-mono text-lg font-bold ${
-              timeRemaining < 300 ? 'text-red-700' : 'text-green-700'
-            }`}>
-              {formatTime(timeRemaining)}
-            </span>
-            <span className="text-sm text-gray-600">remaining</span>
+            {!isInitialized ? (
+              <span className="text-sm text-gray-600">Loading timer...</span>
+            ) : (
+              <>
+                <span className={`font-mono text-lg font-bold ${
+                  timeRemaining < 300 ? 'text-red-700' : 'text-green-700'
+                }`}>
+                  {formatTime(timeRemaining)}
+                </span>
+                <span className="text-sm text-gray-600">remaining</span>
+              </>
+            )}
           </div>
           
           {!isScholar && !isActive && (

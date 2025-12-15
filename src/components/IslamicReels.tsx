@@ -5,7 +5,7 @@ import { Input } from './ui/input'
 import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
-import { Heart, ThumbsDown, MessageCircle, Share2, Flag, Upload, Film, Eye, AlertTriangle, X, Bookmark } from 'lucide-react'
+import { Heart, ThumbsDown, MessageCircle, Share2, Flag, Upload, Film, Eye, AlertTriangle, X, Bookmark, Trash2 } from 'lucide-react'
 import { useNotification } from '../contexts/NotificationContext'
 import { notifyReelUploaded, notifyCoinReward } from '../utils/pushNotifications'
 
@@ -94,6 +94,9 @@ export const IslamicReels: React.FC = () => {
     try {
       setLoading(true)
       
+      // Only fetch reels created within last 24 hours
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      
       const { data, error } = await supabase
         .from('islamic_reels')
         .select(`
@@ -102,6 +105,7 @@ export const IslamicReels: React.FC = () => {
         `)
         .eq('is_approved', true)
         .eq('is_active', true)
+        .gte('created_at', twentyFourHoursAgo)
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -136,6 +140,47 @@ export const IslamicReels: React.FC = () => {
       console.error('Error fetching reels:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDeleteReel = async (reelId: string, videoUrl: string) => {
+    if (!profile?.id) return
+
+    const confirmDelete = window.confirm('Are you sure you want to delete this reel? This action cannot be undone.')
+    if (!confirmDelete) return
+
+    try {
+      // Extract file path from URL
+      const urlParts = videoUrl.split('/videos/')
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1]
+        
+        // Delete video file from storage
+        const { error: storageError } = await supabase.storage
+          .from('videos')
+          .remove([filePath])
+
+        if (storageError) {
+          console.error('Error deleting video file:', storageError)
+        }
+      }
+
+      // Delete reel record from database
+      const { error: dbError } = await supabase
+        .from('islamic_reels')
+        .delete()
+        .eq('id', reelId)
+        .eq('user_id', profile.id) // Security: only delete own reels
+
+      if (dbError) throw dbError
+
+      showNotification('Reel deleted successfully', 'success')
+      
+      // Refresh reels list
+      await fetchReels()
+    } catch (error: any) {
+      console.error('Error deleting reel:', error)
+      showNotification('Failed to delete reel: ' + error.message, 'error')
     }
   }
 
@@ -221,9 +266,15 @@ export const IslamicReels: React.FC = () => {
           .eq('reel_id', reelId)
           .eq('user_id', profile.id)
 
+        // Update likes_count in islamic_reels table
+        await supabase
+          .from('islamic_reels')
+          .update({ likes_count: Math.max(0, reel.likes_count - 1) })
+          .eq('id', reelId)
+
         setReels(prev => prev.map(r =>
           r.id === reelId
-            ? { ...r, likes_count: r.likes_count - 1, liked_by_user: false }
+            ? { ...r, likes_count: Math.max(0, r.likes_count - 1), liked_by_user: false }
             : r
         ))
       } else {
@@ -234,18 +285,30 @@ export const IslamicReels: React.FC = () => {
             .delete()
             .eq('reel_id', reelId)
             .eq('user_id', profile.id)
+          
+          // Decrease dislikes_count
+          await supabase
+            .from('islamic_reels')
+            .update({ dislikes_count: Math.max(0, reel.dislikes_count - 1) })
+            .eq('id', reelId)
         }
 
         await supabase
           .from('reel_likes')
           .insert({ reel_id: reelId, user_id: profile.id })
 
+        // Increase likes_count
+        await supabase
+          .from('islamic_reels')
+          .update({ likes_count: reel.likes_count + 1 })
+          .eq('id', reelId)
+
         setReels(prev => prev.map(r =>
           r.id === reelId
             ? { 
                 ...r, 
                 likes_count: r.likes_count + 1, 
-                dislikes_count: r.disliked_by_user ? r.dislikes_count - 1 : r.dislikes_count,
+                dislikes_count: r.disliked_by_user ? Math.max(0, r.dislikes_count - 1) : r.dislikes_count,
                 liked_by_user: true,
                 disliked_by_user: false
               }
@@ -272,9 +335,15 @@ export const IslamicReels: React.FC = () => {
           .eq('reel_id', reelId)
           .eq('user_id', profile.id)
 
+        // Update dislikes_count in islamic_reels table
+        await supabase
+          .from('islamic_reels')
+          .update({ dislikes_count: Math.max(0, reel.dislikes_count - 1) })
+          .eq('id', reelId)
+
         setReels(prev => prev.map(r =>
           r.id === reelId
-            ? { ...r, dislikes_count: r.dislikes_count - 1, disliked_by_user: false }
+            ? { ...r, dislikes_count: Math.max(0, r.dislikes_count - 1), disliked_by_user: false }
             : r
         ))
       } else {
@@ -285,18 +354,30 @@ export const IslamicReels: React.FC = () => {
             .delete()
             .eq('reel_id', reelId)
             .eq('user_id', profile.id)
+          
+          // Decrease likes_count
+          await supabase
+            .from('islamic_reels')
+            .update({ likes_count: Math.max(0, reel.likes_count - 1) })
+            .eq('id', reelId)
         }
 
         await supabase
           .from('reel_dislikes')
           .insert({ reel_id: reelId, user_id: profile.id })
 
+        // Increase dislikes_count
+        await supabase
+          .from('islamic_reels')
+          .update({ dislikes_count: reel.dislikes_count + 1 })
+          .eq('id', reelId)
+
         setReels(prev => prev.map(r =>
           r.id === reelId
             ? { 
                 ...r, 
                 dislikes_count: r.dislikes_count + 1,
-                likes_count: r.liked_by_user ? r.likes_count - 1 : r.likes_count,
+                likes_count: r.liked_by_user ? Math.max(0, r.likes_count - 1) : r.likes_count,
                 disliked_by_user: true,
                 liked_by_user: false
               }
@@ -403,23 +484,59 @@ export const IslamicReels: React.FC = () => {
     }
 
     try {
-      setUploadProgress(10)
+      setUploadProgress(5)
+      console.log('📤 Starting video upload...', {
+        fileName: uploadForm.videoFile.name,
+        fileSize: `${(uploadForm.videoFile.size / 1024 / 1024).toFixed(2)} MB`,
+        fileType: uploadForm.videoFile.type
+      })
       
       // Upload video to Supabase Storage
-      const fileExt = uploadForm.videoFile.name.split('.').pop()
+      const fileExt = uploadForm.videoFile.name.split('.').pop()?.toLowerCase()
       const fileName = `${profile.id}_${Date.now()}.${fileExt}`
       const filePath = `reels/${fileName}`
+
+      // Map file extensions to MIME types
+      const mimeTypeMap: Record<string, string> = {
+        'mp4': 'video/mp4',
+        'mov': 'video/quicktime',
+        'avi': 'video/x-msvideo',
+        'webm': 'video/webm',
+        'mpeg': 'video/mpeg',
+        'mpg': 'video/mpeg',
+        'm4v': 'video/mp4'
+      }
+
+      const contentType = mimeTypeMap[fileExt || ''] || uploadForm.videoFile.type || 'video/mp4'
+      console.log(`📦 Uploading to: ${filePath} with MIME type: ${contentType}`)
+
+      setUploadProgress(10)
+      
+      // Simulate progress during upload (since Supabase doesn't provide real progress)
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev < 50) return prev + 5
+          return prev
+        })
+      }, 500)
 
       const { error: uploadError } = await supabase.storage
         .from('videos')
         .upload(filePath, uploadForm.videoFile, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: contentType
         })
 
-      if (uploadError) throw uploadError
+      clearInterval(progressInterval)
 
-      setUploadProgress(60)
+      if (uploadError) {
+        console.error('❌ Upload failed:', uploadError)
+        throw uploadError
+      }
+
+      console.log('✅ Video uploaded successfully')
+      setUploadProgress(70)
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
@@ -460,9 +577,16 @@ export const IslamicReels: React.FC = () => {
       setShowUploadModal(false)
       setUploadForm({ title: '', description: '', category: 'islamic_reminder', videoFile: null })
       setUploadProgress(0)
-    } catch (error) {
+      setUploadError('')
+    } catch (error: any) {
       console.error('Error uploading reel:', error)
-      setUploadError('Failed to upload. Please try again.')
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      setUploadError(`Failed to upload: ${error.message || 'Please try again.'}`)
       setUploadProgress(0)
     }
   }
@@ -535,52 +659,52 @@ export const IslamicReels: React.FC = () => {
               </div>
 
               {/* Action Buttons (Right Side) */}
-              <div className="absolute right-4 bottom-24 flex flex-col gap-4">
+              <div className="absolute right-2 bottom-20 flex flex-col gap-3">
                 <button
                   onClick={() => handleLike(currentReel.id)}
-                  className="flex flex-col items-center gap-1"
+                  className="flex flex-col items-center gap-0.5"
                 >
-                  <div className={`w-12 h-12 rounded-full ${currentReel.liked_by_user ? 'bg-red-500' : 'bg-white/20'} flex items-center justify-center backdrop-blur-sm`}>
-                    <Heart className={`h-6 w-6 ${currentReel.liked_by_user ? 'fill-white' : ''} text-white`} />
+                  <div className={`w-10 h-10 rounded-full ${currentReel.liked_by_user ? 'bg-red-500' : 'bg-white/20'} flex items-center justify-center backdrop-blur-sm`}>
+                    <Heart className={`h-5 w-5 ${currentReel.liked_by_user ? 'fill-white' : ''} text-white`} />
                   </div>
-                  <span className="text-white text-xs font-medium">{currentReel.likes_count}</span>
+                  <span className="text-white text-[10px] font-medium">{currentReel.likes_count}</span>
                 </button>
 
                 <button
                   onClick={() => handleDislike(currentReel.id)}
-                  className="flex flex-col items-center gap-1"
+                  className="flex flex-col items-center gap-0.5"
                 >
-                  <div className={`w-12 h-12 rounded-full ${currentReel.disliked_by_user ? 'bg-gray-700' : 'bg-white/20'} flex items-center justify-center backdrop-blur-sm`}>
-                    <ThumbsDown className={`h-6 w-6 ${currentReel.disliked_by_user ? 'fill-white' : ''} text-white`} />
+                  <div className={`w-10 h-10 rounded-full ${currentReel.disliked_by_user ? 'bg-gray-700' : 'bg-white/20'} flex items-center justify-center backdrop-blur-sm`}>
+                    <ThumbsDown className={`h-5 w-5 ${currentReel.disliked_by_user ? 'fill-white' : ''} text-white`} />
                   </div>
-                  <span className="text-white text-xs font-medium">{currentReel.dislikes_count}</span>
+                  <span className="text-white text-[10px] font-medium">{currentReel.dislikes_count}</span>
                 </button>
 
-                <button className="flex flex-col items-center gap-1">
-                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <MessageCircle className="h-6 w-6 text-white" />
+                <button className="flex flex-col items-center gap-0.5">
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <MessageCircle className="h-5 w-5 text-white" />
                   </div>
-                  <span className="text-white text-xs font-medium">{currentReel.comments_count}</span>
+                  <span className="text-white text-[10px] font-medium">{currentReel.comments_count}</span>
                 </button>
 
                 <button
                   onClick={() => handleFavorite(currentReel.id)}
-                  className="flex flex-col items-center gap-1"
+                  className="flex flex-col items-center gap-0.5"
                 >
-                  <div className={`w-12 h-12 rounded-full ${currentReel.favorited_by_user ? 'bg-yellow-500' : 'bg-white/20'} flex items-center justify-center backdrop-blur-sm`}>
-                    <Bookmark className={`h-6 w-6 ${currentReel.favorited_by_user ? 'fill-white' : ''} text-white`} />
+                  <div className={`w-10 h-10 rounded-full ${currentReel.favorited_by_user ? 'bg-yellow-500' : 'bg-white/20'} flex items-center justify-center backdrop-blur-sm`}>
+                    <Bookmark className={`h-5 w-5 ${currentReel.favorited_by_user ? 'fill-white' : ''} text-white`} />
                   </div>
-                  <span className="text-white text-xs font-medium">{currentReel.favorites_count}</span>
+                  <span className="text-white text-[10px] font-medium">{currentReel.favorites_count}</span>
                 </button>
 
                 <button
                   onClick={() => handleShare(currentReel)}
-                  className="flex flex-col items-center gap-1"
+                  className="flex flex-col items-center gap-0.5"
                 >
-                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <Share2 className="h-6 w-6 text-white" />
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <Share2 className="h-5 w-5 text-white" />
                   </div>
-                  <span className="text-white text-xs font-medium">{currentReel.shares_count}</span>
+                  <span className="text-white text-[10px] font-medium">{currentReel.shares_count}</span>
                 </button>
 
                 <button
@@ -588,16 +712,28 @@ export const IslamicReels: React.FC = () => {
                     setSelectedReel(currentReel)
                     setShowFlagModal(true)
                   }}
-                  className="flex flex-col items-center gap-1"
+                  className="flex flex-col items-center gap-0.5"
                 >
-                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <Flag className="h-5 w-5 text-white" />
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <Flag className="h-4 w-4 text-white" />
                   </div>
                 </button>
 
-                <div className="flex flex-col items-center gap-1 mt-2">
-                  <Eye className="h-4 w-4 text-white" />
-                  <span className="text-white text-xs">{currentReel.views_count}</span>
+                {/* Delete button - only show for own reels */}
+                {profile?.id === currentReel.user_id && (
+                  <button
+                    onClick={() => handleDeleteReel(currentReel.id, currentReel.video_url)}
+                    className="flex flex-col items-center gap-0.5"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-red-500/80 flex items-center justify-center backdrop-blur-sm">
+                      <Trash2 className="h-4 w-4 text-white" />
+                    </div>
+                  </button>
+                )}
+
+                <div className="flex flex-col items-center gap-0.5 mt-1">
+                  <Eye className="h-3.5 w-3.5 text-white" />
+                  <span className="text-white text-[10px]">{currentReel.views_count}</span>
                 </div>
               </div>
             </div>

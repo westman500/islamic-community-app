@@ -215,6 +215,7 @@ export const MasjidCoin: React.FC = () => {
           amount: Math.floor(amount * CONVERSION_RATE), // Convert to coins
           type: 'deposit',
           description: `Deposit ${amount} Naira`,
+          note: `Paystack deposit - ${amount} Naira`,
           payment_reference: reference,
           payment_status: 'pending'
         })
@@ -255,31 +256,31 @@ export const MasjidCoin: React.FC = () => {
 
   return (
     <MobileLayout title="Masjid Coin Wallet">
-      <div className="p-4 space-y-4">
+      <div className="p-3 space-y-3">
         {/* Balance Card */}
         <Card className="bg-gradient-to-br from-amber-500 to-amber-700 text-white">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Coins className="h-6 w-6" />
-                <CardTitle className="text-white">Masjid Coin Balance</CardTitle>
+                <Coins className="h-5 w-5" />
+                <CardTitle className="text-white text-base">Coin Balance</CardTitle>
               </div>
               <Button
                 onClick={fetchCoinBalance}
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-amber-600"
+                className="text-white hover:bg-amber-600 h-7 text-xs"
               >
                 Refresh
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-4xl font-bold">{coinsToDisplay}</span>
-              <span className="text-xl">coins</span>
+          <CardContent className="pt-2 pb-3">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-3xl font-bold">{coinsToDisplay}</span>
+              <span className="text-lg">coins</span>
             </div>
-            <p className="text-amber-100 text-sm">
+            <p className="text-amber-100 text-xs">
               ≈ ₦{nairaValue}
             </p>
           </CardContent>
@@ -287,13 +288,13 @@ export const MasjidCoin: React.FC = () => {
 
         {/* Conversion Rate Info */}
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-amber-600" />
-                <span className="font-semibold">Conversion Rate</span>
+                <Zap className="h-4 w-4 text-amber-600" />
+                <span className="font-semibold text-sm">Conversion Rate</span>
               </div>
-              <span className="text-lg font-bold text-amber-600">
+              <span className="text-sm font-bold text-amber-600">
                 ₦100 = 1 coin
               </span>
             </div>
@@ -302,16 +303,16 @@ export const MasjidCoin: React.FC = () => {
 
         {/* Deposit Section */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <DollarSign className="h-4 w-4" />
               Deposit Funds
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Convert your money to Masjid Coins
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
                 {error}
@@ -373,44 +374,35 @@ export const MasjidCoin: React.FC = () => {
 
         {/* Usage Info */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">How to Use Masjid Coins</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">How to Use Coins</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-red-50">
-                  <Video className="h-5 w-5 text-red-600" />
+          <CardContent className="pt-2">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-red-50">
+                  <Video className="h-4 w-4 text-red-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">Livestream Tips</p>
-                  <p className="text-xs text-gray-600">
-                    Send tips to scholars during live streams
-                  </p>
+                  <p className="font-semibold text-xs">Livestream Tips</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-blue-50">
-                  <Calendar className="h-5 w-5 text-blue-600" />
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-blue-50">
+                  <Calendar className="h-4 w-4 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">Book Consultations</p>
-                  <p className="text-xs text-gray-600">
-                    Pay for consultation sessions with scholars
-                  </p>
+                  <p className="font-semibold text-xs">Consultations</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-green-50">
-                  <Heart className="h-5 w-5 text-green-600" />
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-green-50">
+                  <Heart className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">Donations & Zakat</p>
-                  <p className="text-xs text-gray-600">
-                    Make charitable donations to scholars
-                  </p>
+                  <p className="font-semibold text-xs">Donations & Zakat</p>
                 </div>
               </div>
             </div>
@@ -419,27 +411,27 @@ export const MasjidCoin: React.FC = () => {
 
         {/* Transaction History */}
         <Card>
-          <CardHeader>
-            <CardTitle>Transaction History</CardTitle>
-            <CardDescription>
-              Recent coin deposits and usage
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Transactions</CardTitle>
+            <CardDescription className="text-xs">
+              Recent activity
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {transactions.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">
+                <p className="text-center text-gray-500 py-4 text-sm">
                   No transactions yet
                 </p>
               ) : (
                 transactions.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <div
-                        className={`p-2 rounded-full ${
+                        className={`p-1.5 rounded-full ${
                           transaction.type === 'deposit'
                             ? 'bg-green-100'
                             : transaction.type === 'livestream'
@@ -450,22 +442,22 @@ export const MasjidCoin: React.FC = () => {
                         }`}
                       >
                         {transaction.type === 'deposit' ? (
-                          <TrendingUp className="h-4 w-4 text-green-600" />
+                          <TrendingUp className="h-3 w-3 text-green-600" />
                         ) : transaction.type === 'livestream' ? (
-                          <Video className="h-4 w-4 text-red-600" />
+                          <Video className="h-3 w-3 text-red-600" />
                         ) : transaction.type === 'consultation' ? (
-                          <Calendar className="h-4 w-4 text-blue-600" />
+                          <Calendar className="h-3 w-3 text-blue-600" />
                         ) : (
-                          <Heart className="h-4 w-4 text-amber-600" />
+                          <Heart className="h-3 w-3 text-amber-600" />
                         )}
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-xs truncate">
                           {transaction.description}
                         </p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-gray-500">
-                            {new Date(transaction.date).toLocaleDateString()}
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[10px] text-gray-500">
+                            {new Date(transaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </p>
                           {transaction.payment_status && (
                             <span className={`text-[10px] px-2 py-0.5 rounded-full ${
@@ -487,7 +479,7 @@ export const MasjidCoin: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <div
-                        className={`font-bold ${
+                        className={`font-bold text-xs ${
                           transaction.coins >= 0
                             ? 'text-green-600'
                             : 'text-red-600'
@@ -496,8 +488,8 @@ export const MasjidCoin: React.FC = () => {
                         {transaction.coins >= 0 ? '+' : ''}
                         {transaction.coins.toLocaleString()}
                       </div>
-                      <p className="text-xs text-gray-500">
-                        ${transaction.amount.toFixed(2)}
+                      <p className="text-[10px] text-gray-500">
+                        ₦{transaction.amount.toFixed(0)}
                       </p>
                     </div>
                   </div>

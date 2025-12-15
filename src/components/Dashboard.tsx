@@ -23,7 +23,9 @@ import {
   Sun,
   Sunset,
   Moon,
-  Film
+  Film,
+  Coins,
+  TrendingUp
 } from 'lucide-react'
 import { CompactPrayerTimes } from './CompactPrayerTimes'
 
@@ -379,7 +381,7 @@ export function Dashboard() {
   return (
     <div 
       ref={dashboardRef}
-      className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-24 overflow-y-auto"
+      className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-28 overflow-y-auto"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -414,7 +416,7 @@ export function Dashboard() {
               <img 
                 src="/masjid-logo-dashboard.png" 
                 alt="Masjid Logo" 
-                className="relative h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 object-contain drop-shadow-2xl"
+                className="relative h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 object-contain drop-shadow-2xl"
                 style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))' }}
                 crossOrigin="anonymous"
               />
@@ -514,16 +516,16 @@ export function Dashboard() {
             const Icon = feature.icon
             return (
               <Card key={feature.title} className={`${feature.color} border-none shadow-md hover:shadow-lg transition-all`}>
-                <CardContent className="p-3">
-                  <div className="flex flex-col items-center text-center space-y-2">
-                    <div className={`p-3 rounded-xl shadow-md ${feature.color}`}>
-                      <Icon className={`h-8 w-8 ${feature.iconColor} drop-shadow-md`} />
+                <CardContent className="p-2.5">
+                  <div className="flex flex-col items-center text-center space-y-1.5">
+                    <div className={`p-2.5 rounded-xl shadow-md ${feature.color}`}>
+                      <Icon className={`h-7 w-7 ${feature.iconColor} drop-shadow-md`} />
                     </div>
-                    <h3 className={`text-xs font-bold ${feature.iconColor}`}>
+                    <h3 className={`text-[11px] font-bold ${feature.iconColor} leading-tight`}>
                       {feature.title}
                     </h3>
                     <Button 
-                      className={`w-full ${feature.buttonColor} text-white text-xs h-8 shadow-md hover:shadow-lg`}
+                      className={`w-full ${feature.buttonColor} text-white text-[11px] h-7 shadow-md hover:shadow-lg`}
                       onClick={() => navigate(feature.path)}
                     >
                       Open
@@ -534,6 +536,31 @@ export function Dashboard() {
             )
           })}
         </div>
+
+        {/* Masjid Coin Wallet - Members Only */}
+        {!isScholar && (
+          <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-200 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-amber-100 to-yellow-100 shadow-md">
+                    <Coins className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-amber-800">Coin Wallet</h3>
+                  </div>
+                </div>
+                <Button 
+                  className="bg-amber-500 hover:bg-amber-600 text-white shadow-md h-8 text-xs"
+                  onClick={() => navigate('/coin-wallet')}
+                >
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  Open
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Featured Jummah Prayer - Only for Members */}
         {!isScholar && (
@@ -584,7 +611,7 @@ export function Dashboard() {
       </div>
 
       {/* Bottom Navigation - Fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl mx-auto gap-0.5">
           <NavButton icon={MapPin} label="Masjid" active onClick={() => navigate('/dashboard')} />
           <NavButton 
@@ -595,10 +622,7 @@ export function Dashboard() {
           <NavButton icon={BookOpen} label="Quran" onClick={() => navigate('/quran')} />
           <NavButton icon={Compass} label="Qibla" onClick={() => navigate('/qibla')} />
           {isScholar ? (
-            <>
-              <NavButton icon={Calendar} label="Manage" onClick={() => navigate('/manage-consultations')} />
-              <NavButton icon={Wallet} label="Wallet" onClick={() => navigate('/wallet')} />
-            </>
+            <NavButton icon={Calendar} label="Manage" onClick={() => navigate('/manage-consultations')} />
           ) : (
             <>
               <NavButton icon={Calendar} label="Activities" onClick={() => navigate('/activity-categories')} />

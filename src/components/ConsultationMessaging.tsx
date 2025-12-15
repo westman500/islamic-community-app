@@ -184,10 +184,48 @@ export const ConsultationMessaging: React.FC = () => {
       })
 
       setConsultation(data)
+      
+      // Auto-start session if scholar accepted and session hasn't started yet
+      if (data.scholar_accepted && !data.session_started_at && data.status === 'confirmed') {
+        console.log('🚀 Auto-starting consultation session...')
+        await autoStartSession(data)
+      }
+      
       setLoading(false)
     } catch (err: any) {
       console.error('Error fetching consultation:', err)
       setLoading(false)
+    }
+  }
+
+  const autoStartSession = async (consultationData: any) => {
+    try {
+      const now = new Date()
+      const duration = consultationData.consultation_duration || 30
+      const endTime = new Date(now.getTime() + duration * 60 * 1000)
+
+      console.log(`⏰ Auto-starting session: ${duration} minutes, ends at ${endTime.toLocaleTimeString()}`)
+
+      // Update booking with session times
+      const { error: updateError } = await supabase
+        .from('consultation_bookings')
+        .update({
+          session_started_at: now.toISOString(),
+          session_ends_at: endTime.toISOString(),
+        })
+        .eq('id', consultationId)
+
+      if (updateError) {
+        console.error('❌ Error auto-starting session:', updateError)
+        return
+      }
+
+      console.log('✅ Session auto-started successfully')
+      
+      // Refresh consultation data to trigger timer
+      fetchConsultation()
+    } catch (error) {
+      console.error('❌ Error in autoStartSession:', error)
     }
   }
 
@@ -782,7 +820,7 @@ export const ConsultationMessaging: React.FC = () => {
                   </div>
                   <p className="text-xs text-gray-500">
                     {new Date(consultation.booking_date).toLocaleDateString()} at {consultation.booking_time}
-                    {!isScholar && consultation.consultation_duration && (
+                    {!isScholar && consultation.consultation_duration && !isActive && (
                       <span className="ml-2">• {consultation.consultation_duration} min session</span>
                     )}
                   </p>
@@ -884,29 +922,29 @@ export const ConsultationMessaging: React.FC = () => {
                       <img 
                         src={senderAvatar} 
                         alt={msg.sender?.full_name || 'User'} 
-                        className="w-8 h-8 rounded-full object-cover"
+                        className="w-7 h-7 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-semibold">
+                      <div className="w-7 h-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-[11px] font-semibold">
                         {msg.sender?.full_name?.charAt(0) || '?'}
                       </div>
                     )}
                   </div>
                 )}
                 <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
+                  className={`max-w-[70%] rounded-lg p-2.5 ${
                     isOwnMessage
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 text-gray-900'
                   }`}
                 >
                   {!isOwnMessage && msg.sender && (
-                    <p className="text-xs font-semibold mb-1 opacity-80">
+                    <p className="text-[11px] font-semibold mb-0.5 opacity-80">
                       {msg.sender.full_name}
                     </p>
                   )}
-                  <p className="text-sm">{msg.message}</p>
-                  <p className={`text-xs mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'}`}>
+                  <p className="text-[13px]">{msg.message}</p>
+                  <p className={`text-[10px] mt-0.5 ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'}`}>
                     {new Date(msg.created_at).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit'
@@ -919,15 +957,16 @@ export const ConsultationMessaging: React.FC = () => {
                       <img 
                         src={profile.avatar_url} 
                         alt={profile?.full_name || 'You'} 
-                        className="w-8 h-8 rounded-full object-cover"
+                        className="w-7 h-7 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-semibold">
+                      <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-[11px] font-semibold">
                         {profile?.full_name?.charAt(0) || 'Y'}
                       </div>
                     )}
                   </div>
                 )}
+
               </div>
             )
           })}

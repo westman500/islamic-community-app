@@ -14,8 +14,8 @@ $graphics.FillRectangle($greenBrush, 0, 0, 1024, 1024)
 $whiteBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
 
 $centerX = 512
-$centerY = 512
-$scale = 1.5
+$centerY = 530  # Move down slightly
+$scale = 1.0  # Reduced from 1.5 to fit better with padding
 
 # Main building body
 $left = $centerX - 140 * $scale

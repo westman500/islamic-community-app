@@ -6,6 +6,7 @@ import { Heart, DollarSign, TrendingUp, ArrowDownToLine, Eye, EyeOff, RefreshCw 
 import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
+import { useNotification } from '../contexts/NotificationContext'
 
 interface ZakatTransaction {
   id: string
@@ -17,6 +18,7 @@ interface ZakatTransaction {
 
 export const ScholarWallet: React.FC = () => {
   const { profile } = useAuth()
+  const { showNotification } = useNotification()
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState<ZakatTransaction[]>([])
   const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -38,7 +40,8 @@ export const ScholarWallet: React.FC = () => {
         schema: 'public',
         table: 'profiles',
         filter: `id=eq.${profile.id}`
-      }, () => {
+      }, (payload) => {
+        console.log('📊 Profile balance changed:', payload)
         fetchWalletData()
       })
       .on('postgres_changes', {
@@ -46,7 +49,8 @@ export const ScholarWallet: React.FC = () => {
         schema: 'public',
         table: 'masjid_coin_transactions',
         filter: `recipient_id=eq.${profile.id}`
-      }, () => {
+      }, (payload) => {
+        console.log('💰 New transaction received (recipient):', payload)
         fetchWalletData()
       })
       .on('postgres_changes', {
@@ -54,10 +58,13 @@ export const ScholarWallet: React.FC = () => {
         schema: 'public',
         table: 'masjid_coin_transactions',
         filter: `user_id=eq.${profile.id}`
-      }, () => {
+      }, (payload) => {
+        console.log('💰 New transaction created (user):', payload)
         fetchWalletData()
       })
-      .subscribe()
+      .subscribe((status) => {
+        console.log('📡 Wallet realtime subscription status:', status)
+      })
 
     return () => {
       channel.unsubscribe()
@@ -183,8 +190,14 @@ export const ScholarWallet: React.FC = () => {
         // Determine transaction type based on direction and type
         if (isIncoming) {
           // Money coming IN to scholar
-          if (tx.type === 'donation' || tx.type === 'donation_received') {
+          if (tx.type === 'donation' || tx.type === 'donation_received' || tx.type === 'zakat') {
             transactionType = 'zakat'
+            console.log('✅ Zakat transaction found:', {
+              id: tx.id,
+              amount: tx.amount,
+              type: tx.type,
+              recipient_id: tx.recipient_id
+            })
           } else if (tx.type === 'consultation') {
             transactionType = 'consultation'
           }
@@ -377,7 +390,7 @@ export const ScholarWallet: React.FC = () => {
                   className="text-white hover:bg-emerald-600"
                   onClick={async () => {
                     await fetchWalletData()
-                    toast.success('Balance refreshed!')
+                    showNotification('Balance refreshed!', 'success')
                   }}
                   title="Refresh Balance"
                 >

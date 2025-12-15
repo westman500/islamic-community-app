@@ -46,10 +46,31 @@ export const ConsultationBooking: React.FC = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [showMyBookings, setShowMyBookings] = useState(false)
+  const [currentBalance, setCurrentBalance] = useState<number>(0)
 
   useEffect(() => {
     fetchScholars()
+    fetchBalance()
   }, [])
+
+  const fetchBalance = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', user.id)
+        .single()
+
+      if (userProfile) {
+        setCurrentBalance(userProfile.masjid_coin_balance || 0)
+      }
+    } catch (err) {
+      console.error('Error fetching balance:', err)
+    }
+  }
 
   useEffect(() => {
     if (!profile?.id) return
@@ -177,7 +198,7 @@ export const ConsultationBooking: React.FC = () => {
         topic: b.topic || 'No topic specified',
         status: b.status || 'pending',
         createdAt: b.created_at,
-        sessionStarted: !!b.session_started_at,
+        sessionStarted: !!b.started_at,
         scholarAccepted: b.scholar_accepted || false,
         amountPaid: b.amount_paid || 0
       }))
@@ -249,17 +270,10 @@ export const ConsultationBooking: React.FC = () => {
         throw new Error(`Insufficient balance. You need ${coinsRequired} coins (₦${selectedScholar.consultationFee}) but have ${currentBalance} coins. Please deposit more coins.`)
       }
 
-      // Deduct coins from user's balance
-      const newUserBalance = currentBalance - coinsRequired
-      const { error: deductError } = await supabase
-        .from('profiles')
-        .update({ masjid_coin_balance: newUserBalance })
-        .eq('id', profile.id)
+      console.log(`💰 User will be debited ${coinsRequired} coins via database trigger`)
+      console.log(`💰 Scholar will be credited ${coinsRequired} coins via database trigger`)
 
-      if (deductError) throw new Error('Failed to deduct coins from your balance')
-
-      // IMPORTANT: Create booking FIRST before handling money
-      // This way if booking fails, no coins are transferred
+      // Create booking (transaction records will trigger automatic balance updates)
       const now = new Date().toISOString()
       const { error: bookingError } = await supabase
         .from('consultation_bookings')
@@ -278,22 +292,13 @@ export const ConsultationBooking: React.FC = () => {
           scholar_accepted: false
         })
 
-      // If booking creation fails, restore user's balance and exit
+      // If booking creation fails, exit (no balances have been touched yet)
       if (bookingError) {
         console.error('❌ Booking creation failed:', bookingError)
-        // Rollback: restore user's coins
-        await supabase
-          .from('profiles')
-          .update({ masjid_coin_balance: currentBalance })
-          .eq('id', profile.id)
-        
         throw new Error(bookingError.message || 'Failed to create booking')
       }
       
       console.log('✅ Booking created successfully')
-
-      // Note: Scholar balance will be automatically updated by database trigger when transaction is created
-      console.log(`💰 Scholar will be credited ${coinsRequired} coins (₦${coinsRequired * 100}) via database trigger`)
 
       // Create transaction record for user (debit)
       const { error: debitTxError } = await supabase
@@ -341,6 +346,9 @@ export const ConsultationBooking: React.FC = () => {
       setSuccess(true)
       setSelectedScholar(null)
       setTopic('')
+      
+      // Refresh balance after successful payment
+      await fetchBalance()
       
       // Show notification
       showNotification(
@@ -583,7 +591,7 @@ export const ConsultationBooking: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700">Your Masjid Coin Balance:</span>
                       <span className="text-lg font-bold text-emerald-600">
-                        💰 {(profile.masjid_coin_balance || 0).toLocaleString()} coins
+                        💰 {currentBalance.toLocaleString()} coins
                       </span>
                     </div>
                   </div>

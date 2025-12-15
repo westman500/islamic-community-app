@@ -32,10 +32,71 @@ export const ScholarLiveStream: React.FC = () => {
   const [currentStreamData, setCurrentStreamData] = useState<any>(null)
   const [reactionNotification, setReactionNotification] = useState<{ type: 'like' | 'dislike', count: number } | null>(null)
   const [joinNotification, setJoinNotification] = useState<string | null>(null)
+  const [oldStreams, setOldStreams] = useState<any[]>([])
+  const [checkingOldStreams, setCheckingOldStreams] = useState(true)
   
   const agoraService = useRef<AgoraService | null>(null)
   const localVideoRef = useRef<HTMLDivElement>(null)
   const realtimeChannel = useRef<any>(null)
+
+  // Check for old active streams when component loads
+  useEffect(() => {
+    checkForOldStreams()
+  }, [profile?.id])
+
+  const checkForOldStreams = async () => {
+    if (!profile?.id) return
+    
+    try {
+      setCheckingOldStreams(true)
+      const { data, error } = await supabase
+        .from('streams')
+        .select('*')
+        .eq('scholar_id', profile.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error checking for old streams:', error)
+        return
+      }
+
+      if (data && data.length > 0) {
+        console.log(`Found ${data.length} active stream(s) that need to be stopped`)
+        setOldStreams(data)
+      }
+    } catch (err) {
+      console.error('Error in checkForOldStreams:', err)
+    } finally {
+      setCheckingOldStreams(false)
+    }
+  }
+
+  const stopOldStream = async (streamId: string) => {
+    try {
+      console.log('Stopping old stream:', streamId)
+      
+      const { error } = await supabase
+        .from('streams')
+        .update({
+          is_active: false,
+          ended_at: new Date().toISOString(),
+          viewer_count: 0
+        })
+        .eq('id', streamId)
+
+      if (error) throw error
+
+      showNotification('Old stream stopped successfully', 'success')
+      
+      // Remove from oldStreams list
+      setOldStreams(prev => prev.filter(s => s.id !== streamId))
+      
+    } catch (err: any) {
+      console.error('Error stopping old stream:', err)
+      showNotification(`Failed to stop stream: ${err.message}`, 'error')
+    }
+  }
 
   useEffect(() => {
     // Cleanup on unmount
@@ -536,6 +597,52 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Old Active Streams Warning */}
+          {!isStreaming && oldStreams.length > 0 && (
+            <div className="space-y-3">
+              <div className="p-4 bg-amber-50 border-2 border-amber-500 rounded-lg">
+                <h3 className="font-bold text-amber-900 mb-2 flex items-center gap-2">
+                  <StopCircle className="h-5 w-5" />
+                  Active Streams Found
+                </h3>
+                <p className="text-sm text-amber-800 mb-3">
+                  You have {oldStreams.length} active stream{oldStreams.length > 1 ? 's' : ''} that need to be stopped before starting a new one.
+                </p>
+                {oldStreams.map((stream) => (
+                  <div key={stream.id} className="bg-white p-3 rounded-md mb-2 flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{stream.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Started: {new Date(stream.created_at).toLocaleString()}
+                      </p>
+                      {stream.viewer_count > 0 && (
+                        <p className="text-xs text-amber-700 flex items-center gap-1 mt-1">
+                          <Users className="h-3 w-3" />
+                          {stream.viewer_count} viewer{stream.viewer_count > 1 ? 's' : ''} watching
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => stopOldStream(stream.id)}
+                    >
+                      <StopCircle className="h-4 w-4 mr-1" />
+                      Stop
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {checkingOldStreams && !isStreaming && (
+            <div className="p-4 bg-gray-50 rounded-lg text-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Checking for active streams...</p>
+            </div>
+          )}
+
           {!isStreaming ? (
             // Pre-stream setup
             <div className="space-y-4">
@@ -570,8 +677,17 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
                 </div>
               )}
 
-              <Button onClick={startStream} className="w-full" size="lg">
-                Start Live Stream
+              <Button 
+                onClick={startStream} 
+                className="w-full" 
+                size="lg"
+                disabled={oldStreams.length > 0 || checkingOldStreams}
+              >
+                {oldStreams.length > 0 
+                  ? 'Stop Old Streams First' 
+                  : checkingOldStreams 
+                  ? 'Checking...' 
+                  : 'Start Live Stream'}
               </Button>
             </div>
           ) : (

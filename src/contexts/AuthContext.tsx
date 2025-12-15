@@ -359,6 +359,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string): Promise<void> => {
     console.log('🔐 SignIn: Starting authentication for', email)
     
+    // Check internet connectivity before attempting login
+    if (!navigator.onLine) {
+      console.error('❌ No internet connection')
+      throw new Error('No internet connection. Please check your network and try again.')
+    }
+
+    // Test Supabase connection
+    try {
+      const { error: pingError } = await supabase.from('profiles').select('id').limit(1)
+      if (pingError && pingError.message.includes('Failed to fetch')) {
+        throw new Error('Cannot connect to server. Please check your internet connection.')
+      }
+    } catch (err: any) {
+      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        throw new Error('Cannot connect to server. Please check your internet connection.')
+      }
+    }
+    
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     
     if (error) {

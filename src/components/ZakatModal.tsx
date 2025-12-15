@@ -59,15 +59,17 @@ export const ZakatModal = ({ isOpen, onClose, scholarId, streamTitle }: ZakatMod
         return
       }
 
-      // Record transaction (negative amount for payment)
+      // Record single transaction (user pays to scholar)
       const { error: txError } = await supabase
         .from('masjid_coin_transactions')
         .insert({
           user_id: profile.id,
-          amount: -amount, // Negative for payment
+          recipient_id: scholarId,
+          amount: amount, // Positive amount
           type: 'donation',
           description: `Zakat donation during livestream: ${streamTitle}`,
-          recipient_id: scholarId,
+          note: `Zakat donation - ${amount} coins`,
+          status: 'completed',
           payment_status: 'completed'
         })
 
@@ -79,39 +81,52 @@ export const ZakatModal = ({ isOpen, onClose, scholarId, streamTitle }: ZakatMod
         .update({ masjid_coin_balance: balance - amount })
         .eq('id', profile.id)
 
-      if (updateError) throw updateError
-
-      // Credit scholar wallet (positive transaction for scholar)
-      const { error: scholarTxError } = await supabase
-        .from('masjid_coin_transactions')
-        .insert({
-          user_id: scholarId,
-          amount: amount, // Positive for receipt
-          type: 'donation',
-          description: `Zakat received from ${profile.full_name || 'a member'}`,
-          recipient_id: profile.id,
-          payment_status: 'completed'
-        })
-
-      if (scholarTxError) {
-        console.error('Error creating scholar transaction:', scholarTxError)
-        // Don't throw - user donation already processed
+      if (updateError) {
+        console.error('❌ Failed to deduct user balance:', updateError)
+        throw updateError
       }
 
+      console.log(`💳 User balance deducted: ${balance} → ${balance - amount} coins`)
+
       // Update scholar balance (credit)
-      const { data: scholarData } = await supabase
+      const { data: scholarData, error: scholarFetchError } = await supabase
         .from('profiles')
         .select('masjid_coin_balance')
         .eq('id', scholarId)
         .single()
 
-      if (scholarData) {
-        const scholarBalance = scholarData.masjid_coin_balance || 0
+      if (scholarFetchError) {
+        console.error('❌ Failed to fetch scholar profile:', scholarFetchError)
+        // Rollback: restore user balance
         await supabase
           .from('profiles')
-          .update({ masjid_coin_balance: scholarBalance + amount })
-          .eq('id', scholarId)
+          .update({ masjid_coin_balance: balance })
+          .eq('id', profile.id)
+        throw new Error('Failed to credit scholar - transaction rolled back')
       }
+
+      const scholarBalance = scholarData?.masjid_coin_balance || 0
+      const newScholarBalance = scholarBalance + amount
+      
+      const { error: scholarUpdateError } = await supabase
+        .from('profiles')
+        .update({ 
+          masjid_coin_balance: newScholarBalance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', scholarId)
+
+      if (scholarUpdateError) {
+        console.error('❌ Failed to credit scholar balance:', scholarUpdateError)
+        // Rollback: restore user balance
+        await supabase
+          .from('profiles')
+          .update({ masjid_coin_balance: balance })
+          .eq('id', profile.id)
+        throw new Error('Failed to credit scholar - transaction rolled back')
+      }
+
+      console.log(`✅ Scholar balance updated: ${scholarBalance} → ${newScholarBalance} coins (₦${newScholarBalance * 100})`)
 
       setMessage(`✅ Successfully donated ${amount} coins! May Allah accept your Zakat.`)
       

@@ -218,7 +218,7 @@ export const ScreenshotUtility: React.FC = () => {
   const [isMinimized, setIsMinimized] = useState(false)
 
   return (
-    <Card className={`screenshot-utility-card fixed bottom-4 right-4 shadow-xl z-50 bg-white/95 backdrop-blur transition-all ${isMinimized ? 'w-12' : 'w-96'}`}>
+    <Card className={`screenshot-utility-card fixed right-4 shadow-xl z-50 bg-white/95 backdrop-blur transition-all ${isMinimized ? 'w-12' : 'w-96'}`} style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
       <CardHeader className="cursor-pointer" onClick={() => setIsMinimized(!isMinimized)}>
         <CardTitle className="flex items-center gap-2 text-sm">
           <Camera className="h-4 w-4" />

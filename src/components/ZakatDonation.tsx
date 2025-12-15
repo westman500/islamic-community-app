@@ -26,10 +26,31 @@ export const ZakatDonation: React.FC = () => {
   const [loadingScholars, setLoadingScholars] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [currentBalance, setCurrentBalance] = useState<number>(0)
 
   useEffect(() => {
     fetchScholars()
+    fetchBalance()
   }, [])
+
+  const fetchBalance = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('masjid_coin_balance')
+        .eq('id', user.id)
+        .single()
+
+      if (userProfile) {
+        setCurrentBalance(userProfile.masjid_coin_balance || 0)
+      }
+    } catch (err) {
+      console.error('Error fetching balance:', err)
+    }
+  }
 
   const fetchScholars = async () => {
     try {
@@ -104,46 +125,51 @@ export const ZakatDonation: React.FC = () => {
 
       const reference = `DON_${user.id}_${Date.now()}`
 
-      // Deduct coins from user's balance
-      const newUserBalance = currentBalance - coinsAmount
-      const { error: deductError } = await supabase
-        .from('profiles')
-        .update({ masjid_coin_balance: newUserBalance })
-        .eq('id', user.id)
+      console.log(`💰 Processing zakat donation: ${coinsAmount} coins from ${userProfile.full_name} to ${selectedScholar.name}`)
 
-      if (deductError) throw new Error('Failed to deduct coins from your balance')
+      // Create two transaction records for proper accounting:
+      // 1. Debit transaction for donor (negative amount)
+      // 2. Credit transaction for scholar (positive amount)
+      // Database trigger will automatically update both balances
+      
+      const { error: debitTxError } = await supabase
+        .from('masjid_coin_transactions')
+        .insert({
+          user_id: user.id,
+          recipient_id: null,
+          amount: -coinsAmount, // Negative for debit
+          type: 'donation',
+          description: `Zakat donation to ${selectedScholar.name}`,
+          payment_reference: reference,
+          payment_status: 'completed',
+          status: 'completed'
+        })
 
-      // Note: Scholar balance will be automatically updated by database trigger
-      console.log(`💰 Scholar will be credited ${coinsAmount} coins via database trigger`)
+      if (debitTxError) {
+        console.error('❌ Failed to create debit transaction:', debitTxError)
+        throw new Error('Failed to process donation')
+      }
 
-      // Create transaction record for user (debit)
-      await supabase
+      const { error: creditTxError } = await supabase
         .from('masjid_coin_transactions')
         .insert({
           user_id: user.id,
           recipient_id: selectedScholar.id,
-          amount: -coinsAmount,
+          amount: coinsAmount, // Positive for credit
           type: 'donation',
-          description: `Zakat donation to ${selectedScholar.name}`,
+          description: `Zakat donation from ${userProfile.full_name}`,
           payment_reference: reference,
-          payment_status: 'success',
+          payment_status: 'completed',
           status: 'completed'
         })
 
-      // Create transaction record for scholar (credit)
-      // IMPORTANT: recipient_id must be scholar.id so it appears in their wallet
-      await supabase
-        .from('masjid_coin_transactions')
-        .insert({
-          user_id: selectedScholar.id,  // Scholar is the receiver
-          recipient_id: selectedScholar.id,  // For wallet filtering
-          amount: coinsAmount,  // Positive amount for income
-          type: 'donation',
-          description: `Zakat received from ${userProfile.full_name}`,
-          payment_reference: reference,
-          payment_status: 'success',
-          status: 'completed'
-        })
+      if (creditTxError) {
+        console.error('❌ Failed to create credit transaction:', creditTxError)
+        throw new Error('Failed to credit scholar')
+      }
+
+      console.log(`✅ Zakat donation transactions created. Database trigger will update balances automatically.`)
+      console.log(`   Donor: -${coinsAmount} coins | Scholar: +${coinsAmount} coins`)
       
       setSuccess(true)
       showNotification(`Zakat donation of ${coinsAmount} coins sent to ${selectedScholar.name}. May Allah accept your charity!`, 'success')
@@ -156,6 +182,9 @@ export const ZakatDonation: React.FC = () => {
       
       setAmount('')
       setSelectedScholar(null)
+      
+      // Refresh balance after successful donation
+      await fetchBalance()
       
       setTimeout(() => setSuccess(false), 5000)
 
@@ -205,7 +234,7 @@ export const ZakatDonation: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">Your Masjid Coin Balance:</span>
                     <span className="text-lg font-bold text-emerald-600">
-                      💰 {(profile.masjid_coin_balance || 0).toLocaleString()} coins
+                      💰 {currentBalance.toLocaleString()} coins
                     </span>
                   </div>
                 </div>
