@@ -8,7 +8,7 @@ import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotification } from '../contexts/NotificationContext'
-import { initializePaystackPayment, generatePaymentReference } from '../utils/paystack'
+// Paystack imports removed - using direct coin deduction
 import { notifyConsultationBooked } from '../utils/pushNotifications'
 import { useNavigate } from 'react-router-dom'
 

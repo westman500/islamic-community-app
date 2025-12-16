@@ -14,6 +14,7 @@ interface Review {
   created_at: string
   reviewer: {
     full_name: string
+    avatar_url?: string
   }
 }
 
@@ -34,6 +35,7 @@ interface ScholarProfile {
   completed_consultations_count: number
   created_at: string
   consultation_fee?: number
+  avatar_url?: string
 }
 
 export const ScholarProfileViewer: React.FC = () => {
@@ -78,7 +80,7 @@ export const ScholarProfileViewer: React.FC = () => {
         .from('scholar_reviews')
         .select(`
           *,
-          reviewer:profiles!reviewer_id(full_name)
+          reviewer:profiles!reviewer_id(full_name, avatar_url)
         `)
         .eq('scholar_id', scholarId)
         .order('created_at', { ascending: false })
@@ -173,13 +175,30 @@ export const ScholarProfileViewer: React.FC = () => {
       {/* Profile Header */}
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-3xl flex items-center gap-3">
+          <div className="flex items-start gap-4">
+            {/* Profile Picture */}
+            <div className="flex-shrink-0">
+              {scholar.avatar_url ? (
+                <img
+                  src={scholar.avatar_url}
+                  alt={scholar.full_name}
+                  className="w-24 h-24 rounded-full object-cover border-4 border-emerald-500 shadow-lg"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center border-4 border-emerald-500 shadow-lg">
+                  <span className="text-white text-3xl font-bold">
+                    {scholar.full_name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-2xl sm:text-3xl flex items-center gap-2 flex-wrap">
                 {scholar.full_name}
                 {scholar.smileid_verified && (
                   <span title="Verified Scholar">
-                    <CheckCircle className="w-6 h-6 text-blue-600" />
+                    <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                   </span>
                 )}
               </CardTitle>
@@ -378,8 +397,23 @@ export const ScholarProfileViewer: React.FC = () => {
             <div className="space-y-4">
               {reviews.map((review) => (
                 <div key={review.id} className="p-4 border rounded-lg">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
+                  <div className="flex items-start gap-3 mb-2">
+                    {/* Reviewer Avatar */}
+                    {review.reviewer.avatar_url ? (
+                      <img
+                        src={review.reviewer.avatar_url}
+                        alt={review.reviewer.full_name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">
+                          {review.reviewer.full_name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex-1">
                       <p className="font-semibold">{review.reviewer.full_name}</p>
                       <div className="flex items-center gap-2 mt-1">
                         {renderStars(review.rating)}

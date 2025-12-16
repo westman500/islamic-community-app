@@ -16,8 +16,11 @@ export const QiblaDirection: React.FC = () => {
   const [error, setError] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [permissionGranted, setPermissionGranted] = useState(false)
+  const [compassAvailable, setCompassAvailable] = useState<boolean>(true)
+  const [compassAccuracy, setCompassAccuracy] = useState<number | null>(null)
   const compassRef = useRef<number>(0)
   const animationFrameRef = useRef<number | null>(null)
+  const lastUpdateRef = useRef<number>(Date.now())
   const smoothingFactor = 0.15 // Balanced smoothness and responsiveness
 
   // Kaaba coordinates (precise location)
@@ -96,23 +99,29 @@ export const QiblaDirection: React.FC = () => {
       // Skip if we're using absolute orientation
       if (useAbsolute) return
       
-      if (event.alpha !== null) {
-        // Get compass heading (alpha)
-        let heading = event.alpha
+      if (event.alpha !== null || event.beta !== null || event.gamma !== null) {
+        lastUpdateRef.current = Date.now()
+        let heading = event.alpha || 0
         
         // On Android/Samsung, webkitCompassHeading provides more accurate results
         const webkitEvent = event as any
         if (webkitEvent.webkitCompassHeading !== undefined) {
           // webkitCompassHeading gives direct magnetic north heading (0-360)
           heading = webkitEvent.webkitCompassHeading
+          
+          // webkitCompassAccuracy provides accuracy in degrees
+          if (webkitEvent.webkitCompassAccuracy !== undefined) {
+            setCompassAccuracy(webkitEvent.webkitCompassAccuracy)
+          }
         } else {
-          // Standard Android implementation
+          // Standard Android/iOS implementation
           // Alpha is 0 when device points to magnetic north, increases clockwise
           heading = (360 - heading) % 360
         }
         
         // Store the latest heading from sensor
         latestHeading = heading
+        setCompassAvailable(true)
       }
     }
 
@@ -120,6 +129,7 @@ export const QiblaDirection: React.FC = () => {
       // Use absolute orientation if available (provides true north on supported devices)
       // This works better on Samsung and newer Android devices
       if (event.absolute && event.alpha !== null) {
+        lastUpdateRef.current = Date.now()
         useAbsolute = true
         let heading = event.alpha
         
@@ -128,8 +138,18 @@ export const QiblaDirection: React.FC = () => {
         heading = (360 - heading) % 360
         
         latestHeading = heading
+        setCompassAvailable(true)
       }
     }
+    
+    // Check if compass is actually working by monitoring updates
+    const compassCheckInterval = setInterval(() => {
+      const timeSinceLastUpdate = Date.now() - lastUpdateRef.current
+      // If no updates in 3 seconds, compass may not be working
+      if (timeSinceLastUpdate > 3000 && permissionGranted) {
+        setCompassAvailable(false)
+      }
+    }, 3000)
 
     // Smooth animation loop using requestAnimationFrame for real-time updates
     const animate = () => {
@@ -167,6 +187,9 @@ export const QiblaDirection: React.FC = () => {
       isAnimating = false
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
+      }
+      if (compassCheckInterval) {
+        clearInterval(compassCheckInterval)
       }
       window.removeEventListener('deviceorientation', handleOrientation, true)
       window.removeEventListener('deviceorientationabsolute', handleAbsoluteOrientation as any, true)
@@ -255,35 +278,89 @@ export const QiblaDirection: React.FC = () => {
                 </div>
               )}
               <div className="mt-6 text-left bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm font-semibold mb-2">📍 Tips:</p>
+                <p className="text-sm font-semibold mb-2">📍 All Devices:</p>
                 <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
                   <li>Click "Allow" when browser asks for location permission</li>
                   <li>Make sure location services are enabled on your device</li>
                   <li>Works best on mobile devices with compass sensor</li>
-                  <li>On desktop, you'll see the calculated direction only</li>
+                  <li>Tablets/desktops show static direction (no live compass)</li>
+                  <li>Keep away from magnets, metal objects, and electronics</li>
                 </ul>
               </div>
               <div className="mt-4 text-left bg-amber-50 p-4 rounded-lg border border-amber-200">
-                <p className="text-sm font-semibold mb-2 text-amber-800">📱 Samsung/Android Users:</p>
+                <p className="text-sm font-semibold mb-2 text-amber-800">📱 Android/Samsung:</p>
                 <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
-                  <li>Calibrate compass: Move device in figure-8 pattern</li>
-                  <li>Enable "Motion sensors" in device Settings → Display</li>
-                  <li>Grant location permission to browser app</li>
-                  <li>Disable battery optimization for browser</li>
-                  <li>If compass spins randomly, recalibrate in open area</li>
+                  <li>Calibrate: Move device in figure-8 pattern (∞) in the air</li>
+                  <li>Settings → Display → Enable "Motion sensors"</li>
+                  <li>Chrome: Settings → Site settings → Permissions → Motion sensors</li>
+                  <li>Disable battery optimization for browser app</li>
+                  <li>Try in open area away from metal structures</li>
+                </ul>
+              </div>
+              <div className="mt-4 text-left bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <p className="text-sm font-semibold mb-2 text-purple-800">🍎 iOS/iPhone:</p>
+                <ul className="text-xs text-purple-700 space-y-1 list-disc list-inside">
+                  <li>Settings → Privacy → Motion & Orientation → Enable for Safari/Chrome</li>
+                  <li>Settings → Compass → Enable "Use True North"</li>
+                  <li>Calibrate by tilting screen to complete red circle</li>
+                  <li>Works best in Safari browser</li>
+                  <li>May need to tap "Allow" multiple times</li>
+                </ul>
+              </div>
+              <div className="mt-4 text-left bg-green-50 p-4 rounded-lg border border-green-200">
+                <p className="text-sm font-semibold mb-2 text-green-800">🌐 Other Browsers:</p>
+                <ul className="text-xs text-green-700 space-y-1 list-disc list-inside">
+                  <li>Chrome/Edge: Works on most devices</li>
+                  <li>Firefox: May need to enable motion sensors in settings</li>
+                  <li>Samsung Internet: Usually works well</li>
+                  <li>Opera: Enable device sensors in site settings</li>
+                  <li>If stuck, try different browser or use static mode</li>
                 </ul>
               </div>
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Compass Status Indicator */}
+              {!compassAvailable && (
+                <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg">
+                  <p className="text-sm font-semibold text-yellow-800 mb-1">
+                    ⚠️ Compass sensor not detected
+                  </p>
+                  <p className="text-xs text-yellow-700">
+                    Your device may not have a magnetometer, or the sensor is disabled. You can still see the static Qibla direction below.
+                  </p>
+                </div>
+              )}
+              
+              {compassAvailable && compassAccuracy && compassAccuracy > 30 && (
+                <div className="bg-orange-50 border border-orange-300 p-3 rounded-lg">
+                  <p className="text-sm font-semibold text-orange-800 mb-1">
+                    🔄 Low compass accuracy
+                  </p>
+                  <p className="text-xs text-orange-700">
+                    Move your phone in a figure-8 pattern to calibrate the compass sensor.
+                  </p>
+                </div>
+              )}
+              
+              {compassAvailable && (!compassAccuracy || compassAccuracy <= 15) && (
+                <div className="bg-green-50 border border-green-300 p-2 rounded-lg">
+                  <p className="text-xs font-semibold text-green-800">
+                    ✅ Compass working {compassAccuracy ? `(±${compassAccuracy.toFixed(0)}°)` : ''}
+                  </p>
+                </div>
+              )}
+              
               {/* Compass Display */}
               <div className="relative w-72 h-72 mx-auto">
                 {/* Compass ring with cardinal directions */}
                 <div
-                  className="absolute inset-0 rounded-full border-8 border-emerald-600 bg-gradient-to-br from-emerald-50 to-white shadow-xl"
+                  className={`absolute inset-0 rounded-full border-8 bg-gradient-to-br from-emerald-50 to-white shadow-xl ${
+                    compassAvailable ? 'border-emerald-600' : 'border-gray-400'
+                  }`}
                   style={{
-                    transform: `rotate(${-deviceHeading}deg)`,
-                    transition: 'none', // Remove transition for real-time updates
+                    transform: compassAvailable ? `rotate(${-deviceHeading}deg)` : 'rotate(0deg)',
+                    transition: compassAvailable ? 'none' : 'transform 0.5s ease', // Smooth on static, instant on live
                   }}
                 >
                   {/* Cardinal directions */}
@@ -405,28 +482,60 @@ export const QiblaDirection: React.FC = () => {
                   📍 {location.latitude.toFixed(4)}°, {location.longitude.toFixed(4)}°
                 </p>
                 
-                <div className="bg-blue-50 p-3 rounded-lg mt-4">
-                  <p className="text-sm font-medium text-blue-800">
-                    🧭 Rotate your device until the green arrow points upward
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Keep device flat and away from metal objects
-                  </p>
-                </div>
+                {compassAvailable ? (
+                  <div className="bg-blue-50 p-3 rounded-lg mt-4">
+                    <p className="text-sm font-medium text-blue-800">
+                      🧭 Rotate your device until the green arrow points upward
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Keep device flat and away from metal objects
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-3 rounded-lg mt-4 border border-gray-300">
+                    <p className="text-sm font-medium text-gray-800">
+                      📍 Static Direction (No Compass)
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Face {qiblaDirection.toFixed(1)}° from North to face Qibla. The arrow above shows the direction.
+                    </p>
+                  </div>
+                )}
                 
-                <div className="bg-amber-50 p-3 rounded-lg mt-2 border border-amber-200">
-                  <p className="text-xs font-medium text-amber-800 mb-1">
-                    🔄 Compass not working? Calibrate it:
-                  </p>
-                  <p className="text-xs text-amber-700">
-                    Move your phone in a figure-8 pattern (∞) in the air a few times. This recalibrates the magnetometer sensor.
-                  </p>
-                </div>
+                {compassAvailable && (
+                  <div className="bg-amber-50 p-3 rounded-lg mt-2 border border-amber-200">
+                    <p className="text-xs font-medium text-amber-800 mb-1">
+                      🔄 Compass not accurate? Calibrate it:
+                    </p>
+                    <p className="text-xs text-amber-700">
+                      Move your phone in a figure-8 pattern (∞) in the air a few times. This recalibrates the magnetometer sensor.
+                    </p>
+                  </div>
+                )}
+                
+                {!compassAvailable && (
+                  <div className="bg-purple-50 p-3 rounded-lg mt-2 border border-purple-200">
+                    <p className="text-xs font-medium text-purple-800 mb-1">
+                      💡 Using manual compass:
+                    </p>
+                    <p className="text-xs text-purple-700">
+                      Use a physical compass or compass app to find North, then rotate {qiblaDirection.toFixed(1)}° clockwise to face Qibla.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <Button onClick={requestPermission} variant="outline" className="w-full mt-4">
-                Recalibrate Compass
-              </Button>
+              <div className="space-y-2">
+                <Button onClick={requestPermission} variant="outline" className="w-full">
+                  {compassAvailable ? 'Recalibrate Compass' : 'Retry Compass Detection'}
+                </Button>
+                
+                {!compassAvailable && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    This device may not have a magnetometer sensor. Using static direction mode.
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

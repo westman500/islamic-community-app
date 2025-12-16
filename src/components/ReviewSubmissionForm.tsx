@@ -6,7 +6,8 @@ import { supabase } from '../utils/supabase/client'
 import { Star, Check } from 'lucide-react'
 
 interface ReviewSubmissionFormProps {
-  consultationId: string
+  consultationId?: string
+  streamId?: string
   scholarId: string
   scholarName: string
   onSuccess?: () => void
@@ -15,6 +16,7 @@ interface ReviewSubmissionFormProps {
 
 export const ReviewSubmissionForm: React.FC<ReviewSubmissionFormProps> = ({
   consultationId,
+  streamId,
   scholarId,
   scholarName,
   onSuccess,
@@ -27,25 +29,56 @@ export const ReviewSubmissionForm: React.FC<ReviewSubmissionFormProps> = ({
   const [loading, setLoading] = useState(false)
   const [canReview, setCanReview] = useState(false)
   const [alreadyReviewed, setAlreadyReviewed] = useState(false)
-  const [consultationCompleted, setConsultationCompleted] = useState(false)
+  const [eventCompleted, setEventCompleted] = useState(false)
+  const reviewType = consultationId ? 'consultation' : 'livestream'
 
   useEffect(() => {
     checkEligibility()
-  }, [consultationId])
+  }, [consultationId, streamId])
 
   const checkEligibility = async () => {
     try {
-      // Check if consultation is completed
-      const { data: consultation, error: consultError } = await supabase
-        .from('consultations')
-        .select('status, actual_ended_at')
-        .eq('id', consultationId)
-        .single()
+      let isCompleted = false
 
-      if (consultError) throw consultError
+      if (consultationId) {
+        // Check if consultation is completed
+        const { data: consultation, error: consultError } = await supabase
+          .from('consultations')
+          .select('status, actual_ended_at')
+          .eq('id', consultationId)
+          .single()
 
-      const isCompleted = consultation.status === 'completed' && consultation.actual_ended_at
-      setConsultationCompleted(isCompleted)
+        if (consultError) throw consultError
+
+        isCompleted = consultation.status === 'completed' && !!consultation.actual_ended_at
+      } else if (streamId) {
+        // Check if livestream has ended
+        const { data: stream, error: streamError } = await supabase
+          .from('streams')
+          .select('is_active, ended_at')
+          .eq('id', streamId)
+          .single()
+
+        if (streamError) throw streamError
+
+        isCompleted = !stream.is_active && !!stream.ended_at
+        
+        // Also verify user was a participant
+        if (isCompleted) {
+          const { data: participation } = await supabase
+            .from('stream_participants')
+            .select('id')
+            .eq('stream_id', streamId)
+            .eq('user_id', profile?.id)
+            .maybeSingle()
+          
+          if (!participation) {
+            isCompleted = false
+          }
+        }
+      }
+
+      setEventCompleted(isCompleted)
 
       if (!isCompleted) {
         setCanReview(false)
@@ -53,12 +86,18 @@ export const ReviewSubmissionForm: React.FC<ReviewSubmissionFormProps> = ({
       }
 
       // Check if already reviewed
-      const { data: existingReview, error: reviewError } = await supabase
+      const query = supabase
         .from('scholar_reviews')
         .select('id')
-        .eq('consultation_id', consultationId)
         .eq('reviewer_id', profile?.id)
-        .maybeSingle()
+
+      if (consultationId) {
+        query.eq('consultation_id', consultationId)
+      } else if (streamId) {
+        query.eq('stream_id', streamId)
+      }
+
+      const { data: existingReview, error: reviewError } = await query.maybeSingle()
 
       if (reviewError) throw reviewError
 
@@ -89,13 +128,21 @@ export const ReviewSubmissionForm: React.FC<ReviewSubmissionFormProps> = ({
     setLoading(true)
 
     try {
-      const { error } = await supabase.from('scholar_reviews').insert({
+      const reviewData: any = {
         scholar_id: scholarId,
         reviewer_id: profile?.id,
-        consultation_id: consultationId,
         rating,
         review_text: reviewText.trim()
-      })
+      }
+
+      // Add either consultation_id or stream_id
+      if (consultationId) {
+        reviewData.consultation_id = consultationId
+      } else if (streamId) {
+        reviewData.stream_id = streamId
+      }
+
+      const { error } = await supabase.from('scholar_reviews').insert(reviewData)
 
       if (error) throw error
 
@@ -103,9 +150,9 @@ export const ReviewSubmissionForm: React.FC<ReviewSubmissionFormProps> = ({
       await supabase.from('notifications').insert({
         user_id: scholarId,
         title: 'New Review',
-        message: `You received a ${rating}-star review from ${profile?.full_name}`,
+        message: `You received a ${rating}-star review from ${profile?.full_name} for a ${reviewType}`,
         notification_type: 'review_received',
-        related_id: consultationId,
+        related_id: consultationId || streamId,
         action_url: `/scholar/${scholarId}`
       })
 
@@ -147,12 +194,12 @@ export const ReviewSubmissionForm: React.FC<ReviewSubmissionFormProps> = ({
     )
   }
 
-  if (!consultationCompleted) {
+  if (!eventCompleted) {
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardContent className="p-6">
           <div className="text-center text-gray-600">
-            <p>You can submit a review after the consultation is completed.</p>
+            <p>You can submit a review after the {reviewType} is completed.</p>
           </div>
         </CardContent>
       </Card>
@@ -190,7 +237,7 @@ export const ReviewSubmissionForm: React.FC<ReviewSubmissionFormProps> = ({
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>Review Your Consultation</CardTitle>
+        <CardTitle>Review Your {reviewType === 'consultation' ? 'Consultation' : 'Livestream'}</CardTitle>
         <p className="text-sm text-gray-600">with {scholarName}</p>
       </CardHeader>
       <CardContent>

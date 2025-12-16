@@ -71,6 +71,11 @@ export const LivestreamDiscovery: React.FC = () => {
     try {
       setError('') // Clear previous errors
       
+      // Check internet connectivity first
+      if (!navigator.onLine) {
+        throw new Error('No internet connection. Please check your network.')
+      }
+      
       // Only show streams from the last 24 hours to avoid old stale streams
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
       
@@ -87,6 +92,10 @@ export const LivestreamDiscovery: React.FC = () => {
 
       if (streamsError) {
         console.error('Streams error:', streamsError)
+        // Check if it's a network error
+        if (streamsError.message?.includes('Failed to fetch') || streamsError.message?.includes('NetworkError')) {
+          throw new Error('Cannot connect to server. Please check your internet connection and try again.')
+        }
         throw new Error('Unable to load streams. Please check your internet connection.')
       }
 

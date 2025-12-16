@@ -72,6 +72,15 @@ export const IslamicReels: React.FC = () => {
       videoRef.current.play().catch(console.error)
       // Reset view tracking when reel changes
       setViewTracked(false)
+      
+      // Preload next reel for seamless playback
+      const nextIndex = (currentReelIndex + 1) % reels.length
+      if (reels[nextIndex]) {
+        const nextVideo = document.createElement('video')
+        nextVideo.src = reels[nextIndex].video_url
+        nextVideo.preload = 'auto'
+        nextVideo.load() // Start loading next video
+      }
     }
   }, [currentReelIndex, reels])
 
@@ -636,8 +645,14 @@ export const IslamicReels: React.FC = () => {
                 poster={currentReel.thumbnail_url || undefined}
                 loop
                 playsInline
+                preload="auto"
+                muted={false}
+                autoPlay
                 className="w-full h-full object-contain"
                 onClick={() => videoRef.current?.paused ? videoRef.current?.play() : videoRef.current?.pause()}
+                onLoadStart={() => console.log('Video loading started')}
+                onCanPlay={() => console.log('Video can play')}
+                onError={(e) => console.error('Video error:', e)}
               />
 
               {/* Overlay Info */}
