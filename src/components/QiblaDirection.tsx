@@ -90,17 +90,26 @@ export const QiblaDirection: React.FC = () => {
 
     let latestHeading = compassRef.current
     let isAnimating = true
+    let useAbsolute = false
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
+      // Skip if we're using absolute orientation
+      if (useAbsolute) return
+      
       if (event.alpha !== null) {
         // Get compass heading (alpha)
         let heading = event.alpha
         
-        // On Android, alpha is measured from magnetic north
-        // On iOS, it's from true north
-        
-        // Convert to 0-360 range
-        heading = (360 - heading) % 360
+        // On Android/Samsung, webkitCompassHeading provides more accurate results
+        const webkitEvent = event as any
+        if (webkitEvent.webkitCompassHeading !== undefined) {
+          // webkitCompassHeading gives direct magnetic north heading (0-360)
+          heading = webkitEvent.webkitCompassHeading
+        } else {
+          // Standard Android implementation
+          // Alpha is 0 when device points to magnetic north, increases clockwise
+          heading = (360 - heading) % 360
+        }
         
         // Store the latest heading from sensor
         latestHeading = heading
@@ -109,8 +118,15 @@ export const QiblaDirection: React.FC = () => {
 
     const handleAbsoluteOrientation = (event: DeviceOrientationEvent) => {
       // Use absolute orientation if available (provides true north on supported devices)
+      // This works better on Samsung and newer Android devices
       if (event.absolute && event.alpha !== null) {
-        let heading = (360 - event.alpha) % 360
+        useAbsolute = true
+        let heading = event.alpha
+        
+        // For absolute orientation, alpha is 0 at north, increases clockwise
+        // Samsung phones typically use this
+        heading = (360 - heading) % 360
+        
         latestHeading = heading
       }
     }
@@ -162,6 +178,7 @@ export const QiblaDirection: React.FC = () => {
     setError('')
     
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      // iOS 13+ requires explicit permission
       try {
         const permission = await (DeviceOrientationEvent as any).requestPermission()
         if (permission === 'granted') {
@@ -174,9 +191,34 @@ export const QiblaDirection: React.FC = () => {
         setError('Unable to access device compass. Please check your browser settings.')
       }
     } else {
-      // Android and other devices that don't require permission
-      setPermissionGranted(true)
-      getLocation()
+      // Android/Samsung and other devices that don't require explicit permission
+      // Check if device orientation is actually supported
+      if (window.DeviceOrientationEvent) {
+        // Test if we can get orientation events
+        const testHandler = (event: DeviceOrientationEvent) => {
+          if (event.alpha !== null || (event as any).webkitCompassHeading !== undefined) {
+            setPermissionGranted(true)
+            getLocation()
+            window.removeEventListener('deviceorientation', testHandler)
+            window.removeEventListener('deviceorientationabsolute', testHandler as any)
+          }
+        }
+        
+        window.addEventListener('deviceorientation', testHandler)
+        window.addEventListener('deviceorientationabsolute', testHandler as any)
+        
+        // Fallback: if no event fires within 2 seconds, assume it's available anyway
+        setTimeout(() => {
+          window.removeEventListener('deviceorientation', testHandler)
+          window.removeEventListener('deviceorientationabsolute', testHandler as any)
+          if (!permissionGranted) {
+            setPermissionGranted(true)
+            getLocation()
+          }
+        }, 2000)
+      } else {
+        setError('Device orientation not supported on this device. Compass features require a device with gyroscope/magnetometer sensors.')
+      }
     }
   }
 
@@ -219,6 +261,16 @@ export const QiblaDirection: React.FC = () => {
                   <li>Make sure location services are enabled on your device</li>
                   <li>Works best on mobile devices with compass sensor</li>
                   <li>On desktop, you'll see the calculated direction only</li>
+                </ul>
+              </div>
+              <div className="mt-4 text-left bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <p className="text-sm font-semibold mb-2 text-amber-800">📱 Samsung/Android Users:</p>
+                <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
+                  <li>Calibrate compass: Move device in figure-8 pattern</li>
+                  <li>Enable "Motion sensors" in device Settings → Display</li>
+                  <li>Grant location permission to browser app</li>
+                  <li>Disable battery optimization for browser</li>
+                  <li>If compass spins randomly, recalibrate in open area</li>
                 </ul>
               </div>
             </div>
@@ -356,6 +408,18 @@ export const QiblaDirection: React.FC = () => {
                 <div className="bg-blue-50 p-3 rounded-lg mt-4">
                   <p className="text-sm font-medium text-blue-800">
                     🧭 Rotate your device until the green arrow points upward
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Keep device flat and away from metal objects
+                  </p>
+                </div>
+                
+                <div className="bg-amber-50 p-3 rounded-lg mt-2 border border-amber-200">
+                  <p className="text-xs font-medium text-amber-800 mb-1">
+                    🔄 Compass not working? Calibrate it:
+                  </p>
+                  <p className="text-xs text-amber-700">
+                    Move your phone in a figure-8 pattern (∞) in the air a few times. This recalibrates the magnetometer sensor.
                   </p>
                 </div>
               </div>
