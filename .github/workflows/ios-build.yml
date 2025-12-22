@@ -85,7 +85,7 @@ jobs:
           FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
         run: |
           cd ios/App
-          fastlane build_and_upload
+          bundle exec fastlane build_and_upload
       
       - name: Upload to App Store Connect
         if: success()
