@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
@@ -28,7 +28,7 @@ import { ZakatDonation } from './components/ZakatDonation'
 import { MasjidCoin } from './components/MasjidCoin'
 
 // Scholar/Imam-only components
-import { ScholarLiveStream } from './components/ScholarLiveStream'
+import ScholarLiveStream from './components/ScholarLiveStream'
 import { ScholarConsultationManager } from './components/ScholarConsultationManager'
 import { ScholarDashboard } from './components/ScholarDashboard'
 import { ScholarWallet } from './components/ScholarWallet'
@@ -51,6 +51,7 @@ import { TokenDiagnostics } from './components/TokenDiagnostics'
 import { ConsultationBooking } from './components/ConsultationBooking'
 import { ScreenshotUtility } from './components/ScreenshotUtility'
 import { IslamicReels } from './components/IslamicReels'
+import { RestaurantsListing } from './components/RestaurantsListing'
 import { ActivitiesAndRestaurants } from './components/ActivitiesAndRestaurants'
 import { LandingPage } from './components/LandingPage'
 
@@ -74,7 +75,8 @@ function App() {
           <div id="app-root" className="min-h-screen bg-background">
             <Routes>
             {/* Public routes */}
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<SplashScreen />} />
+            <Route path="/landing" element={<LandingPage />} />
             <Route path="/signin" element={<UserSignIn />} />
             <Route path="/signup" element={<UserSignUp />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -264,6 +266,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <LivestreamDiscovery />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/restaurants"
+              element={
+                <ProtectedRoute>
+                  <RestaurantsListing />
                 </ProtectedRoute>
               }
             />
