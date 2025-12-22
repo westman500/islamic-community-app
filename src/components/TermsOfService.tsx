@@ -5,43 +5,43 @@ import { useNavigate } from 'react-router-dom'
 
 export const TermsOfService: React.FC = () => {
   const navigate = useNavigate()
-  const termsUrl = 'https://yellow-winifred-49.tiiny.site/'
+  const termsUrl = 'https://petal-salto-1a6.notion.site/MASJID-PRIVACY-POLICY-TERMS-OF-SERVICE-END-USER-LICENSE-AGREEMENT-EULA-2cd859eb5c00806a9948eb3d1695f9dc?source=copy_link'
 
   return (
-    &lt;div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex flex-col"&gt;
-      &lt;div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 sticky top-0 z-10 shadow-lg"&gt;
-        &lt;div className="flex items-center justify-between"&gt;
-          &lt;div className="flex items-center"&gt;
-            &lt;Button
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex flex-col">
+      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 sticky top-0 z-10 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Button
               variant="ghost"
               size="icon"
               className="text-white hover:bg-emerald-500 mr-2"
-              onClick={() =&gt; navigate(-1)}
-            &gt;
-              &lt;ArrowLeft className="h-6 w-6" /&gt;
-            &lt;/Button&gt;
-            &lt;h1 className="text-xl font-bold"&gt;Terms of Service&lt;/h1&gt;
-          &lt;/div&gt;
-          &lt;a
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+            <h1 className="text-xl font-bold">Terms of Service</h1>
+          </div>
+          <a
             href={termsUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 text-sm hover:underline"
-          &gt;
-            &lt;ExternalLink className="h-4 w-4" /&gt;
-            &lt;span className="hidden sm:inline"&gt;Open in new tab&lt;/span&gt;
-          &lt;/a&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
+          >
+            <ExternalLink className="h-4 w-4" />
+            <span className="hidden sm:inline">Open in new tab</span>
+          </a>
+        </div>
+      </div>
 
-      &lt;div className="flex-1 w-full"&gt;
-        &lt;iframe
+      <div className="flex-1 w-full">
+        <iframe
           src={termsUrl}
           className="w-full h-full border-0"
           style={{ minHeight: 'calc(100vh - 64px)' }}
           title="Terms of Service"
-        /&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+        />
+      </div>
+    </div>
   )
 }
