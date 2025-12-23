@@ -35,9 +35,18 @@ platform :ios do
     # Build the app
     build
     
+    # Create API key from environment variables
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_API_ISSUER_ID"],
+      key_content: ENV["APP_STORE_CONNECT_API_KEY_CONTENT"],
+      is_key_content_base64: true
+    )
+    
     # Upload to TestFlight
     upload_to_testflight(
-      api_key_path: "fastlane/app_store_connect_api_key.json",
+      api_key: api_key,
+      ipa: "./build/App.ipa",
       skip_waiting_for_build_processing: true,
       skip_submission: true,
       distribute_external: false,

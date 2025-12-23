@@ -90,16 +90,6 @@ jobs:
           cd ios/App
           bundle exec fastlane build_and_upload
       
-      - name: Upload to App Store Connect
-        if: success()
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
-        run: |
-          cd ios/App
-          fastlane upload_to_testflight
-      
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         if: success()
