@@ -35,11 +35,14 @@ platform :ios do
     # Build the app
     build
     
-    # Create API key from file and environment variables
+    # Path to API key file
+    api_key_path = File.expand_path("./fastlane/AuthKey_#{ENV['APP_STORE_CONNECT_API_KEY_ID']}.p8")
+    
+    # Create API key
     api_key = app_store_connect_api_key(
       key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
       issuer_id: ENV["APP_STORE_CONNECT_API_ISSUER_ID"],
-      key_filepath: "./fastlane/AuthKey_#{ENV['APP_STORE_CONNECT_API_KEY_ID']}.p8"
+      key_filepath: api_key_path
     )
     
     # Upload to TestFlight
