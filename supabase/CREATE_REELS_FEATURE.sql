@@ -339,20 +339,6 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.reel_dislikes;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reel_favorites;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.reel_comments;
 
--- ============================================
--- INSERT DEMO REELS (PRE-APPROVED)
--- ============================================
-
--- Note: You'll need to replace user_id with actual user IDs from your profiles table
--- For now, these are placeholders
-
-INSERT INTO public.islamic_reels (title, description, video_url, thumbnail_url, duration_seconds, category, is_approved, moderation_status, views_count, likes_count) VALUES
-('Beautiful Quran Recitation - Surah Rahman', 'Mashallah! Listen to this beautiful recitation of Surah Ar-Rahman', 'https://example.com/videos/quran1.mp4', 'https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=800', 180, 'quran_recitation', true, 'approved', 1500, 234),
-('Morning Dua for Protection', 'Start your day with this powerful morning dua', 'https://example.com/videos/dua1.mp4', 'https://images.unsplash.com/photo-1542816417-0983c9c9ad53?w=800', 45, 'dua', true, 'approved', 2300, 567),
-('How to Make Perfect Samosas', 'Halal cooking: Traditional samosas recipe for iftar', 'https://example.com/videos/food1.mp4', 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800', 120, 'halal_food', true, 'approved', 890, 123),
-('Islamic Reminder: Importance of Salah', 'Quick reminder about the 5 daily prayers', 'https://example.com/videos/reminder1.mp4', 'https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=800', 60, 'islamic_reminder', true, 'approved', 3400, 890),
-('Visiting Masjid Al-Haram - Makkah', 'Travel vlog from Umrah journey', 'https://example.com/videos/travel1.mp4', 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=800', 240, 'travel', true, 'approved', 5600, 1200);
-
 -- Success message
 SELECT '✅ Islamic Reels feature setup complete!' AS status,
        'Content moderation enabled - all new reels require approval' AS note;

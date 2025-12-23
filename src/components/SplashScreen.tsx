@@ -16,7 +16,7 @@ export function SplashScreen() {
     // Hide and navigate after fade completes
     const hideTimer = setTimeout(() => {
       setShow(false)
-      navigate('/signin')
+      navigate('/landing')
     }, 2800)
 
     return () => {

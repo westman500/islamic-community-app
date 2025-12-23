@@ -42,7 +42,7 @@ TempKeychain2025!
 ## Secret 5: APP_STORE_CONNECT_API_KEY_ID
 **Value:**
 ```
-M4A2RS9ZA5
+M833WGL82R
 ```
 
 ---
@@ -69,7 +69,7 @@ Location: C:\Users\SUMMERHILL\masjid\apikey_base64.txt
 - [ ] P12_PASSWORD (Morayo@)
 - [ ] BUILD_PROVISION_PROFILE_BASE64 (from profile_base64.txt)
 - [ ] KEYCHAIN_PASSWORD (TempKeychain2025!)
-- [ ] APP_STORE_CONNECT_API_KEY_ID (M4A2RS9ZA5)
+- [ ] APP_STORE_CONNECT_API_KEY_ID (M833WGL82R)
 - [ ] APP_STORE_CONNECT_API_ISSUER_ID (e711b528-dc8d-4ce8-b88c-56d4f497f8b1)
 - [ ] APP_STORE_CONNECT_API_KEY_CONTENT (from apikey_base64.txt)
 
@@ -102,7 +102,7 @@ Location: C:\Users\SUMMERHILL\masjid\apikey_base64.txt
 - apikey_base64.txt
 - ios_distribution.key
 - ios_distribution.p12
-- AuthKey_M4A2RS9ZA5.p8
+- AuthKey_M833WGL82R.p8
 
 ✅ **Keep these files:**
 - CertificateSigningRequest.certSigningRequest (for future certificates)

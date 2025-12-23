@@ -27,16 +27,14 @@ DELETE FROM zakat_donations;
 -- 6. Clear prayer services
 DELETE FROM prayer_services;
 
--- 7. Optional: Clear demo scholar/imam profiles
--- UNCOMMENT the lines below if you want to remove demo scholars/imams
--- Replace with actual demo user IDs or email patterns
+-- 7. Clear demo scholar/imam profiles
+-- Remove demo and test user accounts
+DELETE FROM profiles 
+WHERE role IN ('scholar', 'imam') 
+AND (email LIKE '%demo%' OR email LIKE '%test%');
 
--- DELETE FROM profiles 
--- WHERE role IN ('scholar', 'imam') 
--- AND email LIKE '%demo%' OR email LIKE '%test%';
-
--- DELETE FROM auth.users 
--- WHERE email LIKE '%demo%' OR email LIKE '%test%';
+DELETE FROM auth.users 
+WHERE email LIKE '%demo%' OR email LIKE '%test%';
 
 -- 8. Reset auto-increment sequences (if needed)
 -- This ensures new records start from 1
