@@ -94,7 +94,8 @@ jobs:
       
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
-        if: success()
+        if: always()
+        continue-on-error: true
         with:
           name: masjid-ios-v1.0.2
           path: ios/App/build/App.ipa
