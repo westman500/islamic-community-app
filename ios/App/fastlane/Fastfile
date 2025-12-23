@@ -35,19 +35,9 @@ platform :ios do
     # Build the app
     build
     
-    # Path to API key file (in parent directory of fastlane folder)
-    api_key_path = File.expand_path("../AuthKey_#{ENV['APP_STORE_CONNECT_API_KEY_ID']}.p8", __dir__)
-    
-    UI.message("Looking for API key at: #{api_key_path}")
-    UI.message("File exists: #{File.exist?(api_key_path)}")
-    
-    if !File.exist?(api_key_path)
-      UI.user_error!("API key file not found at #{api_key_path}")
-    end
-    
-    # Upload to TestFlight using api_key_path directly
-    upload_to_testflight(
-      api_key_path: api_key_path,
+    # Upload to TestFlight using pilot with username/password
+    pilot(
+      username: ENV["FASTLANE_USER"] || "your_apple_id@example.com",
       ipa: "./build/App.ipa",
       skip_waiting_for_build_processing: true,
       skip_submission: true,

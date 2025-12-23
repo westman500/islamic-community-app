@@ -82,13 +82,11 @@ jobs:
       
       - name: Build IPA
         env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
           FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
         run: |
           cd ios/App
-          # Just build, skip TestFlight upload for now
-          bundle exec fastlane build
+          bundle exec fastlane build_and_upload
       
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
