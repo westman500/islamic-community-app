@@ -20,7 +20,7 @@ platform :ios do
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {
-          "com.masjidmobile.app" => "Masjid App Store Profile"
+          "com.masjidmobile.app" => "Masjid"
         }
       },
       output_directory: "./build",
