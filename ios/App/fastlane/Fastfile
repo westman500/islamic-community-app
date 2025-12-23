@@ -35,9 +35,10 @@ platform :ios do
     # Build the app
     build
     
-    # Upload to TestFlight using pilot with username/password
+    # Upload to TestFlight using pilot with explicit password
     pilot(
-      username: ENV["FASTLANE_USER"] || "your_apple_id@example.com",
+      username: ENV["FASTLANE_USER"],
+      app_platform: "ios",
       ipa: "./build/App.ipa",
       skip_waiting_for_build_processing: true,
       skip_submission: true,
