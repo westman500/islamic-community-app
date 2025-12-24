@@ -81,13 +81,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 12" App/Info.plist
       
       - name: Build IPA
-        env:
-          FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
-          FASTLANE_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
-          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
         run: |
           cd ios/App
-          bundle exec fastlane build_and_upload
+          bundle exec fastlane build
       
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
