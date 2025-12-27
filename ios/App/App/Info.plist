@@ -45,5 +45,15 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to capture photos for your profile picture and to share content within the Islamic community.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photo library to upload and share photos within the Islamic community.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs permission to save photos to your library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app uses the microphone for live streaming and video consultations with Islamic scholars.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This helps us provide a better experience and show relevant content.</string>
 </dict>
 </plist>
