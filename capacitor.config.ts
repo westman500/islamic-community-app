@@ -6,11 +6,16 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
+    iosScheme: 'capacitor',
     cleartext: false,
     allowNavigation: [
       'jtmmeumzjcldqukpqcfi.supabase.co',
       '*.supabase.co'
     ]
+  },
+  ios: {
+    contentInset: 'always',
+    backgroundColor: '#059669'
   },
   android: {
     allowMixedContent: false,

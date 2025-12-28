@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Save Masjid Mobile Icon</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 40px; 
+            background: #f0f0f0; 
+            text-align: center; 
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        img { 
+            max-width: 400px; 
+            border: 2px solid #059669; 
+            border-radius: 10px; 
+            margin: 20px 0; 
+        }
+        button {
+            background: #059669;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover { background: #047857; }
+        .instructions {
+            text-align: left;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9fafb;
+            border-left: 4px solid #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Save Masjid Mobile Icon</h1>
+        <p>Right-click the image below and save it as <strong>new-icon.png</strong></p>
+        
+        <img src="data:image/png;base64,PASTE_BASE64_HERE" id="iconImage" />
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ol>
+                <li>Right-click the image above</li>
+                <li>Select "Save image as..."</li>
+                <li>Save it to: <code>C:\Users\SUMMERHILL\masjid\new-icon.png</code></li>
+                <li>Click the button below when done</li>
+            </ol>
+        </div>
+        
+        <button onclick="downloadImage()">Download as new-icon.png</button>
+    </div>
+    
+    <script>
+        function downloadImage() {
+            const link = document.createElement('a');
+            link.href = document.getElementById('iconImage').src;
+            link.download = 'new-icon.png';
+            link.click();
+        }
+    </script>
+</body>
+</html>
