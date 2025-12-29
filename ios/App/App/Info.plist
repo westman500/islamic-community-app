@@ -57,5 +57,7 @@
 	<string>This app uses the microphone for live streaming and video consultations with Islamic scholars.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This helps us provide a better experience and show relevant content.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
