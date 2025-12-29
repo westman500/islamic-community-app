@@ -8,7 +8,7 @@ import AgoraRTC, {
   AREAS,
 } from 'agora-rtc-sdk-ng'
 
-const APP_ID: string | undefined = import.meta.env.VITE_AGORA_APP_ID
+const APP_ID: string | undefined = import.meta.env.VITE_AGORA_APP_ID || '195fe587a4b84053aa0eff6ae05150b1'
 
 export interface AgoraConfig {
   appId: string

@@ -199,6 +199,7 @@ export const QiblaDirection: React.FC = () => {
   // Request device orientation permission (iOS 13+)
   const requestPermission = async () => {
     setError('')
+    setLoading(true)
     
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
       // iOS 13+ requires explicit permission
@@ -209,9 +210,11 @@ export const QiblaDirection: React.FC = () => {
           getLocation()
         } else {
           setError('Compass permission denied. Please enable motion & orientation access in your device settings.')
+          setLoading(false)
         }
       } catch (err) {
         setError('Unable to access device compass. Please check your browser settings.')
+        setLoading(false)
       }
     } else {
       // Android/Samsung and other devices that don't require explicit permission

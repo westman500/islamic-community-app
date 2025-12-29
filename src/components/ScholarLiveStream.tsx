@@ -273,7 +273,7 @@ export const ScholarLiveStream: React.FC = () => {
 
       // Join channel (this will fetch token server-side)
       console.log('Step 4: Joining channel as host with user ID:', profile.id)
-      const appId = import.meta.env.VITE_AGORA_APP_ID as string
+      const appId = import.meta.env.VITE_AGORA_APP_ID || '195fe587a4b84053aa0eff6ae05150b1'
       console.log('Using Agora App ID:', appId)
       
       // Validate App ID format before proceeding
