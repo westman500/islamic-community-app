@@ -78,7 +78,7 @@ jobs:
           # Update version in iOS project
           cd ios/App
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.2" App/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 12" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 42" App/Info.plist
       
       - name: Build IPA
         run: |
