@@ -81,8 +81,13 @@ export const QiblaDirection: React.FC = () => {
         setLoading(false)
       },
       (err) => {
-        setError(`Error: ${err.message}`)
+        setError(`Location error: ${err.message}. Please enable location services in your device settings.`)
         setLoading(false)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
       }
     )
   }

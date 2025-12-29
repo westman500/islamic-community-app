@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from './ui/card'
-import { Clock, MapPin } from 'lucide-react'
+import { Clock } from 'lucide-react'
 
 interface PrayerTime {
   name: string
@@ -152,10 +152,6 @@ export const CompactPrayerTimes: React.FC = () => {
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <h3 className="font-bold text-sm">Prayer Times</h3>
-          </div>
-          <div className="flex items-center gap-1 text-xs opacity-90">
-            <MapPin className="h-3 w-3" />
-            <span className="text-xs">{location}</span>
           </div>
         </div>
 
