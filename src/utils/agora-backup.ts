@@ -156,7 +156,7 @@ export class AgoraService {
       console.log('→ Requesting device access...')
       
       // For native apps, request permissions using Capacitor
-      if (window.Capacitor?.isNativePlatform()) {
+      if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
         console.log('→ Requesting native permissions via Capacitor...')
         try {
           const { Camera } = await import('@capacitor/camera')

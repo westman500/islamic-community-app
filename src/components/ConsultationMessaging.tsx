@@ -62,7 +62,7 @@ export const ConsultationMessaging: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageSubscription = useRef<any>(null)
   const consultationSubscription = useRef<any>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const typingTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (consultationId) {

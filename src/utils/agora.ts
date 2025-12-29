@@ -5,6 +5,7 @@ import AgoraRTC, {
   type IMicrophoneAudioTrack,
   type IRemoteVideoTrack,
   type IRemoteAudioTrack,
+  AREAS,
 } from 'agora-rtc-sdk-ng'
 
 const APP_ID: string | undefined = import.meta.env.VITE_AGORA_APP_ID
@@ -27,11 +28,6 @@ export class AgoraService {
     videoTrack: null,
     audioTrack: null,
   }
-  // Cache tokens per channel+uid to avoid repeated function calls in quick succession
-  private tokenCache: Map<string, { token: string; appId: string; fetchedAt: number }> = new Map()
-  // Default token validity window (seconds) for cache reuse; can be tuned
-  private readonly tokenCacheTTL = 240 // 4 minutes reuse inside 1h token
-  private tokenListenersAttached = false
 
   constructor() {
     // Enable debug logging for troubleshooting
@@ -40,8 +36,8 @@ export class AgoraService {
     
     // Configure Agora to use North America data center
     AgoraRTC.setArea({
-      areaCode: 'NORTH_AMERICA',
-      excludedArea: 'CHINA'
+      areaCode: [AREAS.NORTH_AMERICA],
+      excludedArea: AREAS.CHINA
     })
     
     console.log('AgoraRTC SDK version:', AgoraRTC.VERSION)
@@ -129,113 +125,6 @@ export class AgoraService {
       }
       throw new Error(`Unable to connect to Agora: ${msg}`)
     }
-  }
-
-  private async getOrFetchToken(appId: string, channel: string, uid: string | number, role: 'host' | 'audience', bypassCache = false): Promise<string> {
-    const cacheKey = `${channel}::${uid}`
-    const cached = this.tokenCache.get(cacheKey)
-    const now = Date.now()
-    if (!bypassCache && cached && (now - cached.fetchedAt) / 1000 < this.tokenCacheTTL) {
-      console.log('→ Reusing cached token (age seconds):', Math.floor((now - cached.fetchedAt)/1000))
-      return cached.token
-    }
-
-    console.log('→ Fetching token from Edge Function (with retry)...')
-    const maxAttempts = 3
-    const baseDelay = 600
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const timeoutMs = attempt === 1 ? 8000 : 4000
-      let timeoutHandle: any
-      try {
-        const { supabase } = await import('../utils/supabase/client')
-        
-        // Check session before making request
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) {
-          console.error('❌ No active session found')
-          throw new Error('Not authenticated. Please sign in and try again.')
-        }
-        console.log('✅ Session active, user:', session.user.id)
-        
-        const fetchPromise = supabase.functions.invoke('generate-agora-token', {
-          body: {
-            channelName: channel,
-            uid: uid,
-            role: role === 'host' ? 1 : 2,
-            expirationTimeInSeconds: 3600
-          }
-        })
-        const timeoutPromise = new Promise((_, reject) => {
-          timeoutHandle = setTimeout(() => reject(new Error(`Token fetch timeout after ${timeoutMs}ms`)), timeoutMs)
-        })
-        const start = performance.now()
-        const { data: tokenData, error: tokenError }: any = await Promise.race([fetchPromise, timeoutPromise])
-        clearTimeout(timeoutHandle)
-        const duration = Math.round(performance.now() - start)
-        console.log(`→ Token fetch attempt ${attempt} duration: ${duration}ms`)
-        if (tokenError) {
-          console.error(`❌ Attempt ${attempt} token server error:`, tokenError)
-          console.error('Error details:', JSON.stringify(tokenError, null, 2))
-          if (attempt === maxAttempts) throw new Error(tokenError.message || tokenError.toString() || 'Token server error')
-        } else if (!tokenData?.token) {
-          console.warn(`⚠️ Attempt ${attempt} empty token response`)
-          if (attempt === maxAttempts) throw new Error('Token server returned empty token')
-        } else {
-          if (tokenData.appId && tokenData.appId !== appId) {
-            console.log('→ Server App ID differs; using server App ID for diagnostics only (joining still uses provided appId).')
-          }
-            const token = tokenData.token.startsWith('007') ? tokenData.token : `007${tokenData.token}`
-            this.tokenCache.set(cacheKey, { token, appId: tokenData.appId || appId, fetchedAt: Date.now() })
-            console.log('✅ Token fetched (length:', token.length, ') preview:', token.substring(0,20)+'...')
-            return token
-        }
-      } catch (e: any) {
-        clearTimeout(timeoutHandle)
-        const msg = e?.message || e.toString()
-        console.warn(`⚠️ Attempt ${attempt} failed: ${msg}`)
-        if (attempt === maxAttempts) {
-          if (msg.includes('timeout')) {
-            throw new Error('Token server unreachable (timeout). Check Supabase Edge Function status or network connectivity.')
-          }
-          if (msg.includes('Failed to fetch') || msg.includes('Network')) {
-            throw new Error('Network error contacting token server. Verify internet connectivity and DNS.')
-          }
-          if (msg.includes('Unauthorized') || msg.includes('401')) {
-            throw new Error('Authentication failed. Please sign out and sign back in, then try again.')
-          }
-          throw new Error(`Token generation failed: ${msg}. Please check browser console for details.`)
-        }
-      }
-      // Backoff before next attempt
-      const delay = baseDelay * attempt + Math.floor(Math.random() * 150)
-      await new Promise(r => setTimeout(r, delay))
-    }
-    throw new Error('Unexpected token fetch loop termination')
-  }
-
-  private attachTokenRenewal(appId: string, channel: string, uid: string | number, role: 'host' | 'audience') {
-    if (!this.client || this.tokenListenersAttached) return
-    this.tokenListenersAttached = true
-    this.client.on('token-privilege-will-expire', async () => {
-      try {
-        console.log('🔄 Token will expire soon; renewing...')
-        const newToken = await this.getOrFetchToken(appId, channel, uid, role, true)
-        await this.client!.renewToken(newToken)
-        console.log('✅ Token renewed successfully (will-expire)')
-      } catch (e: any) {
-        console.error('❌ Failed to renew token (will-expire):', e?.message || e)
-      }
-    })
-    this.client.on('token-privilege-did-expire', async () => {
-      try {
-        console.log('⏰ Token expired; fetching new token...')
-        const newToken = await this.getOrFetchToken(appId, channel, uid, role, true)
-        await this.client!.renewToken(newToken)
-        console.log('✅ Token renewed successfully (did-expire)')
-      } catch (e: any) {
-        console.error('❌ Failed to renew token (did-expire):', e?.message || e)
-      }
-    })
   }
 
   async createLocalTracks(): Promise<LocalTracks> {

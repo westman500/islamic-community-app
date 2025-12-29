@@ -4,7 +4,7 @@ import { Button } from './ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import { MobileLayout } from './MobileLayout'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, DollarSign, Users, Calendar, TrendingUp, Clock, MessageCircle, Settings } from 'lucide-react'
+import { BarChart3, DollarSign, Users, Calendar, TrendingUp, Clock, MessageCircle } from 'lucide-react'
 
 export const ScholarDashboard: React.FC = () => {
   const { profile } = useAuth()

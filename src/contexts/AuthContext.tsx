@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       try {
         // STEP 1: Try to get existing session from Supabase
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        const { data: { session } } = await supabase.auth.getSession()
         
         if (!isMounted) return
         
@@ -237,14 +237,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (session) {
               setSession(session)
               setUser(session.user)
-            } else {
-              // Only clear session if explicitly signed out
-              // Don't clear on transient events like TOKEN_REFRESH failures
-              if (event === 'SIGNED_OUT') {
-                setSession(null)
-                setUser(null)
-                setProfile(null)
-              }
             }
         }
       }

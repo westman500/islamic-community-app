@@ -82,6 +82,7 @@ export interface Profile {
   full_name: string
   role: UserRole
   avatar_url?: string
+  profile_picture_url?: string
   bio?: string
   phone?: string
   phone_number?: string
@@ -100,9 +101,14 @@ export interface Profile {
   masjid_coin_balance?: number
   is_online?: boolean
   consultation_fee?: number
+  consultation_duration?: number
   livestream_fee?: number
   live_consultation_fee?: number
   available_slots?: string[]
+  bank_account_number?: string
+  bank_code?: string
+  bank_name?: string
+  bank_account_name?: string
   created_at: string
   updated_at: string
 }

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from './ui/button'
-import { ArrowLeft, BookOpen, Compass, Video, MapPin, Calendar, Bell, Wallet } from 'lucide-react'
+import { ArrowLeft, BookOpen, Compass, Video, MapPin, Calendar, Bell } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 interface MobileLayoutProps {

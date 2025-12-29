@@ -71,29 +71,6 @@ export const ScholarWallet: React.FC = () => {
     }
   }, [profile?.id])
 
-  const refetchProfile = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: freshProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-        
-        if (freshProfile) {
-          console.log('✅ Profile refreshed, bank details:', {
-            has_account: !!freshProfile.bank_account_number,
-            has_code: !!freshProfile.bank_code,
-            bank_name: freshProfile.bank_name
-          })
-        }
-      }
-    } catch (err) {
-      console.error('Error refreshing profile:', err)
-    }
-  }
-
   const fetchWalletData = async () => {
     try {
       if (!profile?.id) {
@@ -142,7 +119,10 @@ export const ScholarWallet: React.FC = () => {
           .eq('payment_status', 'completed')
           .order('created_at', { ascending: false })
           .limit(20)
-        txData = alt.data || []
+        txData = (alt.data || []).map((tx: any) => ({
+          ...tx,
+          donor: []
+        }))
       }
       
       console.log(`📋 Found ${txData?.length || 0} transactions`)

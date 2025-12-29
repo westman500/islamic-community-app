@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Heart, DollarSign, Coins } from 'lucide-react'
+import { Heart, Coins } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 import { supabase } from '../utils/supabase/client'
 import { useAuth } from '../contexts/AuthContext'
@@ -73,7 +73,7 @@ export const ZakatDonation: React.FC = () => {
       const formattedScholars = (data || []).map(s => ({
         id: s.id,
         name: s.full_name || 'Unknown',
-        specialization: s.specialization || 'Islamic Studies'
+        specialization: (s.specializations && s.specializations.length > 0) ? s.specializations[0] : 'Islamic Studies'
       }))
       
       setScholars(formattedScholars)

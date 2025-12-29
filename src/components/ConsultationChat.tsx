@@ -27,8 +27,7 @@ interface ConsultationChatProps {
 export default function ConsultationChat({ 
   bookingId, 
   scholarId, 
-  scholarName, 
-  userId,
+  scholarName,
   consultationDuration,
   onClose 
 }: ConsultationChatProps) {

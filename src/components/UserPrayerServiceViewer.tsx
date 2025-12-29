@@ -302,37 +302,29 @@ export const UserPrayerServiceViewer: React.FC = () => {
       if (accessError) throw accessError
 
       // Initialize Paystack payment
-      await initializePaystackPayment(
-        profile.email || '',
-        fee,
-        paymentReference,
-        async (reference) => {
-          // Payment successful - webhook will handle database update
-          showNotification(
-            `Payment successful! ₦${fee} paid. Joining "${stream.title}"...`,
-            'payment'
-          )
-          // Retry joining stream with bypass
-          setTimeout(() => {
-            joinStream(stream, true)
-          }, 2000)
-        },
-        () => {
-          // Payment cancelled
-          supabase
-            .from('stream_access_payments')
-            .delete()
-            .eq('id', accessRecordId)
-            .then(() => {
-              setError('Payment cancelled. Please pay to access this stream.')
-            })
-        },
-        {
-          transaction_type: 'livestream',
-          stream_id: stream.id,
-          scholar_id: stream.scholarId
+      await initializePaystackPayment({
+        email: profile.email || '',
+        amount: fee,
+        reference: paymentReference,
+        metadata: {
+          user_id: profile.id,
+          transaction_type: 'donation',
+          custom_fields: [
+            { display_name: 'Stream ID', variable_name: 'stream_id', value: stream.id },
+            { display_name: 'Scholar ID', variable_name: 'scholar_id', value: stream.scholarId }
+          ]
         }
+      })
+      
+      // Payment successful - webhook will handle database update
+      showNotification(
+        `Payment successful! ₦${fee} paid. Joining "${stream.title}"...`,
+        'payment'
       )
+      // Retry joining stream with bypass
+      setTimeout(() => {
+        joinStream(stream, true)
+      }, 2000)
     } catch (err: any) {
       setError(`Payment error: ${err.message}`)
     }
