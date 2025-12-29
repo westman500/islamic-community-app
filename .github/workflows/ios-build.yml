@@ -75,10 +75,12 @@ jobs:
       
       - name: Update Version Numbers
         run: |
-          # Update version in iOS project
+          # Update version in iOS project - don't override CFBundleIconName
           cd ios/App
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.2" App/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 43" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 44" App/Info.plist
+          # Ensure CFBundleIconName exists
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" App/Info.plist 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleIconName AppIcon" App/Info.plist
       
       - name: Build IPA
         run: |
