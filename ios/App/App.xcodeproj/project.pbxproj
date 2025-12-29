@@ -351,7 +351,7 @@
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGN_IDENTITY = "iPhone Distribution";
 				PROVISIONING_PROFILE_SPECIFIER = Masjid;
-				CURRENT_PROJECT_VERSION = 44;
+				CURRENT_PROJECT_VERSION = 45;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -374,7 +374,7 @@
 				CODE_SIGN_STYLE = Manual;
 				CODE_SIGN_IDENTITY = "iPhone Distribution";
 				PROVISIONING_PROFILE_SPECIFIER = Masjid;
-				CURRENT_PROJECT_VERSION = 44;
+				CURRENT_PROJECT_VERSION = 45;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
