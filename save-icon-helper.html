@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Save Mosque Icon</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .instructions {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        button {
+            background: #16a34a;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #15803d;
+        }
+        #preview {
+            margin: 20px auto;
+            max-width: 512px;
+        }
+        #preview img {
+            max-width: 100%;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+        }
+        .step {
+            background: white;
+            border-left: 4px solid #16a34a;
+            padding: 15px;
+            margin: 10px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>🕌 Save Mosque Icon for App</h1>
+    
+    <div class="instructions">
+        <h2>Instructions:</h2>
+        <div class="step">
+            <strong>Step 1:</strong> Right-click the mosque icon image you have
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Select "Save Image As..."
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Save it to: <code>C:\Users\SUMMERHILL\masjid\resources\icon.png</code>
+        </div>
+        <div class="step">
+            <strong>Step 4:</strong> Click the button below to generate all app icons
+        </div>
+    </div>
+
+    <div id="preview">
+        <p>Your mosque icon should be at least 1024x1024 pixels</p>
+    </div>
+
+    <button onclick="generateIcons()">Generate App Icons</button>
+    <button onclick="openFolder()">Open Resources Folder</button>
+
+    <div id="output" style="margin-top: 20px; padding: 20px; background: #f9f9f9; border-radius: 5px; display: none;">
+        <h3>Output:</h3>
+        <pre id="outputText"></pre>
+    </div>
+
+    <script>
+        async function generateIcons() {
+            const output = document.getElementById('output');
+            const outputText = document.getElementById('outputText');
+            
+            output.style.display = 'block';
+            outputText.textContent = 'Generating icons...\n\nPlease run this command in PowerShell:\n\ncd C:\\Users\\SUMMERHILL\\masjid\nnode generate-app-icons.js';
+            
+            // In a real implementation, this would call the Node.js script
+            alert('Please run this command in PowerShell:\n\ncd C:\\Users\\SUMMERHILL\\masjid\nnode generate-app-icons.js');
+        }
+
+        function openFolder() {
+            alert('Please open File Explorer and navigate to:\nC:\\Users\\SUMMERHILL\\masjid\\resources\\');
+        }
+
+        // Check if file exists
+        async function checkIcon() {
+            try {
+                const response = await fetch('/resources/icon.png');
+                if (response.ok) {
+                    const preview = document.getElementById('preview');
+                    preview.innerHTML = '<img src="/resources/icon.png" alt="Mosque Icon">';
+                }
+            } catch (e) {
+                console.log('Icon not found yet');
+            }
+        }
+
+        checkIcon();
+    </script>
+</body>
+</html>
