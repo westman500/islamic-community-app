@@ -6,8 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    iosScheme: 'ionic',
-    hostname: 'app',
+    iosScheme: 'capacitor',
     cleartext: false,
     allowNavigation: [
       'jtmmeumzjcldqukpqcfi.supabase.co',

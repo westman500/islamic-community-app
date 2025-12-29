@@ -42,6 +42,24 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Debug script to show if JavaScript is running
+      console.log('🟢 index.html: JavaScript is executing');
+      
+      // Show loading indicator
+      const root = document.getElementById('root');
+      if (root) {
+        root.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #059669; color: white; flex-direction: column; font-family: sans-serif;"><h1 style="font-size: 24px; margin-bottom: 16px;">Loading Masjid App...</h1><div style="display: flex; gap: 8px;"><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite;"></div><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite 0.2s;"></div><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite 0.4s;"></div></div><p style="margin-top: 24px; font-size: 14px; opacity: 0.8;">Initializing...</p></div><style>@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }</style>';
+      }
+      
+      // Log any errors
+      window.addEventListener('error', function(e) {
+        console.error('🔴 Script error:', e.message, e.filename, e.lineno);
+        if (root) {
+          root.innerHTML = '<div style="padding: 20px; background: #fee; color: #c00; font-family: monospace; white-space: pre-wrap;">ERROR: ' + e.message + '\nFile: ' + e.filename + '\nLine: ' + e.lineno + '</div>';
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
