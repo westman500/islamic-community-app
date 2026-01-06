@@ -615,7 +615,7 @@ export const IslamicReels: React.FC = () => {
 
   return (
     <MobileLayout title="Islamic Reels">
-      <div className="p-4 space-y-4" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      <div className="p-4 space-y-4 max-w-md md:max-w-lg mx-auto" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         {/* Upload Button - Sticky for easy access */}
         <div className="sticky top-0 z-10 bg-gray-50 pb-2">
           <Button

@@ -109,9 +109,10 @@ export const QuranReader: React.FC = () => {
 
   return (
     <MobileLayout title="Quran Reader">
+      <div className="max-w-4xl mx-auto px-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-center text-2xl">القرآن الكريم - Holy Quran</CardTitle>
+          <CardTitle className="text-center text-2xl md:text-3xl">القرآن الكريم - Holy Quran</CardTitle>
         </CardHeader>
         <CardContent>
           {/* Surah selector */}
@@ -197,6 +198,7 @@ export const QuranReader: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      </div>
     </MobileLayout>
   )
 }

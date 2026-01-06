@@ -274,7 +274,7 @@ export function Dashboard() {
       >
       <div 
         ref={dashboardRef}
-        className="flex-1 overflow-y-auto"
+        className="flex-1 overflow-y-auto max-w-[1200px] mx-auto w-full"
         style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -315,7 +315,7 @@ export function Dashboard() {
               <img 
                 src="/masjid-logo-dashboard.png" 
                 alt="Masjid Logo" 
-                className="h-24 w-24 sm:h-28 sm:w-28 object-contain relative z-10"
+                className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 object-contain relative z-10"
                 style={{ filter: 'drop-shadow(0 4px 12px rgba(255, 255, 255, 0.7))' }}
                 crossOrigin="anonymous"
               />
@@ -357,7 +357,7 @@ export function Dashboard() {
 
         {/* Premium Features (Top Banner Style) */}
         {!isScholar && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {premiumFeatures.map((feature, index) => (
               <Card key={index} className={`${feature.color} border-none shadow-md`}>
                 <CardContent className="p-4">
@@ -507,7 +507,7 @@ export function Dashboard() {
 
       {/* Bottom Navigation - Fixed at bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl mx-auto gap-0.5">
+        <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl md:max-w-4xl lg:max-w-[1200px] mx-auto gap-0.5 md:gap-2">
           <NavButton icon={MapPin} label="Masjid" active onClick={() => navigate('/dashboard')} />
           <NavButton 
             icon={Video} 
@@ -553,8 +553,8 @@ function NavButton({
           : 'text-gray-600 hover:text-emerald-600 hover:bg-emerald-50'
       }`}
     >
-      <Icon className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${active ? 'text-emerald-600' : ''}`} />
-      <span className="text-[9px] sm:text-[10px] mt-0.5 font-semibold leading-tight text-center truncate w-full">{label}</span>
+        <Icon className={`h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 flex-shrink-0 ${active ? 'text-emerald-600' : ''}`} />
+        <span className="text-[9px] sm:text-[10px] md:text-xs mt-0.5 font-semibold leading-tight text-center truncate w-full">{label}</span>
     </button>
   )
 }
