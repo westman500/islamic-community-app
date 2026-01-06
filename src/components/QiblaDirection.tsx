@@ -61,6 +61,11 @@ export const QiblaDirection: React.FC = () => {
     return R * c
   }
 
+  // Request location permission on component mount
+  useEffect(() => {
+    getLocation()
+  }, [])
+
   // Get user location
   const getLocation = () => {
     setLoading(true)

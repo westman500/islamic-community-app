@@ -409,11 +409,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     
-    // Fetch profile in background
-    fetchProfile(data.user.id).catch(err => {
+    // Fetch profile and WAIT for it to complete before returning
+    try {
+      await fetchProfile(data.user.id)
+      console.log('✅ Profile loaded successfully')
+    } catch (err) {
       console.error('Profile fetch failed during sign-in:', err)
-      // Don't block sign-in if profile fetch fails
-    })
+      // Don't block sign-in if profile fetch fails, but log it
+    }
     
     console.log('🎉 SignIn: Complete - session secured')
   }

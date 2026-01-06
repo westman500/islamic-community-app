@@ -22,9 +22,9 @@ export function MobileLayout({
   const isScholar = profile?.role === 'scholar' || profile?.role === 'imam'
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 sticky top-0 z-50 shadow-lg">
+      <div className="bg-emerald-600 text-white p-4 z-50 shadow-lg flex-shrink-0">
         <div className="flex items-center">
           {showBack && (
             <Button
@@ -36,18 +36,18 @@ export function MobileLayout({
               <ArrowLeft className="h-6 w-6" />
             </Button>
           )}
-          <h1 className="text-xl font-bold">{title}</h1>
+          <h1 className="text-xl font-bold text-white">{title}</h1>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="flex-1 min-h-0">
         {children}
       </div>
 
       {/* Bottom Navigation */}
       {showBottomNav && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="bg-white shadow-lg z-50 flex-shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl mx-auto gap-0.5">
             <NavButton 
               icon={MapPin} 

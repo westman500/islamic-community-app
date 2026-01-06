@@ -40,7 +40,7 @@ export const RestaurantsListing: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 sticky top-0 z-10 shadow-lg">
+      <div className="bg-emerald-600 text-white p-4 sticky top-0 z-10 shadow-lg">
         <div className="flex items-center mb-3">
           <Button
             variant="ghost"
@@ -51,7 +51,7 @@ export const RestaurantsListing: React.FC = () => {
             <ArrowLeft className="h-6 w-6" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold">Halal Restaurants</h1>
+            <h1 className="text-xl font-bold text-white">Halal Restaurants</h1>
             <p className="text-sm text-emerald-100">Discover local dining options</p>
           </div>
         </div>

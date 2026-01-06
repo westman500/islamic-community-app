@@ -16,32 +16,12 @@ export const UserSignUp: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [location, setLocation] = useState('Loading...')
   const { signUp } = useAuth()
   const navigate = useNavigate()
 
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
-  }, [])
-
-  React.useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
-            )
-            const data = await response.json()
-            setLocation(data.address?.city || data.address?.town || 'Your Location')
-          } catch {
-            setLocation('Unknown')
-          }
-        },
-        () => setLocation('Unavailable')
-      )
-    }
   }, [])
 
   const formatTime = () => {
@@ -103,8 +83,7 @@ export const UserSignUp: React.FC = () => {
             مرحبا
           </h2>
           <p className="text-sm text-emerald-600 font-semibold">Marhaban - Welcome</p>
-          <div className="flex items-center justify-center space-x-4 mt-2 text-xs text-gray-600">
-            <span>📍 {location}</span>
+          <div className="flex items-center justify-center mt-2 text-xs text-gray-600">
             <span>🕐 {formatTime()}</span>
           </div>
         </div>

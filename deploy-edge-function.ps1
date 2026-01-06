@@ -16,6 +16,12 @@ if (!(Test-Path "supabase\functions\paystack-webhook\index.ts")) {
 } else {
     Write-Host "✓ paystack-webhook function file found" -ForegroundColor Green
 }
+
+if (!(Test-Path "supabase\functions\delete-user-account\index.ts")) {
+    Write-Host "Error: delete-user-account function file not found!" -ForegroundColor Red
+} else {
+    Write-Host "✓ delete-user-account function file found" -ForegroundColor Green
+}
 Write-Host ""
 
 Write-Host "To deploy these functions, follow these steps:" -ForegroundColor Yellow
@@ -33,6 +39,11 @@ Write-Host "3b. Name it: paystack-webhook" -ForegroundColor White
 Write-Host "" 
 Write-Host "4b. Copy the content from:" -ForegroundColor White
 Write-Host "   supabase\functions\paystack-webhook\index.ts" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "3c. Name it: delete-user-account" -ForegroundColor White
+Write-Host "" 
+Write-Host "4c. Copy the content from:" -ForegroundColor White
+Write-Host "   supabase\functions\delete-user-account\index.ts" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "5. Add these environment variables in Supabase Dashboard:" -ForegroundColor White
 Write-Host "   - AGORA_APP_ID: 1a3cb8e2d1174dd097edcc38466983a0" -ForegroundColor Cyan
@@ -53,6 +64,7 @@ Write-Host ""
 Write-Host "   # Deploy the functions" -ForegroundColor Gray
 Write-Host "   npx supabase functions deploy generate-agora-token" -ForegroundColor Cyan
 Write-Host "   npx supabase functions deploy paystack-webhook" -ForegroundColor Cyan
+Write-Host "   npx supabase functions deploy delete-user-account" -ForegroundColor Cyan
 Write-Host "" 
 Write-Host "   # Set Paystack webhook secrets" -ForegroundColor Gray
 Write-Host "   npx supabase secrets set SUPABASE_URL=<your_supabase_url>" -ForegroundColor Cyan
@@ -63,9 +75,10 @@ Write-Host "================================================" -ForegroundColor C
 
 # Open function file for easy copying
 Write-Host ""
-$openFile = Read-Host "Open a function file now? (agora/paystack/none)"
+$openFile = Read-Host "Open a function file now? (agora/paystack/delete/none)"
 switch ($openFile) {
     "agora" { Start-Process notepad "supabase\functions\generate-agora-token\index.ts" }
     "paystack" { Start-Process notepad "supabase\functions\paystack-webhook\index.ts" }
+    "delete" { Start-Process notepad "supabase\functions\delete-user-account\index.ts" }
     default { Write-Host "Skipped opening files." -ForegroundColor Yellow }
 }

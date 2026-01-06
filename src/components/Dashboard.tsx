@@ -28,7 +28,6 @@ export function Dashboard() {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [currentTime, setCurrentTime] = React.useState(new Date())
-  const [location, setLocation] = React.useState('Loading...')
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   const [startY, setStartY] = React.useState(0)
   const [pullDistance, setPullDistance] = React.useState(0)
@@ -50,26 +49,6 @@ export function Dashboard() {
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
-  }, [])
-
-  // Get location
-  React.useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
-            )
-            const data = await response.json()
-            setLocation(data.address?.city || data.address?.town || data.address?.county || 'Unknown Location')
-          } catch {
-            setLocation('Location Unknown')
-          }
-        },
-        () => setLocation('Location Unavailable')
-      )
-    }
   }, [])
 
   // Pull-to-refresh handlers
@@ -97,23 +76,6 @@ export function Dashboard() {
       
       // Refresh data without reloading the page
       try {
-        // Re-fetch location
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            async (position) => {
-              try {
-                const response = await fetch(
-                  `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
-                )
-                const data = await response.json()
-                setLocation(data.address?.city || data.address?.town || data.address?.county || 'Unknown Location')
-              } catch {
-                setLocation('Location Unknown')
-              }
-            }
-          )
-        }
-        
         // Update time
         setCurrentTime(new Date())
         
@@ -301,7 +263,8 @@ export function Dashboard() {
   return (
     <div 
       ref={dashboardRef}
-      className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-28 overflow-y-auto"
+      className="min-h-screen bg-gray-50 flex flex-col"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -333,57 +296,54 @@ export function Dashboard() {
       )}
       
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-6 shadow-lg">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="relative flex-shrink-0">
-              <div className="absolute inset-0 bg-emerald-300/30 rounded-full blur-lg animate-pulse"></div>
+      <div className="bg-emerald-600 text-white p-6 shadow-lg">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-white/20 rounded-lg blur-md"></div>
               <img 
                 src="/masjid-logo-dashboard.png" 
                 alt="Masjid Logo" 
-                className="relative h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 object-contain drop-shadow-2xl"
-                style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))' }}
+                className="h-24 w-24 sm:h-28 sm:w-28 object-contain relative z-10"
+                style={{ filter: 'drop-shadow(0 4px 12px rgba(255, 255, 255, 0.7))' }}
                 crossOrigin="anonymous"
               />
             </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-wider truncate" style={{ fontFamily: '"Amiri", "Arabic Typesetting", serif', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>مسجد</h1>
-              <p className="text-xs text-emerald-100 mt-0.5 truncate">{getIslamicGreeting()}</p>
-              <p className="text-emerald-200 text-xs sm:text-sm font-semibold mt-1 truncate">As-salamu alaykum, {fullName}</p>
+            <div>
+              <p className="text-xs text-emerald-100">{getIslamicGreeting()}</p>
+              <p className="text-white text-sm font-semibold">As-salamu alaykum, {fullName}</p>
             </div>
           </div>
-          <div className="flex flex-col items-end space-y-1">
+          <div className="flex flex-col items-end space-y-2">
             <div className="flex items-center space-x-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-emerald-600 rounded-full bg-emerald-500/40 shadow-lg"
+                className="text-white hover:bg-emerald-500 rounded-full"
                 onClick={() => navigate('/profile-settings')}
                 title="Settings"
               >
-                <Settings className="h-6 w-6 drop-shadow-md" />
+                <Settings className="h-6 w-6" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-red-600 rounded-full bg-red-500/40 shadow-lg"
+                className="text-white hover:bg-red-500 rounded-full"
                 onClick={handleSignOut}
                 title="Sign Out"
               >
-                <LogOut className="h-6 w-6 drop-shadow-md" />
+                <LogOut className="h-6 w-6" />
               </Button>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-emerald-100">{location}</p>
-              <p className="text-sm font-bold">{formatTime()}</p>
-            </div>
+            <p className="text-sm font-bold text-white">{formatTime()}</p>
           </div>
         </div>
       </div>
 
-      <div className="p-4 space-y-6">
-        {/* Compact Prayer Times - New Component */}
-        <CompactPrayerTimes />
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
+        <div className="p-4 space-y-6">
+          {/* Compact Prayer Times - New Component */}
+          <CompactPrayerTimes />
 
         {/* Premium Features (Top Banner Style) */}
         {!isScholar && (
@@ -533,6 +493,7 @@ export function Dashboard() {
             </Card>
           </div>
         )}
+        </div>
       </div>
 
       {/* Bottom Navigation - Fixed at bottom */}

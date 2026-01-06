@@ -19,6 +19,8 @@ interface Scholar {
   consultationFee: number
   consultationDuration?: number
   isOnline?: boolean
+  yearsOfExperience?: number
+  consultationDescription?: string
 }
 
 interface Booking {
@@ -116,7 +118,7 @@ export const ConsultationBooking: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, specializations, consultation_fee, consultation_duration, is_online')
+        .select('id, full_name, specializations, consultation_fee, consultation_duration, is_online, years_of_experience, consultation_description')
         .in('role', ['scholar', 'imam'])
         .eq('is_online', true)
         .order('full_name')
@@ -144,7 +146,9 @@ export const ConsultationBooking: React.FC = () => {
           specialization: Array.isArray(s.specializations) && s.specializations.length > 0 ? s.specializations[0] : 'Islamic Studies',
           consultationFee: fee,
           consultationDuration: s.consultation_duration || 30,
-          isOnline: s.is_online || false
+          isOnline: s.is_online || false,
+          yearsOfExperience: s.years_of_experience || 0,
+          consultationDescription: s.consultation_description || 'Experienced Islamic scholar providing consultation and spiritual guidance.'
         }
       })
       
@@ -363,8 +367,17 @@ export const ConsultationBooking: React.FC = () => {
         'payment'
       )
       
-      // Send push notification to scholar
+      // Send push notification to member
       await notifyConsultationBooked(selectedScholar.name, selectedScholar.consultationDuration || 30)
+      
+      // Import and notify scholar about new booking
+      const { notifyScholarConsultationBooked } = await import('../utils/pushNotifications')
+      await notifyScholarConsultationBooked(
+        selectedScholar.id,
+        profile.full_name || 'A member',
+        topic,
+        selectedScholar.consultationFee
+      )
       
       // Refresh bookings
       await fetchMyBookings()
@@ -578,6 +591,16 @@ export const ConsultationBooking: React.FC = () => {
                               <p className="text-sm text-muted-foreground">
                                 {scholar.specialization}
                               </p>
+                              {scholar.yearsOfExperience && scholar.yearsOfExperience > 0 && (
+                                <p className="text-xs text-emerald-600 mt-1">
+                                  📚 {scholar.yearsOfExperience} years of experience
+                                </p>
+                              )}
+                              {scholar.consultationDescription && (
+                                <p className="text-xs text-gray-500 mt-1 italic">
+                                  {scholar.consultationDescription}
+                                </p>
+                              )}
                             </div>
                             <div className="text-right">
                               <p className="text-lg font-bold text-emerald-600 flex items-center gap-1">

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../utils/supabase/client'
 
 export const UserSignIn: React.FC = () => {
   const [email, setEmail] = useState('')
@@ -12,7 +13,10 @@ export const UserSignIn: React.FC = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [location, setLocation] = useState('Loading...')
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetMessage, setResetMessage] = useState('')
   const { signIn } = useAuth()
   const navigate = useNavigate()
 
@@ -46,25 +50,6 @@ export const UserSignIn: React.FC = () => {
     return () => clearInterval(timer)
   }, [])
 
-  React.useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
-            )
-            const data = await response.json()
-            setLocation(data.address?.city || data.address?.town || 'Your Location')
-          } catch {
-            setLocation('Unknown')
-          }
-        },
-        () => setLocation('Unavailable')
-      )
-    }
-  }, [])
-
   const formatTime = () => {
     return currentTime.toLocaleTimeString('en-US', { 
       hour: 'numeric', 
@@ -84,12 +69,12 @@ export const UserSignIn: React.FC = () => {
       console.warn('Sign-in timeout reached, resetting loading state')
       setLoading(false)
       setError('Sign-in is taking too long. Please refresh and try again.')
-    }, 10000) // 10 second timeout
+    }, 15000) // 15 second timeout
 
     try {
       console.log('UserSignIn: Calling signIn...')
       await signIn(email, password)
-      console.log('UserSignIn: signIn completed successfully, navigating...')
+      console.log('UserSignIn: signIn completed successfully')
       
       // Save credentials if "Remember Me" is checked
       if (rememberMe) {
@@ -100,9 +85,14 @@ export const UserSignIn: React.FC = () => {
         localStorage.removeItem('rememberedPassword')
       }
       
+      // Wait a bit for profile to load before navigating
+      console.log('UserSignIn: Waiting for profile to load...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       clearTimeout(timeoutId)
       setLoading(false)
       
+      console.log('UserSignIn: Navigating to dashboard...')
       // Navigate after successful sign-in
       navigate('/dashboard', { replace: true })
     } catch (err: any) {
@@ -110,6 +100,31 @@ export const UserSignIn: React.FC = () => {
       clearTimeout(timeoutId)
       setError(err.message || 'Failed to sign in')
       setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setResetLoading(true)
+    setResetMessage('')
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      
+      if (error) throw error
+      
+      setResetMessage('Password reset link sent! Check your email inbox.')
+      setResetEmail('')
+      setTimeout(() => {
+        setShowForgotPassword(false)
+        setResetMessage('')
+      }, 3000)
+    } catch (err: any) {
+      setResetMessage(err.message || 'Failed to send reset link')
+    } finally {
+      setResetLoading(false)
     }
   }
 
@@ -125,8 +140,7 @@ export const UserSignIn: React.FC = () => {
             السلام عليكم
           </h2>
           <p className="text-sm text-emerald-600 font-semibold">As-salamu alaykum</p>
-          <div className="flex items-center justify-center space-x-4 mt-2 text-xs text-gray-600">
-            <span>📍 {location}</span>
+          <div className="flex items-center justify-center mt-2 text-xs text-gray-600">
             <span>🕐 {formatTime()}</span>
           </div>
         </div>
@@ -137,46 +151,93 @@ export const UserSignIn: React.FC = () => {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-              />
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium mb-2">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium mb-2">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500 focus:ring-2"
+                />
+                <label htmlFor="rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  Remember me
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
+              >
+                Forgot password?
+              </button>
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium mb-2">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                id="rememberMe"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500 focus:ring-2"
-              />
-              <label htmlFor="rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
-                Remember my email and password
-              </label>
-            </div>
+            {showForgotPassword && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-semibold text-blue-900 mb-2">Reset Password</h3>
+                <form onSubmit={handleForgotPassword} className="space-y-3">
+                  <Input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                    className="w-full"
+                  />
+                  {resetMessage && (
+                    <p className={`text-sm ${resetMessage.includes('sent') ? 'text-green-700' : 'text-red-700'}`}>
+                      {resetMessage}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    >
+                      {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setShowForgotPassword(false)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
 
             {error && (
               <div className="p-4 bg-destructive/10 border border-destructive rounded-md">

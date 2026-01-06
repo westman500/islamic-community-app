@@ -669,6 +669,38 @@ export const ConsultationMessaging: React.FC = () => {
 
       console.log('✅ Session ended successfully')
       
+      // Notify both parties about consultation completion
+      const { notifyConsultationCompleted, notifyScholarConsultationCompleted } = await import('../utils/pushNotifications')
+      if (consultation?.user_id && consultation?.scholar_id) {
+        try {
+          // Notify member
+          const { data: scholarData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', consultation.scholar_id)
+            .single()
+          
+          await notifyConsultationCompleted(
+            consultation.user_id,
+            scholarData?.full_name || 'Scholar'
+          )
+          
+          // Notify scholar
+          const { data: memberData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', consultation.user_id)
+            .single()
+          
+          await notifyScholarConsultationCompleted(
+            consultation.scholar_id,
+            memberData?.full_name || 'Member'
+          )
+        } catch (notifyErr) {
+          console.error('Failed to send completion notifications:', notifyErr)
+        }
+      }
+      
       // Refresh consultation data to reflect completed status
       await fetchConsultation()
       
@@ -726,6 +758,39 @@ export const ConsultationMessaging: React.FC = () => {
       }
 
       console.log('✅ Session ended successfully')
+      
+      // Notify both parties about manual completion
+      const { notifyConsultationCompleted, notifyScholarConsultationCompleted } = await import('../utils/pushNotifications')
+      if (consultation?.user_id && consultation?.scholar_id) {
+        try {
+          // Notify member
+          const { data: scholarData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', consultation.scholar_id)
+            .single()
+          
+          await notifyConsultationCompleted(
+            consultation.user_id,
+            scholarData?.full_name || 'Scholar'
+          )
+          
+          // Notify scholar
+          const { data: memberData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', consultation.user_id)
+            .single()
+          
+          await notifyScholarConsultationCompleted(
+            consultation.scholar_id,
+            memberData?.full_name || 'Member'
+          )
+        } catch (notifyErr) {
+          console.error('Failed to send completion notifications:', notifyErr)
+        }
+      }
+      
       fetchConsultation()
     } catch (err: any) {
       console.error('❌ Error ending session:', err)

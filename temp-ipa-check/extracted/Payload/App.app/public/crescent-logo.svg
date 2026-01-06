@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Shadow/3D effect -->
+  <defs>
+    <linearGradient id="crescentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#047857;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="starGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="2" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.5"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Crescent with 3D effect -->
+  <path filter="url(#shadow)" d="M100 20 C 70 20, 45 45, 45 75 C 45 105, 70 130, 100 130 C 90 130, 80 120, 80 105 C 80 75, 90 50, 115 50 C 125 50, 135 55, 142 62 C 130 35, 117 20, 100 20 Z" 
+    fill="url(#crescentGradient)" stroke="#047857" stroke-width="3"/>
+  
+  <!-- Star with 5 points -->
+  <g filter="url(#shadow)">
+    <path d="M160 40 L165 50 L176 52 L168 60 L170 71 L160 66 L150 71 L152 60 L144 52 L155 50 Z" 
+      fill="url(#starGradient)" stroke="#f59e0b" stroke-width="1.5"/>
+  </g>
+  
+  <!-- Highlight shine effect on crescent -->
+  <ellipse cx="75" cy="50" rx="15" ry="25" fill="white" opacity="0.2" transform="rotate(-30 75 50)"/>
+</svg>

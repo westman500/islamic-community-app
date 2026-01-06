@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { 
   GraduationCap, 
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { MobileLayout } from './MobileLayout'
+import { supabase } from '../utils/supabase/client'
 
 interface Category {
   id: string
@@ -27,6 +28,7 @@ interface Category {
 
 export const ActivityCategories: React.FC = () => {
   const navigate = useNavigate()
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
 
   const categories: Category[] = [
     {
@@ -36,7 +38,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Quran classes, Arabic lessons, Islamic studies',
       color: 'bg-blue-50',
       iconColor: 'text-blue-600',
-      count: 12
+      count: categoryCounts['education'] || 0
     },
     {
       id: 'prayers',
@@ -45,7 +47,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Jummah prayers, Taraweeh, Eid prayers',
       color: 'bg-emerald-50',
       iconColor: 'text-emerald-600',
-      count: 8
+      count: categoryCounts['prayers'] || 0
     },
     {
       id: 'sports',
@@ -54,7 +56,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Football, basketball, swimming, gym sessions',
       color: 'bg-orange-50',
       iconColor: 'text-orange-600',
-      count: 15
+      count: categoryCounts['sports'] || 0
     },
     {
       id: 'social',
@@ -63,7 +65,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Community gatherings, meetups, networking',
       color: 'bg-purple-50',
       iconColor: 'text-purple-600',
-      count: 10
+      count: categoryCounts['social'] || 0
     },
     {
       id: 'restaurant',
@@ -72,7 +74,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Discover halal dining options and food events',
       color: 'bg-red-50',
       iconColor: 'text-red-600',
-      count: 18
+      count: categoryCounts['restaurant'] || 0
     },
     {
       id: 'charity',
@@ -81,7 +83,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Community service, fundraising, volunteer work',
       color: 'bg-pink-50',
       iconColor: 'text-pink-600',
-      count: 7
+      count: categoryCounts['charity'] || 0
     },
     {
       id: 'business',
@@ -90,7 +92,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Workshops, networking, career development',
       color: 'bg-indigo-50',
       iconColor: 'text-indigo-600',
-      count: 9
+      count: categoryCounts['business'] || 0
     },
     {
       id: 'family',
@@ -99,7 +101,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Family activities, youth programs, kids events',
       color: 'bg-yellow-50',
       iconColor: 'text-yellow-600',
-      count: 14
+      count: categoryCounts['family'] || 0
     },
     {
       id: 'arts',
@@ -108,7 +110,7 @@ export const ActivityCategories: React.FC = () => {
       description: 'Islamic art, nasheeds, cultural exhibitions',
       color: 'bg-teal-50',
       iconColor: 'text-teal-600',
-      count: 6
+      count: categoryCounts['arts'] || 0
     },
     {
       id: 'library',
@@ -117,9 +119,38 @@ export const ActivityCategories: React.FC = () => {
       description: 'Book clubs, reading circles, library services',
       color: 'bg-gray-50',
       iconColor: 'text-gray-600',
-      count: 5
+      count: categoryCounts['library'] || 0
     }
   ]
+
+  useEffect(() => {
+    fetchCategoryCounts()
+  }, [])
+
+  const fetchCategoryCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('activities')
+        .select('category')
+        .eq('is_active', true)
+
+      if (error) {
+        console.error('Error fetching activity counts:', error)
+        return
+      }
+
+      // Count activities per category
+      const counts: Record<string, number> = {}
+      data?.forEach(activity => {
+        const category = activity.category
+        counts[category] = (counts[category] || 0) + 1
+      })
+
+      setCategoryCounts(counts)
+    } catch (error) {
+      console.error('Error in fetchCategoryCounts:', error)
+    }
+  }
 
   return (
     <MobileLayout title="Activity Categories">

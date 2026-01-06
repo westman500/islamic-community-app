@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle, XCircle, Phone, Mail, Camera, FileText, Shield, ArrowLeft } from 'lucide-react'
+import { notifyScholarAvailable } from '../utils/pushNotifications'
 
 export const ProfileSettings: React.FC = () => {
   const { profile } = useAuth()
@@ -24,6 +25,8 @@ export const ProfileSettings: React.FC = () => {
   const [livestreamFee, setLivestreamFee] = useState(0)
   const [liveConsultationFee, setLiveConsultationFee] = useState(0)
   const [isOnline, setIsOnline] = useState(false)
+  const [yearsOfExperience, setYearsOfExperience] = useState(0)
+  const [consultationDescription, setConsultationDescription] = useState('')
   
   // Bank account fields for withdrawals
   const [bankAccountNumber, setBankAccountNumber] = useState('')
@@ -50,6 +53,8 @@ export const ProfileSettings: React.FC = () => {
       setLivestreamFee(profile.livestream_fee || 0)
       setLiveConsultationFee(profile.live_consultation_fee || 0)
       setIsOnline(profile.is_online || false)
+      setYearsOfExperience(profile.years_of_experience || 0)
+      setConsultationDescription(profile.consultation_description || '')
       setBankAccountNumber(profile.bank_account_number || '')
       setBankCode(profile.bank_code || '')
       setBankName(profile.bank_name || '')
@@ -222,7 +227,9 @@ export const ProfileSettings: React.FC = () => {
           consultation_fee: consultationFee,
           consultation_duration: consultationDuration,
           livestream_fee: livestreamFee,
-          live_consultation_fee: liveConsultationFee
+          live_consultation_fee: liveConsultationFee,
+          years_of_experience: yearsOfExperience,
+          consultation_description: consultationDescription
         })
         .eq('id', profile?.id || '')
 
@@ -251,6 +258,16 @@ export const ProfileSettings: React.FC = () => {
 
       setIsOnline(newStatus)
       setMessage(`Availability set to ${newStatus ? 'Online' : 'Offline'}`)
+      
+      // Notify all members when scholar goes online
+      if (newStatus && profile) {
+        await notifyScholarAvailable(
+          profile.id,
+          profile.full_name || 'Scholar',
+          yearsOfExperience,
+          profile.specializations || []
+        )
+      }
     } catch (err: any) {
       setMessage(`Error: ${err.message}`)
     } finally {
@@ -362,19 +379,18 @@ export const ProfileSettings: React.FC = () => {
     setMessage('')
 
     try {
-      // In production, integrate with Smile Identity API
-      // For now, simulate the process
-      alert('SMILE ID Verification:\n\n' +
-        '1. You will be redirected to Smile Identity\n' +
-        '2. Provide your phone number\n' +
-        '3. Provide your email\n' +
-        '4. Take a selfie for face verification\n' +
-        '5. Upload your certificates (Ijazah, etc.)\n\n' +
-        'This process typically takes 1-2 business days for review.'
-      )
+      const partnerId = import.meta.env.VITE_SMILEID_PARTNER_ID
+      
+      if (!partnerId) {
+        throw new Error('Smile ID not configured. Please contact support.')
+      }
 
-      // Create verification record
-      const { error } = await supabase
+      // Initialize Smile ID Web SDK
+      const jobId = `job_${Date.now()}_${profile?.id?.substring(0, 8)}`
+      const userId = profile?.id || ''
+      
+      // Create verification record first
+      const { error: dbError } = await supabase
         .from('verification_data')
         .insert({
           user_id: profile?.id,
@@ -382,18 +398,78 @@ export const ProfileSettings: React.FC = () => {
           verification_provider: 'smile_identity',
           status: 'pending',
           data: {
+            job_id: jobId,
             phone: phoneNumber,
             email: profile?.email,
             initiated_at: new Date().toISOString()
           }
         })
 
-      if (error) throw error
+      if (dbError) throw dbError
 
-      setMessage('SMILE ID verification initiated. You will be notified once approved.')
+      // Load Smile ID Web SDK
+      const script = document.createElement('script')
+      script.src = 'https://cdn.smileidentity.com/inline/v1/inline.min.js'
+      script.async = true
+      
+      script.onload = () => {
+        // @ts-ignore - SmileIdentity SDK
+        const SmileIdentity = window.SmileIdentity
+        
+        SmileIdentity.configure({
+          partner_id: partnerId,
+          job_id: jobId,
+          user_id: userId,
+          job_type: 4, // 4 = Enhanced KYC with selfie
+          product: 'identity_verification',
+          callback_url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smileid-callback`,
+          
+          // Callback when verification is complete
+          onComplete: async (result: any) => {
+            console.log('Smile ID verification complete:', result)
+            
+            // Update verification record
+            await supabase
+              .from('verification_data')
+              .update({
+                status: 'completed',
+                data: {
+                  job_id: jobId,
+                  phone: phoneNumber,
+                  email: profile?.email,
+                  result: result,
+                  completed_at: new Date().toISOString()
+                }
+              })
+              .eq('user_id', profile?.id)
+              .eq('verification_type', 'smileid')
+            
+            setMessage('✅ Verification submitted successfully! Review typically takes 1-2 business days.')
+          },
+          
+          onError: (error: any) => {
+            console.error('Smile ID error:', error)
+            setMessage(`Verification error: ${error.message || 'Please try again'}`)
+          },
+          
+          onClose: () => {
+            console.log('Smile ID modal closed')
+            setLoading(false)
+          }
+        })
+        
+        // Launch the verification modal
+        SmileIdentity.launch()
+      }
+      
+      script.onerror = () => {
+        throw new Error('Failed to load Smile ID SDK. Please check your connection.')
+      }
+      
+      document.body.appendChild(script)
+
     } catch (err: any) {
       setMessage(`Error: ${err.message}`)
-    } finally {
       setLoading(false)
     }
   }
@@ -537,192 +613,56 @@ export const ProfileSettings: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Verification Status for Members */}
-      {!isScholarOrImam && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Verification Status (Members)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Phone Verification */}
-            <div className="flex items-center justify-between p-4 border rounded">
-              <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5" />
-                <div>
-                  <p className="font-medium">Phone Verification</p>
-                  <p className="text-sm text-gray-600">Verify your phone number via SMS</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {verificationStatus.phone_verified ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-gray-400" />
-                )}
-                <Button
-                  onClick={handleVerifyPhone}
-                  disabled={loading || verificationStatus.phone_verified}
-                  size="sm"
-                >
-                  {verificationStatus.phone_verified ? 'Verified' : 'Verify'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Email Verification */}
-            <div className="flex items-center justify-between p-4 border rounded">
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5" />
-                <div>
-                  <p className="font-medium">Email Verification</p>
-                  <p className="text-sm text-gray-600">Verify your email address</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {verificationStatus.email_verified ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-gray-400" />
-                )}
-                <Button
-                  onClick={handleVerifyEmail}
-                  disabled={loading || verificationStatus.email_verified}
-                  size="sm"
-                >
-                  {verificationStatus.email_verified ? 'Verified' : 'Verify'}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* SMILE ID Verification for Scholars/Imams */}
+      {/* Identity Verification - Scholars/Imams Only */}
       {isScholarOrImam && (
         <Card>
           <CardHeader>
-            <CardTitle>SMILE ID Verification (Scholars & Imams)</CardTitle>
+            <CardTitle>Identity Verification</CardTitle>
             <p className="text-sm text-gray-600 mt-2">
-              Complete all verification steps to become a verified scholar/imam on the platform
+              Verify your identity to become a trusted scholar/imam on the platform
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* SMILE ID Overall Status */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-              <div className="flex items-center gap-3">
-                <Shield className="w-6 h-6 text-blue-600" />
-                <div>
-                  <p className="font-semibold">SMILE ID Verification Status</p>
-                  <p className="text-sm text-gray-700">
-                    {verificationStatus.smileid_verified
-                      ? '✓ Fully Verified'
-                      : 'Verification Required'}
-                  </p>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Verification Status */}
+              <div className={`p-4 rounded-lg ${verificationStatus.smileid_verified ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
+                <div className="flex items-center gap-3">
+                  {verificationStatus.smileid_verified ? (
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  ) : (
+                    <Shield className="w-6 h-6 text-blue-600" />
+                  )}
+                  <div>
+                    <p className="font-semibold">
+                      {verificationStatus.smileid_verified ? 'Verified ✓' : 'Not Verified'}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      {verificationStatus.smileid_verified
+                        ? 'Your identity has been verified'
+                        : 'Click below to start verification process'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Phone Verification */}
-            <div className="flex items-center justify-between p-4 border rounded">
-              <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5" />
-                <div>
-                  <p className="font-medium">Phone Verification</p>
-                  <p className="text-sm text-gray-600">Verify phone via SMILE ID</p>
-                </div>
-              </div>
-              {verificationStatus.phone_verified ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <XCircle className="w-5 h-5 text-gray-400" />
-              )}
-            </div>
-
-            {/* Email Verification */}
-            <div className="flex items-center justify-between p-4 border rounded">
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5" />
-                <div>
-                  <p className="font-medium">Email Verification</p>
-                  <p className="text-sm text-gray-600">Verify email via SMILE ID</p>
-                </div>
-              </div>
-              {verificationStatus.email_verified ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <XCircle className="w-5 h-5 text-gray-400" />
-              )}
-            </div>
-
-            {/* Face Verification */}
-            <div className="flex items-center justify-between p-4 border rounded">
-              <div className="flex items-center gap-3">
-                <Camera className="w-5 h-5" />
-                <div>
-                  <p className="font-medium">Face Verification</p>
-                  <p className="text-sm text-gray-600">Biometric face scan via SMILE ID</p>
-                </div>
-              </div>
-              {verificationStatus.face_verified ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <XCircle className="w-5 h-5 text-gray-400" />
-              )}
-            </div>
-
-            {/* Certificate Verification */}
-            <div className="flex items-center justify-between p-4 border rounded">
-              <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5" />
-                <div>
-                  <p className="font-medium">Certificate Verification</p>
-                  <p className="text-sm text-gray-600">Upload Ijazah or credentials</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {verificationStatus.certificate_verified ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-gray-400" />
-                )}
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={handleUploadCertificate}
-                    className="hidden"
-                    disabled={loading}
-                  />
-                  <span>
-                    <Button size="sm" disabled={loading} type="button">
-                      Upload
-                    </Button>
-                  </span>
-                </label>
+              {/* Verify Identity Button */}
+              <div className="pt-2">
+                <Button
+                  onClick={handleSmileIDVerification}
+                  disabled={loading || verificationStatus.smileid_verified}
+                  className="w-full"
+                  size="lg"
+                >
+                  <Shield className="w-5 h-5 mr-2" />
+                  {verificationStatus.smileid_verified
+                    ? 'Verified'
+                    : 'Verify Identity'}
+                </Button>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Powered by Smile ID - Secure identity verification
+                </p>
               </div>
             </div>
-
-            {/* Start SMILE ID Verification */}
-            <div className="pt-4">
-              <Button
-                onClick={handleSmileIDVerification}
-                disabled={loading || verificationStatus.smileid_verified}
-                className="w-full"
-                size="lg"
-              >
-                {verificationStatus.smileid_verified
-                  ? '✓ SMILE ID Verified'
-                  : 'Start SMILE ID Verification'}
-              </Button>
-            </div>
-
-            {message && (
-              <div className={`p-3 rounded ${
-                message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-              }`}>
-                {message}
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -825,12 +765,48 @@ export const ProfileSettings: React.FC = () => {
               </p>
             </div>
 
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-4">Professional Information</h4>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Years of Experience
+              </label>
+              <Input
+                type="number"
+                min="0"
+                value={yearsOfExperience}
+                onChange={(e) => setYearsOfExperience(Number(e.target.value))}
+                placeholder="e.g., 10"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                How many years have you been providing Islamic guidance?
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Consultation Description
+              </label>
+              <textarea
+                className="w-full p-2 border rounded-md min-h-[80px]"
+                value={consultationDescription}
+                onChange={(e) => setConsultationDescription(e.target.value)}
+                placeholder="e.g., Experienced Islamic scholar providing consultation on Quran interpretation, Hadith studies, and spiritual guidance."
+                maxLength={200}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Brief description shown to members when you're available (max 200 characters)
+              </p>
+            </div>
+
             <Button 
               onClick={handleSavePricing} 
               disabled={loading}
               className="w-full"
             >
-              Save Pricing
+              Save Settings
             </Button>
 
             {message && (

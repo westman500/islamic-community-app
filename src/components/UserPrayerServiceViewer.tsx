@@ -455,7 +455,7 @@ export const UserPrayerServiceViewer: React.FC = () => {
                 remoteVideoRef.current.style.height = '100%'
               }
               
-              // Play video with autoplay
+              // Play video with contain fit for proper aspect ratio on mobile
               await videoTrack.play(remoteVideoRef.current, { fit: 'contain' })
               console.log('✅ Video track playing successfully')
             } else {
@@ -1085,6 +1085,7 @@ export const UserPrayerServiceViewer: React.FC = () => {
               <div 
                 ref={videoContainerRef}
                 className={`relative aspect-video bg-black rounded-lg overflow-hidden group ${isPiP ? 'ring-4 ring-blue-500' : ''}`}
+                style={{ touchAction: 'pan-y pinch-zoom' }}
               >
                 <div ref={remoteVideoRef} className="w-full h-full" />
                 

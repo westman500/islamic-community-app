@@ -14,6 +14,7 @@ export const CompactPrayerTimes: React.FC = () => {
   const [currentPrayer, setCurrentPrayer] = useState<string>('')
   const [nextPrayer, setNextPrayer] = useState<string>('')
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     fetchPrayerTimes()
@@ -110,6 +111,7 @@ export const CompactPrayerTimes: React.FC = () => {
     
     setPrayerTimes(prayers)
     updateCurrentPrayer(prayers)
+    setIsLoading(false)
   }
 
   const updateCurrentPrayer = (prayers: PrayerTime[] = prayerTimes) => {
@@ -155,7 +157,13 @@ export const CompactPrayerTimes: React.FC = () => {
           </div>
         </div>
 
-        {/* Carousel Container - Seamless auto-sliding */}
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="h-20 flex items-center justify-center">
+            <div className="animate-spin h-6 w-6 border-4 border-white border-t-transparent rounded-full"></div>
+          </div>
+        ) : (
+        /* Carousel Container - Seamless auto-sliding */
         <div className="relative overflow-hidden h-20">
           <div 
             className="flex transition-transform duration-700 ease-in-out"
@@ -189,6 +197,7 @@ export const CompactPrayerTimes: React.FC = () => {
             ))}
           </div>
         </div>
+        )}
 
       </CardContent>
     </Card>

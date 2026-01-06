@@ -615,15 +615,18 @@ export const IslamicReels: React.FC = () => {
 
   return (
     <MobileLayout title="Islamic Reels">
-      <div className="p-4 space-y-4">
-        {/* Upload Button */}
-        <Button
-          onClick={() => setShowUploadModal(true)}
-          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Reel
-        </Button>
+      <div className="p-4 space-y-4" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+        {/* Upload Button - Sticky for easy access */}
+        <div className="sticky top-0 z-10 bg-gray-50 pb-2">
+          <Button
+            onClick={() => setShowUploadModal(true)}
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg"
+            size="lg"
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            Upload Reel
+          </Button>
+        </div>
 
         {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto pb-2">

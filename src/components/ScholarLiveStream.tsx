@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { usePermissions } from './ProtectedRoute'
 import { AgoraService } from '../utils/agora'
 import { supabase } from '../utils/supabase/client'
-import { Video, VideoOff, Mic, MicOff, Users, StopCircle } from 'lucide-react'
+import { Video, VideoOff, Mic, MicOff, Users, StopCircle, RefreshCw } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
 import { useNotification } from '../contexts/NotificationContext'
 import { notifyLivestreamStarting } from '../utils/pushNotifications'
@@ -26,6 +26,7 @@ export const ScholarLiveStream: React.FC = () => {
   const [viewerCount, setViewerCount] = useState(0)
   const [videoEnabled, setVideoEnabled] = useState(true)
   const [audioEnabled, setAudioEnabled] = useState(true)
+  const [useFrontCamera, setUseFrontCamera] = useState(false)
   const [error, setError] = useState('')
   const [previewReady, setPreviewReady] = useState(false)
   const [localVideoTrack, setLocalVideoTrack] = useState<any>(null)
@@ -242,8 +243,9 @@ export const ScholarLiveStream: React.FC = () => {
         throw new Error('Camera access requires secure context. Please use: http://localhost:5173/')
       }
 
-      // Create channel name
-      const channel = `stream_${profile.id}_${Date.now()}`
+      // Create unique channel name with timestamp and random suffix to prevent conflicts
+      const randomSuffix = Math.random().toString(36).substring(2, 8)
+      const channel = `stream_${profile.id}_${Date.now()}_${randomSuffix}`
       setChannelName(channel)
       console.log('Channel:', channel)
       console.log('User ID:', profile.id)
@@ -254,7 +256,7 @@ export const ScholarLiveStream: React.FC = () => {
 
       // Step 2: Create local tracks and start preview BEFORE joining
       console.log('Step 2: Requesting camera and microphone access...')
-      const tracks = await agoraService.current.createLocalTracks()
+      const tracks = await agoraService.current.createLocalTracks(useFrontCamera)
       console.log('✅ Camera and microphone access granted')
       console.log('  Video track:', tracks.videoTrack?.getTrackLabel())
       console.log('  Audio track:', tracks.audioTrack?.getTrackLabel())
@@ -609,12 +611,12 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
       setLocalVideoTrack(null)
       setPreviewReady(false)
       
-      // Update database after releasing devices
+      // Update database IMMEDIATELY after releasing devices - this is critical for viewers
       if (streamId) {
-        console.log('📝 Marking stream as inactive in database:', streamId)
+        console.log('📝 IMMEDIATELY marking stream as inactive in database:', streamId)
         const endTime = new Date().toISOString()
         
-        // Update stream status immediately - this triggers realtime updates to all viewers
+        // Update stream status with realtime broadcast to all viewers
         const { error: streamError } = await supabase
           .from('streams')
           .update({
@@ -626,9 +628,22 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
 
         if (streamError) {
           console.error('❌ Error updating stream status:', streamError)
-          throw streamError
+          // Don't throw - stream is already stopped locally
+          showNotification('Stream stopped but database update failed', 'error')
         } else {
-          console.log('✅ Stream marked as inactive - viewers will see this immediately via realtime')
+          console.log('✅ Stream marked as inactive - realtime update sent to all viewers')
+        }
+        
+        // Force a realtime broadcast to ensure all viewers get the update
+        try {
+          await supabase
+            .from('streams')
+            .select('*')
+            .eq('id', streamId)
+            .single()
+          console.log('✅ Forced realtime sync completed')
+        } catch (syncErr) {
+          console.error('Realtime sync error (non-critical):', syncErr)
         }
       }
       
@@ -668,6 +683,34 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
     if (agoraService.current) {
       await agoraService.current.toggleAudio(!audioEnabled)
       setAudioEnabled(prev => !prev)
+    }
+  }
+
+  const switchCamera = async () => {
+    if (!isStreaming || !agoraService.current) return
+    
+    try {
+      const newCameraMode = !useFrontCamera
+      showNotification('Switching camera...', 'info')
+      
+      // Stop and close current video track
+      if (localVideoTrack) {
+        localVideoTrack.stop()
+        localVideoTrack.close()
+      }
+      
+      // Create new video track with opposite camera
+      const tracks = await agoraService.current.createLocalTracks(newCameraMode)
+      
+      if (tracks.videoTrack) {
+        setLocalVideoTrack(tracks.videoTrack)
+        setUseFrontCamera(newCameraMode)
+        
+        showNotification(`Switched to ${newCameraMode ? 'front' : 'back'} camera`, 'success')
+      }
+    } catch (err: any) {
+      console.error('Failed to switch camera:', err)
+      showNotification(`Failed to switch camera: ${err.message}`, 'error')
     }
   }
 
@@ -811,7 +854,8 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
                   style={{
                     width: '100%',
                     height: '100%',
-                    backgroundColor: '#000'
+                    backgroundColor: '#000',
+                    objectFit: 'contain'
                   }}
                 />
                 {!videoEnabled && (
@@ -899,6 +943,14 @@ Why this works: Switches from token mode to simpler App ID mode for testing.`)
                   onClick={toggleAudio}
                 >
                   {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={switchCamera}
+                  title={useFrontCamera ? 'Switch to Back Camera' : 'Switch to Front Camera'}
+                >
+                  <RefreshCw className="h-5 w-5" />
                 </Button>
                 <Button
                   variant="destructive"

@@ -19,6 +19,7 @@ interface Scholar {
   consultation_fee?: number
   consultation_duration?: number
   avatar_url?: string
+  years_of_experience?: number
 }
 
 export const AvailableScholars: React.FC = () => {
@@ -151,6 +152,11 @@ export const AvailableScholars: React.FC = () => {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground capitalize">{scholar.role}</p>
+                      {scholar.years_of_experience && scholar.years_of_experience > 0 && (
+                        <p className="text-xs text-emerald-700 font-semibold mt-0.5">
+                          {scholar.years_of_experience} {scholar.years_of_experience === 1 ? 'year' : 'years'} of experience
+                        </p>
+                      )}
                     </div>
                     {scholar.average_rating > 0 && (
                       <div className="flex items-center space-x-1 bg-amber-50 px-2 py-1 rounded">

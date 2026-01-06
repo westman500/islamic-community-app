@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
 import { AlertTriangle, Trash2, ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { MobileLayout } from './MobileLayout'
 
 export const AccountDeletion: React.FC = () => {
   const { profile, signOut } = useAuth()
@@ -25,8 +26,10 @@ export const AccountDeletion: React.FC = () => {
     setError('')
 
     try {
-      // Call Edge Function to delete account (including auth.users)
-      const { error: functionError } = await supabase.functions.invoke(
+      console.log('🗑️ Initiating account deletion for user:', profile?.id)
+      
+      // Call Edge Function to delete account (has admin privileges to delete auth.users)
+      const { data, error: functionError } = await supabase.functions.invoke(
         'delete-user-account',
         {
           body: { userId: profile?.id }
@@ -34,22 +37,32 @@ export const AccountDeletion: React.FC = () => {
       )
 
       if (functionError) {
-        // If Edge Function not available, call database function directly
+        console.error('❌ Edge function error:', functionError)
+        
+        // Fallback: Try direct database deletion (won't delete from auth.users)
+        console.log('⚠️ Edge function failed, attempting database-only deletion...')
         const { error: dbError } = await supabase.rpc('delete_user_account', {
           user_id_to_delete: profile?.id
         })
 
-        if (dbError) throw dbError
+        if (dbError) {
+          console.error('❌ Database deletion error:', dbError)
+          throw new Error(`Failed to delete account: ${dbError.message}`)
+        }
 
-        // Note: This won't delete from auth.users without Edge Function
-        alert('Account data deleted. Please contact support to complete account deletion from authentication system.')
+        console.log('⚠️ Database records deleted, but auth user may still exist. Please contact support.')
+        showNotification('Account data deleted, but authentication may need manual cleanup', 'warning')
+      } else {
+        console.log('✅ Account fully deleted:', data)
+        showNotification('Account deleted successfully', 'success')
       }
 
-      // Sign out and redirect
+      // Sign out immediately and redirect
+      console.log('🚪 Signing out...')
       await signOut()
       navigate('/signin')
     } catch (err: any) {
-      console.error('Error deleting account:', err)
+      console.error('❌ Error deleting account:', err)
       setError('Failed to delete account. Please try again or contact support.')
       setLoading(false)
     }
@@ -57,8 +70,9 @@ export const AccountDeletion: React.FC = () => {
 
   if (step === 'warning') {
     return (
-      <div className="w-full max-w-2xl mx-auto p-4">
-        <Card className="border-red-200">
+      <MobileLayout showBackButton onBackClick={() => navigate('/profile-settings')}>
+        <div className="w-full max-w-2xl mx-auto p-4">
+          <Card className="border-red-200">
           <CardHeader className="bg-red-50 border-b border-red-200">
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -132,11 +146,13 @@ export const AccountDeletion: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      </MobileLayout>
     )
   }
 
   return (
-    <div className="w-full max-w-md mx-auto p-4">
+    <MobileLayout showBackButton onBackClick={() => setStep('warning')}>
+      <div className="w-full max-w-md mx-auto p-4">
       <Card className="border-red-200">
         <CardHeader className="bg-red-50 border-b border-red-200">
           <div className="flex items-center gap-3">
@@ -198,5 +214,6 @@ export const AccountDeletion: React.FC = () => {
         </CardContent>
       </Card>
     </div>
+    </MobileLayout>
   )
 }

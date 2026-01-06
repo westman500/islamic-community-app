@@ -9,7 +9,7 @@ export const PrivacyPolicy: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex flex-col">
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 sticky top-0 z-10 shadow-lg">
+      <div className="bg-emerald-600 text-white p-4 sticky top-0 z-10 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Button
@@ -20,13 +20,13 @@ export const PrivacyPolicy: React.FC = () => {
             >
               <ArrowLeft className="h-6 w-6" />
             </Button>
-            <h1 className="text-xl font-bold">Privacy Policy</h1>
+            <h1 className="text-xl font-bold text-white">Privacy Policy</h1>
           </div>
           <a
             href={privacyPolicyUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-sm hover:underline"
+            className="flex items-center gap-1 text-sm text-white hover:underline"
           >
             <ExternalLink className="h-4 w-4" />
             <span className="hidden sm:inline">Open in new tab</span>

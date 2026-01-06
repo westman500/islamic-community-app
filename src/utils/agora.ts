@@ -127,9 +127,10 @@ export class AgoraService {
     }
   }
 
-  async createLocalTracks(): Promise<LocalTracks> {
+  async createLocalTracks(useFrontCamera: boolean = true): Promise<LocalTracks> {
     try {
       console.log('→ Requesting device access...')
+      console.log('→ Camera mode:', useFrontCamera ? 'Front (user)' : 'Back (environment)')
       
       // Check for secure context first
       if (!window.isSecureContext && window.location.hostname !== 'localhost') {
@@ -147,7 +148,7 @@ export class AgoraService {
         {
           // Video settings - High quality for best viewing experience
           encoderConfig: '720p_2', // 1280x720 @ 30fps, 2130 Kbps
-          facingMode: 'user',
+          facingMode: useFrontCamera ? 'user' : 'environment',
         }
       )
       

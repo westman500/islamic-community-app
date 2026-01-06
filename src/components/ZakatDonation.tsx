@@ -174,10 +174,20 @@ export const ZakatDonation: React.FC = () => {
       setSuccess(true)
       showNotification(`Zakat donation of ${coinsAmount} coins sent to ${selectedScholar.name}. May Allah accept your charity!`, 'success')
       
-      // Send push notification to scholar
+      // Notify scholar about received donation
       if (profile) {
         const nairaAmount = coinsAmount * 100 // Convert coins to Naira
-        await notifyDonationReceived(profile.full_name || 'A donor', nairaAmount)
+        const { notifyScholarDonationReceived } = await import('../utils/pushNotifications')
+        try {
+          await notifyScholarDonationReceived(
+            selectedScholar.id,
+            profile.full_name || 'A donor',
+            nairaAmount
+          )
+          await notifyDonationReceived(profile.full_name || 'A donor', nairaAmount)
+        } catch (notifyErr) {
+          console.error('Failed to send notification:', notifyErr)
+        }
       }
       
       setAmount('')

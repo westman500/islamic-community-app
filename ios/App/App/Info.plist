@@ -55,8 +55,20 @@
 	<string>This app needs permission to save photos to your library.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses the microphone for live streaming and video consultations with Islamic scholars.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This helps us provide a better experience and show relevant content.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs your location to show the Qibla direction for prayer.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>This app needs your location to show the Qibla direction for prayer.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs your location to show the Qibla direction for prayer and accurate prayer times.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>This app needs access to motion sensors to provide accurate Qibla compass direction for prayer.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app sends you notifications about consultations, livestreams, and community activities.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

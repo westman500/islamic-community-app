@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.SurfaceView;
 import android.widget.FrameLayout;
 import android.widget.Toast;
+import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
@@ -66,7 +67,14 @@ public class MainActivity extends BridgeActivity {
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Enable edge-to-edge display for Android 15 compatibility
+        EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
+        
+        // Explicitly hide action bar and title
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
+        }
         
         // Check permissions and initialize Agora
         if (checkPermissions()) {

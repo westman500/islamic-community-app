@@ -36,6 +36,7 @@ interface ScholarProfile {
   created_at: string
   consultation_fee?: number
   avatar_url?: string
+  years_of_experience?: number
 }
 
 export const ScholarProfileViewer: React.FC = () => {
@@ -207,6 +208,11 @@ export const ScholarProfileViewer: React.FC = () => {
                   {scholar.role.charAt(0).toUpperCase() + scholar.role.slice(1)}
                 </span>
               </div>
+              {scholar.years_of_experience && scholar.years_of_experience > 0 && (
+                <p className="text-sm text-emerald-700 font-semibold mt-2">
+                  {scholar.years_of_experience} {scholar.years_of_experience === 1 ? 'year' : 'years'} of experience in Islamic studies
+                </p>
+              )}
             </div>
           </div>
         </CardHeader>

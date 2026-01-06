@@ -17,7 +17,7 @@ Write-Host "✓ Capacitor sync completed" -ForegroundColor Green
 Write-Host ""
 
 # Step 2: Build APK
-Write-Host "[Step 2/4] Building APK (this may take 20-30 minutes)..." -ForegroundColor Yellow
+Write-Host "[Step 2/4] Building APK - this may take 20-30 minutes..." -ForegroundColor Yellow
 cd android
 .\gradlew assembleDebug
 if ($LASTEXITCODE -ne 0) {

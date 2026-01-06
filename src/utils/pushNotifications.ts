@@ -289,15 +289,101 @@ export const notifyConsultationBooked = async (scholarName: string, duration: nu
 }
 
 /**
- * Notify about livestream starting
+ * Notify about livestream starting - broadcasts to ALL members
  */
 export const notifyLivestreamStarting = async (scholarName: string, title: string) => {
-  await showLocalNotification({
-    title: '🎥 Livestream Starting!',
-    body: `${scholarName} is going live: "${title}"`,
-    type: 'livestream',
-    data: { scholarName, title }
-  })
+  try {
+    // Broadcast to all members via database
+    const { data: members } = await supabase
+      .from('profiles')
+      .select('id, push_token')
+      .eq('role', 'user')
+      .not('push_token', 'is', null)
+    
+    if (members && members.length > 0) {
+      console.log(`📢 Broadcasting livestream notification to ${members.length} members`)
+      
+      // Send to all members with push tokens
+      for (const member of members) {
+        if (member.push_token) {
+          await sendPushNotification(member.id, {
+            title: '🎥 Livestream Starting!',
+            body: `${scholarName} is going live: "${title}"`,
+            type: 'livestream',
+            data: { scholarName, title }
+          }).catch(err => console.error('Failed to send to member:', err))
+        }
+      }
+    }
+    
+    // Also show local notification for current user
+    await showLocalNotification({
+      title: '🎥 Livestream Starting!',
+      body: `${scholarName} is going live: "${title}"`,
+      type: 'livestream',
+      data: { scholarName, title }
+    })
+  } catch (error) {
+    console.error('Error broadcasting livestream notification:', error)
+  }
+}
+
+/**
+ * Notify all members when scholar becomes available for consultation
+ */
+export const notifyScholarAvailable = async (
+  scholarId: string,
+  scholarName: string,
+  yearsOfExperience: number = 0,
+  specializations: string[] = []
+) => {
+  try {
+    // Generate dynamic description based on scholar's profile
+    const descriptions = [
+      `Experienced Islamic scholar with ${yearsOfExperience} years providing spiritual guidance and consultation.`,
+      `Knowledgeable imam offering ${yearsOfExperience}+ years of Islamic counseling and support.`,
+      `Dedicated scholar specializing in ${specializations.join(', ')} - ${yearsOfExperience} years experience.`,
+      `Expert in Islamic studies with ${yearsOfExperience} years of experience helping the community.`,
+      `Trusted scholar providing consultation on ${specializations.length > 0 ? specializations.join(', ') : 'Islamic matters'}.`
+    ]
+    
+    // Pick a random description or use the first one
+    const description = yearsOfExperience > 0 
+      ? descriptions[Math.floor(Math.random() * descriptions.length)]
+      : `Islamic scholar now available for consultation and spiritual guidance.`
+    
+    // Broadcast to all members
+    const { data: members } = await supabase
+      .from('profiles')
+      .select('id, push_token')
+      .eq('role', 'user')
+      .not('push_token', 'is', null)
+    
+    if (members && members.length > 0) {
+      console.log(`📢 Broadcasting scholar available notification to ${members.length} members`)
+      
+      for (const member of members) {
+        if (member.push_token) {
+          await sendPushNotification(member.id, {
+            title: '📚 Scholar Available!',
+            body: `${scholarName} is now available. ${description}`,
+            type: 'scholar_online',
+            data: { scholarId, scholarName, description }
+          }).catch(err => console.error('Failed to send to member:', err))
+        }
+      }
+    }
+    
+    // Show local notification
+    await showLocalNotification({
+      title: '📚 Scholar Available!',
+      body: `${scholarName} is now available. ${description}`,
+      type: 'scholar_online',
+      data: { scholarId, scholarName, description }
+    })
+  } catch (error) {
+    console.error('Error broadcasting scholar available notification:', error)
+  }
 }
 
 /**
@@ -310,4 +396,144 @@ export const notifyDonationReceived = async (donorName: string, amount: number) 
     type: 'donation',
     data: { donorName, amount }
   })
+}
+
+/**
+ * Notify scholar when a consultation is booked by a member
+ */
+export const notifyScholarConsultationBooked = async (
+  scholarId: string,
+  memberName: string,
+  topic: string,
+  amount: number
+) => {
+  try {
+    // Send push notification to scholar
+    await sendPushNotification(scholarId, {
+      title: '📅 New Consultation Booked!',
+      body: `${memberName} booked a consultation: "${topic}" (₦${amount})`,
+      type: 'consultation',
+      data: { memberName, topic, amount }
+    })
+    
+    // Also show local notification if scholar is on the app
+    await showLocalNotification({
+      title: '📅 New Consultation Booked!',
+      body: `${memberName} booked a consultation: "${topic}"`,
+      type: 'consultation',
+      data: { memberName, topic, amount }
+    })
+  } catch (error) {
+    console.error('Error notifying scholar of consultation:', error)
+  }
+}
+
+/**
+ * Notify scholar when zakat/donation is received
+ */
+export const notifyScholarDonationReceived = async (
+  scholarId: string,
+  donorName: string,
+  amount: number
+) => {
+  try {
+    await sendPushNotification(scholarId, {
+      title: '💰 Zakat Received!',
+      body: `${donorName} sent you ₦${amount.toFixed(2)} in zakat. Barakallahu feekum!`,
+      type: 'donation',
+      data: { donorName, amount }
+    })
+    
+    await showLocalNotification({
+      title: '💰 Zakat Received!',
+      body: `${donorName} sent you ₦${amount.toFixed(2)} in zakat. Barakallahu feekum!`,
+      type: 'donation',
+      data: { donorName, amount }
+    })
+  } catch (error) {
+    console.error('Error notifying scholar of donation:', error)
+  }
+}
+
+/**
+ * Notify user when transaction is completed
+ */
+export const notifyTransactionCompleted = async (
+  userId: string,
+  transactionType: string,
+  amount: number,
+  description: string
+) => {
+  try {
+    const isDebit = amount < 0
+    const absAmount = Math.abs(amount)
+    
+    await sendPushNotification(userId, {
+      title: isDebit ? '💸 Transaction Completed' : '💰 Coins Received',
+      body: `${description} - ${isDebit ? '-' : '+'}${absAmount} coins`,
+      type: 'general',
+      data: { transactionType, amount, description }
+    })
+    
+    await showLocalNotification({
+      title: isDebit ? '💸 Transaction Completed' : '💰 Coins Received',
+      body: `${description} - ${isDebit ? '-' : '+'}${absAmount} coins`,
+      type: 'general',
+      data: { transactionType, amount, description }
+    })
+  } catch (error) {
+    console.error('Error notifying transaction:', error)
+  }
+}
+
+/**
+ * Notify member when consultation is completed
+ */
+export const notifyConsultationCompleted = async (
+  userId: string,
+  scholarName: string
+) => {
+  try {
+    await sendPushNotification(userId, {
+      title: '✅ Consultation Completed',
+      body: `Your consultation with ${scholarName} has ended. Please leave a review!`,
+      type: 'consultation',
+      data: { scholarName }
+    })
+    
+    await showLocalNotification({
+      title: '✅ Consultation Completed',
+      body: `Your consultation with ${scholarName} has ended. Please leave a review!`,
+      type: 'consultation',
+      data: { scholarName }
+    })
+  } catch (error) {
+    console.error('Error notifying consultation completion:', error)
+  }
+}
+
+/**
+ * Notify scholar when consultation is completed
+ */
+export const notifyScholarConsultationCompleted = async (
+  scholarId: string,
+  memberName: string
+) => {
+  try {
+    await sendPushNotification(scholarId, {
+      title: '✅ Consultation Completed',
+      body: `Consultation with ${memberName} has ended successfully.`,
+      type: 'consultation',
+      data: { memberName }
+    })
+    
+    await showLocalNotification({
+      title: '✅ Consultation Completed',
+      body: `Consultation with ${memberName} has ended successfully.`,
+      type: 'consultation',
+      data: { memberName }
+    })
+  } catch (error) {
+    console.error('Error notifying scholar of completion:', error)
+  }
 }
