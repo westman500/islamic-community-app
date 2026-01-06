@@ -520,7 +520,14 @@ export const ProfileSettings: React.FC = () => {
   const isScholarOrImam = profile?.role === 'scholar' || profile?.role === 'imam'
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 space-y-6">
+    <>
+      {/* Green background for status bar area */}
+      <div 
+        className="fixed top-0 left-0 right-0 bg-emerald-600 z-40"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+      
+    <div className="w-full max-w-4xl mx-auto p-4 space-y-6" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="flex items-center gap-4 mb-6">
         <Button
           variant="outline"
@@ -982,5 +989,6 @@ export const ProfileSettings: React.FC = () => {
         </CardContent>
       </Card>
     </div>
+    </>
   )
 }
