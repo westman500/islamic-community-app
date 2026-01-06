@@ -275,6 +275,7 @@ export function Dashboard() {
       <div 
         ref={dashboardRef}
         className="flex-1 overflow-y-auto"
+        style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -350,7 +351,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
         <div className="p-4 space-y-6">
           {/* Compact Prayer Times - New Component */}
           <CompactPrayerTimes />
@@ -504,7 +504,6 @@ export function Dashboard() {
           </div>
         )}
         </div>
-      </div>
 
       {/* Bottom Navigation - Fixed at bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -527,7 +526,7 @@ export function Dashboard() {
           )}
         </div>
       </div>
-    </div>
+      </div>
     </>
   )
 }
