@@ -279,12 +279,12 @@ export function Dashboard() {
       {/* Pull-to-refresh indicator */}
       {pullDistance > 0 && (
         <div 
-          className="fixed left-0 right-0 z-50 flex items-center justify-center bg-emerald-500 text-white transition-all duration-300"
+          className="fixed left-0 right-0 z-40 flex items-end justify-center bg-emerald-600 text-white transition-all duration-300"
           style={{ 
             top: 0,
-            height: `${pullDistance}px`, 
+            height: `calc(${pullDistance}px + env(safe-area-inset-top))`, 
             opacity: pullDistance / 100,
-            paddingTop: 'env(safe-area-inset-top)'
+            paddingBottom: '8px'
           }}
         >
           <div className="text-sm font-medium">

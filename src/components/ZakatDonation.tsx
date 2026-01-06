@@ -325,8 +325,10 @@ export const ZakatDonation: React.FC = () => {
                 {[5, 10, 25, 50].map((value) => (
                   <Button
                     key={value}
-                    variant="outline"
+                    variant={amount === value.toString() ? "default" : "outline"}
                     onClick={() => setAmount(value.toString())}
+                    className="min-h-[44px] active:scale-95 transition-transform"
+                    size="lg"
                   >
                     💰 {value}
                   </Button>
