@@ -22,23 +22,30 @@ export function MobileLayout({
   const isScholar = profile?.role === 'scholar' || profile?.role === 'imam'
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="bg-emerald-600 text-white p-4 z-50 shadow-lg flex-shrink-0">
-        <div className="flex items-center">
-          {showBack && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-emerald-500 mr-2"
-              onClick={() => navigate('/dashboard')}
-            >
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          )}
-          <h1 className="text-xl font-bold text-white">{title}</h1>
+    <>
+      {/* Green background for status bar area */}
+      <div 
+        className="fixed top-0 left-0 right-0 bg-emerald-600 z-40"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+      
+      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        {/* Header */}
+        <div className="bg-emerald-600 text-white p-4 z-50 shadow-lg flex-shrink-0">
+          <div className="flex items-center">
+            {showBack && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-emerald-500 mr-2"
+                onClick={() => navigate('/dashboard')}
+              >
+                <ArrowLeft className="h-6 w-6" />
+              </Button>
+            )}
+            <h1 className="text-xl font-bold text-white">{title}</h1>
+          </div>
         </div>
-      </div>
 
       {/* Content */}
       <div className="flex-1 min-h-0">
@@ -95,6 +102,7 @@ export function MobileLayout({
         </div>
       )}
     </div>
+    </>
   )
 }
 
