@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Compass } from 'lucide-react'
 import { MobileLayout } from './MobileLayout'
+import { Geolocation } from '@capacitor/geolocation'
 
 interface Location {
   latitude: number
@@ -66,49 +67,43 @@ export const QiblaDirection: React.FC = () => {
     getLocation()
   }, [])
 
-  // Get user location
-  const getLocation = () => {
+  // Get user location using Capacitor Geolocation
+  const getLocation = async () => {
     setLoading(true)
     setError('')
 
-    if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser')
-      setLoading(false)
-      return
-    }
+    try {
+      // Request permission first
+      const permission = await Geolocation.requestPermissions()
+      
+      if (permission.location === 'denied') {
+        setError('Location permission denied. Please enable location access in Settings > Masjid > Location')
+        setLoading(false)
+        return
+      }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords
-        setLocation({ latitude, longitude })
-        const qibla = calculateQibla(latitude, longitude)
-        setQiblaDirection(qibla)
-        setLoading(false)
-      },
-      (err) => {
-        let errorMessage = 'Location error: '
-        switch (err.code) {
-          case err.PERMISSION_DENIED:
-            errorMessage += 'Location permission denied. Please enable location access in Settings > Masjid > Location'
-            break
-          case err.POSITION_UNAVAILABLE:
-            errorMessage += 'Location information unavailable. Please check your GPS/location services.'
-            break
-          case err.TIMEOUT:
-            errorMessage += 'Location request timed out. Please try again.'
-            break
-          default:
-            errorMessage += err.message
-        }
-        setError(errorMessage)
-        setLoading(false)
-      },
-      {
+      // Get current position
+      const position = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 15000,
         maximumAge: 0
+      })
+
+      const { latitude, longitude } = position.coords
+      setLocation({ latitude, longitude })
+      const qibla = calculateQibla(latitude, longitude)
+      setQiblaDirection(qibla)
+      setLoading(false)
+    } catch (err: any) {
+      let errorMessage = 'Location error: '
+      if (err.message) {
+        errorMessage += err.message
+      } else {
+        errorMessage += 'Unable to get your location. Please check your GPS/location services.'
       }
-    )
+      setError(errorMessage)
+      setLoading(false)
+    }
   }
 
   // Watch device orientation with real-time smooth updates

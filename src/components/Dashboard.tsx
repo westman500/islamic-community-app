@@ -261,14 +261,21 @@ export function Dashboard() {
   const features = isScholar ? scholarFeatures : userFeatures
 
   return (
-    <div 
-      ref={dashboardRef}
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
+    <>
+      {/* Green background for status bar area */}
+      <div 
+        className="fixed top-0 left-0 right-0 bg-emerald-600 z-40"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+      
+      <div 
+        ref={dashboardRef}
+        className="min-h-screen bg-gray-50 flex flex-col"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
       {/* Pull-to-refresh indicator */}
       {pullDistance > 0 && (
         <div 
@@ -518,6 +525,7 @@ export function Dashboard() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 
