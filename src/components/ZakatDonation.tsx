@@ -304,19 +304,23 @@ export const ZakatDonation: React.FC = () => {
                   Donation Amount (Masjid Coins)
                 </label>
                 <div className="relative">
-                  <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600" />
+                  <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600 pointer-events-none z-10" />
                   <Input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0"
+                    onFocus={(e) => e.target.select()}
+                    placeholder="Enter amount"
                     min="1"
                     step="1"
-                    className="pl-10"
+                    className="pl-10 text-base min-h-[48px]"
+                    autoComplete="off"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Minimum donation: 1 coin
+                  Minimum donation: 1 coin • Tap field to enter custom amount
                 </p>
               </div>
 
