@@ -151,7 +151,7 @@ export const MyBookings: React.FC = () => {
 
   return (
     <MobileLayout title="My Bookings">
-      <div className="space-y-4">
+      <div className="p-4 space-y-4">
         {/* Consultations */}
         <div className="space-y-3">
           {consultations.length === 0 ? (

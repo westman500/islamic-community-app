@@ -217,16 +217,17 @@ export const ZakatDonation: React.FC = () => {
 
   return (
     <MobileLayout title="Zakat & Donations">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Heart className="h-6 w-6 text-primary" />
-            Zakat & Donations
-          </CardTitle>
-          <CardDescription>
-            Support scholars with zakat from all sources (livestreams, non-livestreams) and charitable donations - separate from consultation booking fees
-          </CardDescription>
-        </CardHeader>
+      <div className="p-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="h-6 w-6 text-primary" />
+              Zakat & Donations
+            </CardTitle>
+            <CardDescription>
+              Support scholars with zakat from all sources (livestreams, non-livestreams) and charitable donations - separate from consultation booking fees
+            </CardDescription>
+          </CardHeader>
         <CardContent className="space-y-6">
           {success ? (
             <div className="p-6 bg-primary/10 border border-primary rounded-lg text-center">
@@ -369,6 +370,7 @@ export const ZakatDonation: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      </div>
     </MobileLayout>
   )
 }
