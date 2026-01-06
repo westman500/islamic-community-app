@@ -81,12 +81,26 @@ export const QiblaDirection: React.FC = () => {
         setLoading(false)
       },
       (err) => {
-        setError(`Location error: ${err.message}. Please enable location services in your device settings.`)
+        let errorMessage = 'Location error: '
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            errorMessage += 'Location permission denied. Please enable location access in Settings > Masjid > Location'
+            break
+          case err.POSITION_UNAVAILABLE:
+            errorMessage += 'Location information unavailable. Please check your GPS/location services.'
+            break
+          case err.TIMEOUT:
+            errorMessage += 'Location request timed out. Please try again.'
+            break
+          default:
+            errorMessage += err.message
+        }
+        setError(errorMessage)
         setLoading(false)
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0
       }
     )
@@ -108,20 +122,22 @@ export const QiblaDirection: React.FC = () => {
         lastUpdateRef.current = Date.now()
         let heading = event.alpha || 0
         
-        // On Android/Samsung, webkitCompassHeading provides more accurate results
+        // PRIORITY 1: Samsung/Android webkitCompassHeading (most accurate for Samsung A06)
         const webkitEvent = event as any
-        if (webkitEvent.webkitCompassHeading !== undefined) {
+        if (webkitEvent.webkitCompassHeading !== undefined && webkitEvent.webkitCompassHeading !== null) {
           // webkitCompassHeading gives direct magnetic north heading (0-360)
-          heading = webkitEvent.webkitCompassHeading
+          heading = 360 - webkitEvent.webkitCompassHeading
           
           // webkitCompassAccuracy provides accuracy in degrees
           if (webkitEvent.webkitCompassAccuracy !== undefined) {
             setCompassAccuracy(webkitEvent.webkitCompassAccuracy)
           }
-        } else {
-          // Standard Android/iOS implementation
+          console.log('Using webkitCompassHeading:', heading)
+        } else if (event.alpha !== null) {
+          // PRIORITY 2: Standard alpha orientation
           // Alpha is 0 when device points to magnetic north, increases clockwise
-          heading = (360 - heading) % 360
+          heading = 360 - event.alpha
+          console.log('Using standard alpha:', heading)
         }
         
         // Store the latest heading from sensor
@@ -261,7 +277,7 @@ export const QiblaDirection: React.FC = () => {
         <CardHeader>
           <CardTitle className="text-center">Qibla Direction</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
           {!location ? (
             <div className="text-center space-y-4">
               <div className="flex justify-center mb-4">
@@ -275,7 +291,7 @@ export const QiblaDirection: React.FC = () => {
                 disabled={loading}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                {loading ? 'Getting Location...' : 'Show Compass'}
+                {loading ? 'Requesting Permission...' : 'Show Compass'}
               </Button>
               {error && (
                 <div className="p-4 bg-destructive/10 border border-destructive rounded-md">

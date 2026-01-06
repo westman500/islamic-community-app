@@ -83,168 +83,107 @@ export const ScholarDashboard: React.FC = () => {
 
   return (
     <MobileLayout title="Scholar Analytics">
-      <div className="p-4 space-y-6">
+      <div className="h-full overflow-hidden flex flex-col p-4 space-y-3">
         {/* Welcome Section */}
-        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-none shadow-lg text-white">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4 mb-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-emerald-300/30 rounded-lg blur-lg animate-pulse"></div>
-                <img 
-                  src="/masjid-logo-dashboard.png" 
-                  alt="Masjid Logo" 
-                  className="relative h-16 w-auto drop-shadow-2xl"
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.5))' }}
-                  crossOrigin="anonymous"
-                />
-              </div>
+        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-none shadow-lg text-white flex-shrink-0">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <img 
+                src="/masjid-logo-dashboard.png" 
+                alt="Masjid Logo" 
+                className="h-10 w-auto"
+                crossOrigin="anonymous"
+              />
               <div>
-                <h2 className="text-2xl font-bold">Welcome, {profile?.full_name}</h2>
-                <p className="text-emerald-100 text-sm mt-1">
+                <h2 className="text-lg font-bold">Welcome, {profile?.full_name}</h2>
+                <p className="text-emerald-100 text-[10px] mt-0.5">
                   Scholar Dashboard
                 </p>
               </div>
             </div>
-            <p className="text-emerald-100">
-              Here's an overview of your performance and activities
-            </p>
           </CardContent>
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 flex-shrink-0">
           <Button 
             onClick={() => navigate('/scholar-consultations')}
-            className="bg-emerald-600 hover:bg-emerald-700 h-auto py-4"
+            className="bg-emerald-600 hover:bg-emerald-700 h-auto py-2.5"
           >
-            <div className="flex flex-col items-center gap-1">
-              <MessageCircle className="w-5 h-5" />
-              <span className="text-sm">My Consultations</span>
+            <div className="flex flex-col items-center gap-0.5">
+              <MessageCircle className="w-4 h-4" />
+              <span className="text-[10px] leading-tight">My Consultations</span>
             </div>
           </Button>
           <Button 
             onClick={() => navigate('/wallet')}
             variant="outline"
-            className="h-auto py-4"
+            className="h-auto py-2.5"
           >
-            <div className="flex flex-col items-center gap-1">
-              <DollarSign className="w-5 h-5" />
-              <span className="text-sm">Wallet</span>
+            <div className="flex flex-col items-center gap-0.5">
+              <DollarSign className="w-4 h-4" />
+              <span className="text-[10px] leading-tight">Wallet</span>
             </div>
           </Button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {statCards.map((stat, index) => {
-            const Icon = stat.icon
-            return (
-              <Card key={index} className={`${stat.color} border-none shadow-md`}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className={`p-2 rounded-lg bg-white`}>
-                      <Icon className={`h-5 w-5 ${stat.iconColor}`} />
+        {/* Stats Grid - No Scroll, Compact */}
+        <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {statCards.map((stat, index) => {
+              const Icon = stat.icon
+              return (
+                <Card key={index} className={`${stat.color} border-none shadow-sm`}>
+                  <CardContent className="p-2">
+                    <div className="flex flex-col items-center">
+                      <div className={`p-1 rounded-lg bg-white mb-1`}>
+                        <Icon className={`h-3 w-3 ${stat.iconColor}`} />
+                      </div>
+                      <p className="text-base font-bold text-gray-900">{stat.value}</p>
+                      <p className="text-[9px] font-semibold text-gray-700 text-center leading-tight">{stat.title}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Recent Activity */}
+          <Card className="flex-shrink-0">
+            <CardHeader className="pb-1 pt-2">
+              <CardTitle className="text-xs">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between p-1.5 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-1.5">
+                    <div className="p-1 bg-green-100 rounded-full">
+                      <DollarSign className="h-2.5 w-2.5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold">Consultation Payment</p>
+                      <p className="text-[8px] text-gray-600">2 hours ago</p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</p>
-                    <p className="text-sm font-semibold text-gray-700">{stat.title}</p>
-                    <p className="text-xs text-gray-600">{stat.description}</p>
+                  <span className="text-[10px] font-bold text-green-600">+$50</span>
+                </div>
+
+                <div className="flex items-center justify-between p-1.5 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-1.5">
+                    <div className="p-1 bg-violet-100 rounded-full">
+                      <Calendar className="h-2.5 w-2.5 text-violet-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold">New Booking</p>
+                      <p className="text-[8px] text-gray-600">5 hours ago</p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+                  <span className="text-[8px] text-gray-600">Tomorrow 2PM</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-full">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Consultation Payment</p>
-                    <p className="text-xs text-gray-600">2 hours ago</p>
-                  </div>
-                </div>
-                <span className="text-sm font-bold text-green-600">+$50</span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-violet-100 rounded-full">
-                    <Calendar className="h-4 w-4 text-violet-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">New Booking</p>
-                    <p className="text-xs text-gray-600">5 hours ago</p>
-                  </div>
-                </div>
-                <span className="text-xs text-gray-600">Tomorrow 2PM</span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-100 rounded-full">
-                    <Users className="h-4 w-4 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Live Stream Ended</p>
-                    <p className="text-xs text-gray-600">Yesterday</p>
-                  </div>
-                </div>
-                <span className="text-xs text-gray-600">45 viewers</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Performance Insights */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Performance Insights</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">Consultation Success Rate</span>
-                  <span className="font-bold text-emerald-600">87%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-emerald-600 h-2 rounded-full" style={{ width: '87%' }}></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">Average Stream Viewers</span>
-                  <span className="font-bold text-blue-600">23 per stream</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: '65%' }}></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">Member Satisfaction</span>
-                  <span className="font-bold text-amber-600">4.8/5.0</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-amber-600 h-2 rounded-full" style={{ width: '96%' }}></div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </MobileLayout>
   )
