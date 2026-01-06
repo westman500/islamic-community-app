@@ -62,9 +62,9 @@ export const QiblaDirection: React.FC = () => {
     return R * c
   }
 
-  // Request location permission on component mount
+  // Request location and compass permission on component mount
   useEffect(() => {
-    getLocation()
+    requestPermission()
   }, [])
 
   // Get user location using Capacitor Geolocation
