@@ -48,8 +48,10 @@ export function MobileLayout({
         </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0">
-        {children}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="p-4">
+          {children}
+        </div>
       </div>
 
       {/* Bottom Navigation */}
