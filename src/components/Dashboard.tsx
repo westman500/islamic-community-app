@@ -269,9 +269,12 @@ export function Dashboard() {
       />
       
       <div 
-        ref={dashboardRef}
-        className="min-h-screen bg-gray-50 flex flex-col"
+        className="fixed inset-0 bg-gray-50 flex flex-col"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
+      <div 
+        ref={dashboardRef}
+        className="flex-1 overflow-y-auto"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -524,7 +527,7 @@ export function Dashboard() {
           )}
         </div>
       </div>
-    </div>
+      </div>
     </>
   )
 }
