@@ -77,8 +77,8 @@ jobs:
         run: |
           # Update version in iOS project - don't override CFBundleIconName
           cd ios/App
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.1.0" App/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 46" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.2.0" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 47" App/Info.plist
           # Ensure CFBundleIconName exists
           /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" App/Info.plist 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleIconName AppIcon" App/Info.plist
       
@@ -92,7 +92,7 @@ jobs:
         if: always()
         continue-on-error: true
         with:
-          name: masjid-ios-v1.1.0
+          name: masjid-ios-v1.2.0
           path: ios/App/build/App.ipa
           retention-days: 30
       
