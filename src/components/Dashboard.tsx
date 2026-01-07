@@ -272,6 +272,53 @@ export function Dashboard() {
         className="fixed inset-0 bg-gray-50 flex flex-col"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
+      {/* Sticky Header - Fixed at top */}
+      <div className="sticky top-0 left-0 right-0 bg-emerald-600 text-white p-4 md:p-6 shadow-lg z-50">
+        <div className="max-w-[1200px] mx-auto">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-white/20 rounded-lg blur-md"></div>
+                <img 
+                  src="/masjid-logo-dashboard.png" 
+                  alt="Masjid Logo" 
+                  className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 object-contain relative z-10"
+                  style={{ filter: 'drop-shadow(0 4px 12px rgba(255, 255, 255, 0.7))' }}
+                  crossOrigin="anonymous"
+                />
+              </div>
+              <div>
+                <p className="text-xs text-emerald-100">{getIslamicGreeting()}</p>
+                <p className="text-white text-sm font-semibold">{`As-salamu alaykum, ${fullName}`}</p>
+              </div>
+            </div>
+            <div className="flex flex-col items-end space-y-2">
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-emerald-500 rounded-full"
+                  onClick={() => navigate('/profile-settings')}
+                  title="Settings"
+                >
+                  <Settings className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-red-500 rounded-full"
+                  onClick={handleSignOut}
+                  title="Sign Out"
+                >
+                  <LogOut className="h-6 w-6" />
+                </Button>
+              </div>
+              <p className="text-sm font-bold text-white">{formatTime()}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div 
         ref={dashboardRef}
         className="flex-1 overflow-y-auto max-w-[1200px] mx-auto w-full"
@@ -306,50 +353,6 @@ export function Dashboard() {
         </div>
       )}
       
-      {/* Header */}
-      <div className="bg-emerald-600 text-white p-6 shadow-lg">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-white/20 rounded-lg blur-md"></div>
-              <img 
-                src="/masjid-logo-dashboard.png" 
-                alt="Masjid Logo" 
-                className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 object-contain relative z-10"
-                style={{ filter: 'drop-shadow(0 4px 12px rgba(255, 255, 255, 0.7))' }}
-                crossOrigin="anonymous"
-              />
-            </div>
-            <div>
-              <p className="text-xs text-emerald-100">{getIslamicGreeting()}</p>
-              <p className="text-white text-sm font-semibold">As-salamu alaykum, {fullName}</p>
-            </div>
-          </div>
-          <div className="flex flex-col items-end space-y-2">
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-emerald-500 rounded-full"
-                onClick={() => navigate('/profile-settings')}
-                title="Settings"
-              >
-                <Settings className="h-6 w-6" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-red-500 rounded-full"
-                onClick={handleSignOut}
-                title="Sign Out"
-              >
-                <LogOut className="h-6 w-6" />
-              </Button>
-            </div>
-            <p className="text-sm font-bold text-white">{formatTime()}</p>
-          </div>
-        </div>
-      </div>
 
         <div className="p-4 space-y-6">
           {/* Compact Prayer Times - New Component */}

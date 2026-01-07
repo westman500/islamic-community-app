@@ -66,5 +66,73 @@
     @apply bg-background text-foreground;
     margin: 0;
     min-height: 100vh;
+    /* Prevent pull-to-refresh on iOS/iPad */
+    overscroll-behavior-y: contain;
   }
+}
+
+/* iPad and Tablet Optimizations */
+@media (min-width: 768px) {
+  /* Better touch targets for iPad */
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+  
+  /* Optimize grid layouts for larger screens */
+  .grid-cols-2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-cols-2 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* iPad Pro and larger tablets */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  body {
+    font-size: 16px;
+  }
+  
+  /* Ensure proper container max-width on iPad */
+  .container {
+    max-width: 1024px;
+    margin: 0 auto;
+  }
+}
+
+/* Sticky header and fixed bottom nav support */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.fixed-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Prevent content from jumping when virtual keyboard appears on iPad */
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+  .h-screen {
+    height: 100dvh;
+  }
+}
+
+/* iOS Safari momentum scrolling */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
 }

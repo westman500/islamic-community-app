@@ -9,8 +9,9 @@ export const TermsOfService: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex flex-col">
-      <div className="bg-emerald-600 text-white p-4 sticky top-0 z-10 shadow-lg">
-        <div className="flex items-center justify-between">
+      {/* Fixed Header */}
+      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 z-50 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center justify-between max-w-[1200px] mx-auto">
           <div className="flex items-center">
             <Button
               variant="ghost"
@@ -34,11 +35,11 @@ export const TermsOfService: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 w-full">
+      <div className="flex-1 w-full pt-16" style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))' }}>
         <iframe
           src={termsUrl}
           className="w-full h-full border-0"
-          style={{ minHeight: 'calc(100vh - 64px)' }}
+          style={{ minHeight: 'calc(100vh - 80px)' }}
           title="Terms of Service"
         />
       </div>

@@ -38,65 +38,69 @@ export const RestaurantsListing: React.FC = () => {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white pb-20">
-      {/* Header */}
-      <div className="bg-emerald-600 text-white p-4 sticky top-0 z-10 shadow-lg">
-        <div className="flex items-center mb-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-emerald-500 mr-2"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold text-white">Halal Restaurants</h1>
-            <p className="text-sm text-emerald-100">Discover local dining options</p>
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      {/* Fixed Header */}
+      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 z-50 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="max-w-[1200px] mx-auto">
+          <div className="flex items-center mb-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-emerald-500 mr-2"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-bold text-white">Halal Restaurants</h1>
+              <p className="text-sm text-emerald-100">Discover local dining options</p>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search restaurants..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-white text-gray-900"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Content with padding for fixed header */}
+      <div style={{ paddingTop: 'calc(8rem + env(safe-area-inset-top))' }}>
+        {/* Cuisine Filter */}
+        <div className="px-4 py-3 bg-white shadow-sm overflow-x-auto">
+          <div className="flex gap-2 max-w-[1200px] mx-auto">
+            {cuisineTypes.map((cuisine) => (
+              <button
+                key={cuisine}
+                onClick={() => setSelectedCuisine(cuisine)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  selectedCuisine === cuisine
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {cuisine.charAt(0).toUpperCase() + cuisine.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search restaurants..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-white text-gray-900"
-          />
+        {/* Results Count */}
+        <div className="px-4 py-2 text-sm text-gray-600 max-w-[1200px] mx-auto">
+          {filteredRestaurants.length} restaurant{filteredRestaurants.length !== 1 ? 's' : ''} found
         </div>
-      </div>
 
-      {/* Cuisine Filter */}
-      <div className="px-4 py-3 bg-white shadow-sm overflow-x-auto">
-        <div className="flex gap-2">
-          {cuisineTypes.map((cuisine) => (
-            <button
-              key={cuisine}
-              onClick={() => setSelectedCuisine(cuisine)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                selectedCuisine === cuisine
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {cuisine.charAt(0).toUpperCase() + cuisine.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Results Count */}
-      <div className="px-4 py-2 text-sm text-gray-600">
-        {filteredRestaurants.length} restaurant{filteredRestaurants.length !== 1 ? 's' : ''} found
-      </div>
-
-      {/* Restaurant Cards */}
-      <div className="px-4 space-y-4">
-        {filteredRestaurants.map((restaurant) => (
-          <Card key={restaurant.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+        {/* Restaurant Cards */}
+        <div className="px-4 space-y-4 max-w-[1200px] mx-auto">
+          {filteredRestaurants.map((restaurant) => (
+            <Card key={restaurant.id} className="overflow-hidden hover:shadow-lg transition-shadow">
             <div className="flex">
               {/* Image */}
               <div className="w-32 h-32 flex-shrink-0">
@@ -174,6 +178,7 @@ export const RestaurantsListing: React.FC = () => {
             <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filters</p>
           </div>
         )}
+        </div>
       </div>
     </div>
   )

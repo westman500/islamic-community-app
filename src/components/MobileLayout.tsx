@@ -29,10 +29,10 @@ export function MobileLayout({
         style={{ height: 'env(safe-area-inset-top)' }}
       />
       
-      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        {/* Header */}
-        <div className="bg-emerald-600 text-white p-4 z-50 shadow-lg flex-shrink-0 sticky top-0">
-          <div className="flex items-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        {/* Fixed Header - stays at top on scroll */}
+        <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 z-50 shadow-lg" style={{ marginTop: 'env(safe-area-inset-top)' }}>
+          <div className="flex items-center max-w-[1200px] mx-auto">
             {showBack && (
               <Button
                 variant="ghost"
@@ -43,19 +43,19 @@ export function MobileLayout({
                 <ArrowLeft className="h-6 w-6" />
               </Button>
             )}
-            <h1 className="text-xl font-bold text-white">{title}</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-white">{title}</h1>
           </div>
         </div>
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      {/* Content - with padding for fixed header and bottom nav */}
+      <div className="flex-1 overflow-y-auto pt-16 pb-20" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         {children}
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Fixed Bottom Navigation - stays at bottom on scroll */}
       {showBottomNav && (
-        <div className="bg-white shadow-lg z-50 flex-shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl mx-auto gap-0.5">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="flex justify-between items-center py-1 px-0.5 max-w-2xl md:max-w-4xl lg:max-w-[1200px] mx-auto gap-0.5 md:gap-2">
             <NavButton 
               icon={MapPin} 
               label="Masjid" 
@@ -118,10 +118,10 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center justify-center flex-1 min-w-0 py-1 px-0.5 rounded-lg transition-all text-gray-600 hover:text-emerald-600 hover:bg-emerald-50"
+      className="flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 md:py-2 px-1 md:px-2 rounded-lg transition-all text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100"
     >
-      <Icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-      <span className="text-[9px] sm:text-[10px] mt-0.5 font-semibold leading-tight text-center truncate w-full">{label}</span>
+      <Icon className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6 flex-shrink-0" />
+      <span className="text-[10px] sm:text-[11px] md:text-xs mt-0.5 font-semibold leading-tight text-center truncate w-full">{label}</span>
     </button>
   )
 }
