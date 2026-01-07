@@ -47,6 +47,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleLightContent</string>
 	<key>NSCameraUsageDescription</key>
 	<string>This app uses the camera to capture photos for your profile picture and to share content within the Islamic community.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { initPushNotifications } from './utils/pushNotifications'
+import { initializeStatusBar } from './utils/statusBar'
 
 // Auth components
 import { UserSignIn } from './components/UserSignIn'
@@ -63,9 +64,10 @@ function App() {
     window.location.hostname === '127.0.0.1'
   )
 
-  // Initialize push notifications when app loads
+  // Initialize push notifications and status bar when app loads
   useEffect(() => {
     initPushNotifications().catch(console.error)
+    initializeStatusBar().catch(console.error)
   }, [])
   
   return (

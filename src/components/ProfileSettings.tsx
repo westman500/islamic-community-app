@@ -5,7 +5,7 @@ import { Input } from './ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase/client'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle, XCircle, Phone, Mail, Camera, FileText, Shield, ArrowLeft } from 'lucide-react'
+import { CheckCircle, Camera, Shield, ArrowLeft } from 'lucide-react'
 import { notifyScholarAvailable } from '../utils/pushNotifications'
 
 export const ProfileSettings: React.FC = () => {
@@ -591,7 +591,15 @@ export const ProfileSettings: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium mb-2">Role</label>
-            <Input value={profile?.role || ''} disabled />
+            <Input 
+              value={
+                profile?.role === 'user' ? 'Member' : 
+                profile?.role === 'scholar' ? 'Scholar' : 
+                profile?.role === 'imam' ? 'Imam' : 
+                profile?.role || ''
+              } 
+              disabled 
+            />
           </div>
 
           <div>

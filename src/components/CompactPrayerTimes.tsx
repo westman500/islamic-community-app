@@ -10,7 +10,7 @@ interface PrayerTime {
 
 export const CompactPrayerTimes: React.FC = () => {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([])
-  const [location, setLocation] = useState('Lagos, Nigeria')
+
   const [currentPrayer, setCurrentPrayer] = useState<string>('')
   const [nextPrayer, setNextPrayer] = useState<string>('')
   const [currentSlide, setCurrentSlide] = useState(0)
