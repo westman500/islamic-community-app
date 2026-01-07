@@ -31,7 +31,7 @@ export function MobileLayout({
       
       <div className="h-screen bg-gray-50 flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         {/* Header */}
-        <div className="bg-emerald-600 text-white p-4 z-50 shadow-lg flex-shrink-0">
+        <div className="bg-emerald-600 text-white p-4 z-50 shadow-lg flex-shrink-0 sticky top-0">
           <div className="flex items-center">
             {showBack && (
               <Button
