@@ -92,7 +92,7 @@ jobs:
         if: always()
         continue-on-error: true
         with:
-          name: masjid-ios-v1.0.2
+          name: masjid-ios-v1.1.0
           path: ios/App/build/App.ipa
           retention-days: 30
       
