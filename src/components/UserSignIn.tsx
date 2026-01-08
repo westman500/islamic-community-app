@@ -5,6 +5,7 @@ import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase/client'
+import { setEmeraldStatusBar } from '../utils/statusBar'
 
 export const UserSignIn: React.FC = () => {
   const [email, setEmail] = useState('')
@@ -24,6 +25,9 @@ export const UserSignIn: React.FC = () => {
   React.useEffect(() => {
     setLoading(false)
     setError('')
+    
+    // Set emerald status bar
+    setEmeraldStatusBar().catch(console.error)
     
     // Load remembered credentials
     const rememberedEmail = localStorage.getItem('rememberedEmail')

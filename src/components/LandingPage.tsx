@@ -1,10 +1,17 @@
 import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { Building2, BookOpen, Users, Coins, Calendar, MessageCircle, Globe } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
+import { setEmeraldStatusBar } from '../utils/statusBar'
 
 export function LandingPage() {
   const navigate = useNavigate()
+
+  useEffect(() => {
+    // Set emerald status bar to match header
+    setEmeraldStatusBar().catch(console.error)
+  }, [])
 
   const features = [
     {
@@ -41,8 +48,8 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
+      {/* Header - Emerald background to match status bar */}
+      <header className="bg-emerald-600 shadow-lg sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <img 
@@ -50,7 +57,7 @@ export function LandingPage() {
               alt="Masjid" 
               className="h-12 w-auto"
               style={{
-                filter: 'drop-shadow(0 2px 8px rgba(5, 150, 105, 0.3))'
+                filter: 'drop-shadow(0 2px 8px rgba(255, 255, 255, 0.3))'
               }}
             />
           </div>
@@ -58,13 +65,13 @@ export function LandingPage() {
             <Button 
               variant="ghost" 
               onClick={() => navigate('/signin')}
-              className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+              className="text-white hover:text-white hover:bg-emerald-700"
             >
               Sign In
             </Button>
             <Button 
               onClick={() => navigate('/signup')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-white hover:bg-gray-100 text-emerald-700 font-semibold"
             >
               Get Started
             </Button>

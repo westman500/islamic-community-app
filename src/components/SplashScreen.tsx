@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { setEmeraldStatusBar } from '../utils/statusBar'
 
 export function SplashScreen() {
   const navigate = useNavigate()
@@ -7,6 +8,9 @@ export function SplashScreen() {
   const [fadeOut, setFadeOut] = useState(false)
 
   useEffect(() => {
+    // Set emerald status bar to match splash screen
+    setEmeraldStatusBar().catch(console.error)
+    
     // Start fade out after 2 seconds
     const fadeTimer = setTimeout(() => {
       setFadeOut(true)

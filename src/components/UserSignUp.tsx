@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
+import { setEmeraldStatusBar } from '../utils/statusBar'
 
 export const UserSignUp: React.FC = () => {
   const [email, setEmail] = useState('')
@@ -20,6 +21,9 @@ export const UserSignUp: React.FC = () => {
   const navigate = useNavigate()
 
   React.useEffect(() => {
+    // Set emerald status bar
+    setEmeraldStatusBar().catch(console.error)
+    
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
