@@ -35,7 +35,7 @@ export const TermsOfService: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 w-full pt-16" style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))' }}>
+      <div className="flex-1 w-full" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))' }}>
         <iframe
           src={termsUrl}
           className="w-full h-full border-0"

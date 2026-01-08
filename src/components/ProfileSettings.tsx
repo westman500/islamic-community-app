@@ -593,7 +593,7 @@ export const ProfileSettings: React.FC = () => {
             <label className="block text-sm font-medium mb-2">Role</label>
             <Input 
               value={
-                profile?.role === 'user' ? 'Member' : 
+                profile?.role === 'user' ? 'Community member' : 
                 profile?.role === 'scholar' ? 'Scholar' : 
                 profile?.role === 'imam' ? 'Imam' : 
                 profile?.role || ''

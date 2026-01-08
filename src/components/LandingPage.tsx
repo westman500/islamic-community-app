@@ -2,9 +2,21 @@ import { useNavigate } from 'react-router-dom'
 import { Building2, BookOpen, Users, Coins, Calendar, MessageCircle, Globe } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
+import { useEffect } from 'react'
+import { setWhiteStatusBar, setEmeraldStatusBar } from '../utils/statusBar'
 
 export function LandingPage() {
   const navigate = useNavigate()
+
+  useEffect(() => {
+    // Set white status bar for landing page
+    setWhiteStatusBar().catch(console.error)
+    
+    return () => {
+      // Restore emerald status bar when leaving landing page
+      setEmeraldStatusBar().catch(console.error)
+    }
+  }, [])
 
   const features = [
     {
@@ -42,7 +54,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
+      <header className="bg-gradient-to-r from-emerald-600 to-emerald-700 shadow-lg sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <img 
@@ -58,13 +70,13 @@ export function LandingPage() {
             <Button 
               variant="ghost" 
               onClick={() => navigate('/signin')}
-              className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+              className="text-white hover:bg-emerald-500"
             >
               Sign In
             </Button>
             <Button 
               onClick={() => navigate('/signup')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-white text-emerald-700 hover:bg-emerald-50"
             >
               Get Started
             </Button>

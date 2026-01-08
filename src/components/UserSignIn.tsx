@@ -5,6 +5,7 @@ import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase/client'
+import { setWhiteStatusBar, setEmeraldStatusBar } from '../utils/statusBar'
 
 export const UserSignIn: React.FC = () => {
   const [email, setEmail] = useState('')
@@ -25,6 +26,9 @@ export const UserSignIn: React.FC = () => {
     setLoading(false)
     setError('')
     
+    // Set white status bar for signin page
+    setWhiteStatusBar().catch(console.error)
+    
     // Load remembered credentials
     const rememberedEmail = localStorage.getItem('rememberedEmail')
     const rememberedPassword = localStorage.getItem('rememberedPassword')
@@ -42,6 +46,11 @@ export const UserSignIn: React.FC = () => {
       localStorage.clear()
       sessionStorage.clear()
       window.location.href = '/'
+    }
+    
+    // Restore emerald status bar when component unmounts
+    return () => {
+      setEmeraldStatusBar().catch(console.error)
     }
   }, [])
 

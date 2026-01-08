@@ -27,11 +27,11 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 2500,
-      backgroundColor: "#059669", // Emerald green
+      backgroundColor: "#ffffff", // White background for splash
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
       androidSpinnerStyle: "large",
-      spinnerColor: "#ffffff"
+      spinnerColor: "#059669" // Emerald spinner
     },
     StatusBar: {
       style: 'LIGHT',

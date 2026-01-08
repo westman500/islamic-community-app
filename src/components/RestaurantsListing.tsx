@@ -72,7 +72,7 @@ export const RestaurantsListing: React.FC = () => {
       </div>
 
       {/* Content with padding for fixed header */}
-      <div style={{ paddingTop: 'calc(8rem + env(safe-area-inset-top))' }}>
+      <div style={{ paddingTop: 'calc(9rem + env(safe-area-inset-top))' }}>
         {/* Cuisine Filter */}
         <div className="px-4 py-3 bg-white shadow-sm overflow-x-auto">
           <div className="flex gap-2 max-w-[1200px] mx-auto">

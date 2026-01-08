@@ -273,7 +273,7 @@ export function Dashboard() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
       {/* Sticky Header - Fixed at top */}
-      <div className="sticky top-0 left-0 right-0 bg-emerald-600 text-white p-4 md:p-6 shadow-lg z-50">
+      <div className="sticky top-0 left-0 right-0 text-white p-4 md:p-6 shadow-lg z-50" style={{ backgroundColor: '#059669' }}>
         <div className="max-w-[1200px] mx-auto">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
@@ -282,7 +282,7 @@ export function Dashboard() {
                 <img 
                   src="/masjid-logo-dashboard.png" 
                   alt="Masjid Logo" 
-                  className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 object-contain relative z-10"
+                  className="h-20 w-20 sm:h-24 sm:w-24 md:h-32 md:w-32 object-contain relative z-10"
                   style={{ filter: 'drop-shadow(0 4px 12px rgba(255, 255, 255, 0.7))' }}
                   crossOrigin="anonymous"
                 />
