@@ -31,7 +31,7 @@ export function MobileLayout({
       
       <div className="min-h-screen bg-gray-50 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         {/* Fixed Header - stays at top on scroll */}
-        <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 z-50 shadow-lg" style={{ marginTop: 'env(safe-area-inset-top)' }}>
+        <div className="fixed top-0 left-0 right-0 text-white p-4 z-50 shadow-lg" style={{ backgroundColor: '#059669', marginTop: 'env(safe-area-inset-top)' }}>
           <div className="flex items-center max-w-[1200px] mx-auto">
             {showBack && (
               <Button
@@ -48,7 +48,7 @@ export function MobileLayout({
         </div>
 
       {/* Content - with padding for fixed header and bottom nav */}
-      <div className="flex-1 overflow-y-auto pt-16 pb-20" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      <div className="flex-1 overflow-y-auto pb-20" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         {children}
       </div>
 

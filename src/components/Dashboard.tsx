@@ -23,6 +23,7 @@ import {
   TrendingUp
 } from 'lucide-react'
 import { CompactPrayerTimes } from './CompactPrayerTimes'
+import { initializeStatusBar } from '../utils/statusBar'
 
 export function Dashboard() {
   const { profile, signOut } = useAuth()
@@ -47,6 +48,9 @@ export function Dashboard() {
 
   // Update time every second
   React.useEffect(() => {
+    // Initialize emerald status bar when entering main app
+    initializeStatusBar().catch(console.error)
+    
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])

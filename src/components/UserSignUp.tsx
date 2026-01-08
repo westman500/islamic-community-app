@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
-import { setWhiteStatusBar, setEmeraldStatusBar } from '../utils/statusBar'
 
 export const UserSignUp: React.FC = () => {
   const [email, setEmail] = useState('')
@@ -22,15 +21,7 @@ export const UserSignUp: React.FC = () => {
 
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    
-    // Set white status bar for signup page
-    setWhiteStatusBar().catch(console.error)
-    
-    return () => {
-      clearInterval(timer)
-      // Restore emerald status bar when component unmounts
-      setEmeraldStatusBar().catch(console.error)
-    }
+    return () => clearInterval(timer)
   }, [])
 
   const formatTime = () => {
