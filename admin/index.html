@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masjid Platform - Admin Dashboard</title>
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1400px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header-logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .tab:hover {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #10b981;
+            border-bottom: 3px solid #10b981;
+        }
+        
+        .content {
+            padding: 30px;
+            min-height: 500px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f6f8fb 0%, #ffffff 100%);
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card h3 {
+            color: #6c757d;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #10b981;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .subtitle {
+            color: #adb5bd;
+            font-size: 0.875rem;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+            animation: slideDown 0.3s;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="/masjid-logo.png" alt="MasjidMobile" class="header-logo" onerror="this.style.display='none'">
+            <h1>MasjidMobile Admin</h1>
+            <p>Platform Management Dashboard</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('overview')">📊 Overview</button>
+            <button class="tab" onclick="switchTab('users')">👥 Users</button>
+            <button class="tab" onclick="switchTab('scholars')">🎓 Scholars</button>
+            <button class="tab" onclick="switchTab('activities')">🎯 Activities</button>
+            <button class="tab" onclick="switchTab('campaigns')">📢 Campaigns</button>
+            <button class="tab" onclick="switchTab('marketers')">🎯 Marketers</button>
+            <button class="tab" onclick="switchTab('qrcodes')">📱 QR Codes</button>
+            <button class="tab" onclick="switchTab('analytics')">📈 Analytics</button>
+        </div>
+        
+        <div class="content">
+            <!-- Alert Messages -->
+            <div id="successAlert" class="alert alert-success"></div>
+            <div id="errorAlert" class="alert alert-error"></div>
+            
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <h2 style="margin-bottom: 20px;">Platform Statistics</h2>
+                <div id="statsContainer" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading statistics...</p>
+                </div>
+            </div>
+            
+            <!-- Users Tab -->
+            <div id="users" class="tab-content">
+                <h2 style="margin-bottom: 20px;">User Management</h2>
+                <div id="usersContainer" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading users...</p>
+                </div>
+            </div>
+            
+            <!-- Scholars Tab -->
+            <div id="scholars" class="tab-content">
+                <h2 style="margin-bottom: 20px;">Scholar Management</h2>
+                <div id="scholarsContainer" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading scholars...</p>
+                </div>
+            </div>
+            
+            <!-- Activities Tab -->
+            <div id="activities" class="tab-content">
+                <h2 style="margin-bottom: 20px;">App Activities Management</h2>
+                
+                <button class="btn btn-primary" onclick="showActivityForm()" style="margin-bottom: 20px;">
+                    ➕ Add New Activity
+                </button>
+                
+                <div id="activityFormContainer" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px;">Add/Edit Activity</h3>
+                    <form id="activityForm">
+                        <input type="hidden" id="activityId">
+                        
+                        <div class="form-group">
+                            <label>Title *</label>
+                            <input type="text" class="form-control" id="activityTitle" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Category *</label>
+                            <select class="form-control" id="activityCategory" required>
+                                <option value="education">Islamic Education</option>
+                                <option value="prayers">Prayer Services</option>
+                                <option value="sports">Sports & Fitness</option>
+                                <option value="social">Social Events</option>
+                                <option value="restaurant">Halal Restaurants</option>
+                                <option value="charity">Charity & Volunteering</option>
+                                <option value="business">Business & Career</option>
+                                <option value="family">Family & Youth</option>
+                                <option value="arts">Arts & Culture</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Type *</label>
+                            <select class="form-control" id="activityType" required>
+                                <option value="event">Event</option>
+                                <option value="class">Class</option>
+                                <option value="restaurant">Restaurant</option>
+                                <option value="service">Service</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea class="form-control" id="activityDescription" rows="3"></textarea>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label>Location</label>
+                                <input type="text" class="form-control" id="activityLocation" placeholder="e.g., Lekki, Lagos">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>City</label>
+                                <input type="text" class="form-control" id="activityCity" placeholder="Lagos">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Full Address</label>
+                            <input type="text" class="form-control" id="activityAddress">
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label>Price (₦)</label>
+                                <input type="number" class="form-control" id="activityPrice" value="0" min="0">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Capacity</label>
+                                <input type="number" class="form-control" id="activityCapacity" placeholder="Optional">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Contact Phone</label>
+                                <input type="tel" class="form-control" id="activityPhone">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label>Start Date & Time</label>
+                                <input type="datetime-local" class="form-control" id="activityStartDate">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>End Date & Time</label>
+                                <input type="datetime-local" class="form-control" id="activityEndDate">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Image URL</label>
+                            <input type="url" class="form-control" id="activityImageUrl" placeholder="https://example.com/image.jpg">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Website URL</label>
+                            <input type="url" class="form-control" id="activityWebsite">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="activityFeatured">
+                                Feature this activity
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="activityActive" checked>
+                                Active (visible to users)
+                            </label>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <button type="submit" class="btn btn-primary">💾 Save Activity</button>
+                            <button type="button" class="btn" onclick="hideActivityForm()" style="background: #6c757d; color: white;">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="activitiesContainer" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading activities...</p>
+                </div>
+            </div>
+            
+            <!-- Campaigns Tab -->
+            <div id="campaigns" class="tab-content">
+                <h2 style="margin-bottom: 20px;">Marketing Campaigns</h2>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px;">Create New Campaign</h3>
+                    <form id="campaignForm">
+                        <div class="form-group">
+                            <label>Campaign Name *</label>
+                            <input type="text" class="form-control" id="campaignName" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Target Audience *</label>
+                            <select class="form-control" id="targetAudience" required>
+                                <option value="all">All Users</option>
+                                <option value="new_users">New Users (Last 7 days)</option>
+                                <option value="active_users">Active Users (Last 30 days)</option>
+                                <option value="inactive_users">Inactive Users (30+ days)</option>
+                                <option value="scholars">Scholars & Imams</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Notification Title *</label>
+                            <input type="text" class="form-control" id="messageTitle" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Notification Message *</label>
+                            <textarea class="form-control" id="messageBody" required></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Action URL (Optional)</label>
+                            <input type="text" class="form-control" id="actionUrl" placeholder="/events or https://example.com">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">🎯 Create Campaign</button>
+                    </form>
+                </div>
+                
+                <div id="campaignsContainer" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading campaigns...</p>
+                </div>
+            </div>
+            
+            <!-- Marketers Tab -->
+            <div id="marketers" class="tab-content">
+                <h2 style="margin-bottom: 20px;">Cluster Marketers</h2>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px;">Add New Marketer</h3>
+                    <form id="marketerForm">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div class="form-group">
+                                <label>Full Name *</label>
+                                <input type="text" class="form-control" id="marketerName" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" class="form-control" id="marketerEmail">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="text" class="form-control" id="marketerPhone">
+                            </div>
+                            <div class="form-group">
+                                <label>Region</label>
+                                <input type="text" class="form-control" id="marketerRegion" placeholder="e.g., North London">
+                            </div>
+                            <div class="form-group">
+                                <label>City</label>
+                                <input type="text" class="form-control" id="marketerCity" placeholder="e.g., London">
+                            </div>
+                            <div class="form-group">
+                                <label>Commission Rate (%)</label>
+                                <input type="number" class="form-control" id="marketerCommission" value="5" min="0" max="100" step="0.5">
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 20px 0 15px 0; color: #059669;">🏦 Bank Account Details (for payouts)</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div class="form-group">
+                                <label>Bank Name</label>
+                                <select class="form-control" id="marketerBankName">
+                                    <option value="">-- Select Bank --</option>
+                                    <option value="access">Access Bank</option>
+                                    <option value="gtbank">GTBank</option>
+                                    <option value="zenith">Zenith Bank</option>
+                                    <option value="firstbank">First Bank</option>
+                                    <option value="uba">UBA</option>
+                                    <option value="stanbic">Stanbic IBTC</option>
+                                    <option value="sterling">Sterling Bank</option>
+                                    <option value="union">Union Bank</option>
+                                    <option value="wema">Wema Bank</option>
+                                    <option value="fidelity">Fidelity Bank</option>
+                                    <option value="polaris">Polaris Bank</option>
+                                    <option value="fcmb">FCMB</option>
+                                    <option value="ecobank">Ecobank</option>
+                                    <option value="keystone">Keystone Bank</option>
+                                    <option value="kuda">Kuda Bank</option>
+                                    <option value="opay">OPay</option>
+                                    <option value="palmpay">PalmPay</option>
+                                    <option value="moniepoint">Moniepoint</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Account Number</label>
+                                <input type="text" class="form-control" id="marketerAccountNumber" placeholder="10 digit account number" maxlength="10" pattern="[0-9]{10}">
+                            </div>
+                            <div class="form-group">
+                                <label>Account Name</label>
+                                <input type="text" class="form-control" id="marketerAccountName" placeholder="Name on account">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 15px;">➕ Add Marketer</button>
+                    </form>
+                </div>
+                
+                <div id="marketersContainer" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading marketers...</p>
+                </div>
+            </div>
+            
+            <!-- QR Codes Tab -->
+            <div id="qrcodes" class="tab-content">
+                <h2 style="margin-bottom: 20px;">QR Code Sessions</h2>
+                
+                <!-- Store Links Reference -->
+                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <strong>📱 MasjidMobile is LIVE!</strong>
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 4px;">
+                                QR codes redirect to app stores automatically based on device
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <a href="https://apps.apple.com/us/app/masjidmobile/id6756876021" target="_blank" 
+                               style="background: white; color: #111; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
+                                🍎 App Store
+                            </a>
+                            <a href="https://play.google.com/store/apps/details?id=com.masjidmobile.app" target="_blank"
+                               style="background: white; color: #111; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
+                                🤖 Google Play
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 20px;">Create QR Code Session</h3>
+                    <form id="qrCodeForm">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div class="form-group">
+                                <label>Description *</label>
+                                <input type="text" class="form-control" id="qrDescription" required placeholder="e.g., Eid Festival 2026">
+                            </div>
+                            <div class="form-group">
+                                <label>Assign to Marketer</label>
+                                <select class="form-control" id="qrMarketer">
+                                    <option value="">-- No Marketer --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Link to Activity</label>
+                                <select class="form-control" id="qrActivity">
+                                    <option value="">-- No Activity --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Target Type</label>
+                                <select class="form-control" id="qrTargetType">
+                                    <option value="download">App Download</option>
+                                    <option value="activity">Activity Signup</option>
+                                    <option value="event">Event Registration</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Start Date</label>
+                                <input type="date" class="form-control" id="qrStartDate">
+                            </div>
+                            <div class="form-group">
+                                <label>End Date</label>
+                                <input type="date" class="form-control" id="qrEndDate">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 15px;">📱 Generate QR Code</button>
+                    </form>
+                </div>
+                
+                <!-- Download All Button -->
+                <div style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="downloadAllQRCodes()" style="padding: 8px 16px;">
+                        ⬇️ Download All QR Codes
+                    </button>
+                </div>
+                
+                <div id="qrCodesContainer" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading QR codes...</p>
+                </div>
+            </div>
+            
+            <!-- Analytics Tab -->
+            <div id="analytics" class="tab-content">
+                <h2 style="margin-bottom: 20px;">Platform Analytics</h2>
+                <div id="analyticsContainer" class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading analytics...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="./admin.js?v=20260113-1"></script>
+</body>
+</html>
