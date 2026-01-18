@@ -53,30 +53,27 @@ jobs:
           APP_STORE_API_ISSUER_ID: ${{ secrets.APP_STORE_API_ISSUER_ID }}
         run: |
           mkdir -p ~/.private_keys
-          echo -n "$APP_STORE_API_KEY_BASE64" | base64 --decode > ~/.private_keys/AuthKey_${APP_STORE_API_KEY_ID}.p8
+          
+          # Decode the base64 API key
+          echo "$APP_STORE_API_KEY_BASE64" | base64 --decode > ~/.private_keys/AuthKey_${APP_STORE_API_KEY_ID}.p8
           chmod 600 ~/.private_keys/AuthKey_${APP_STORE_API_KEY_ID}.p8
           
-          # Create JSON for fastlane
-          cat > ~/.private_keys/api_key.json << EOF
-          {
-            "key_id": "$APP_STORE_API_KEY_ID",
-            "issuer_id": "$APP_STORE_API_ISSUER_ID",
-            "key": "$(cat ~/.private_keys/AuthKey_${APP_STORE_API_KEY_ID}.p8 | base64 | tr -d '\n')",
-            "in_house": false
-          }
-          EOF
+          # Verify the key looks correct
+          echo "API Key first line:"
+          head -1 ~/.private_keys/AuthKey_${APP_STORE_API_KEY_ID}.p8
           
-          echo "API Key configured"
+          echo "Key ID: $APP_STORE_API_KEY_ID"
+          echo "Issuer ID: $APP_STORE_API_ISSUER_ID"
 
       - name: Create Keychain
         run: |
-          # Create a temporary keychain
-          security create-keychain -p "" build.keychain
+          security create-keychain -p "temppass" build.keychain
           security default-keychain -s build.keychain
-          security unlock-keychain -p "" build.keychain
+          security unlock-keychain -p "temppass" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
+          security list-keychains -d user -s build.keychain $(security list-keychains -d user | sed s/\"//g)
 
-      - name: Get Certificates and Profiles with Fastlane
+      - name: Setup Fastlane
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_API_KEY_ID: ${{ secrets.APP_STORE_API_KEY_ID }}
@@ -91,33 +88,34 @@ jobs:
           team_id "$APPLE_TEAM_ID"
           EOF
           
-          # Create Fastfile
+          # Create Fastfile with proper API key handling
           cat > fastlane/Fastfile << 'FASTFILE'
           default_platform(:ios)
           
           platform :ios do
-            desc "Get signing certificates"
-            lane :certs do
+            desc "Get signing certificates and profiles"
+            lane :setup_signing do
+              # Read the API key file directly
               api_key = app_store_connect_api_key(
                 key_id: ENV["APP_STORE_API_KEY_ID"],
                 issuer_id: ENV["APP_STORE_API_ISSUER_ID"],
-                key_filepath: ENV["HOME"] + "/.private_keys/AuthKey_" + ENV["APP_STORE_API_KEY_ID"] + ".p8"
+                key_filepath: "#{ENV['HOME']}/.private_keys/AuthKey_#{ENV['APP_STORE_API_KEY_ID']}.p8",
+                duration: 1200,
+                in_house: false
               )
               
               # Get distribution certificate
-              get_certificates(
+              cert(
                 api_key: api_key,
-                generate_apple_certs: true,
-                keychain_path: ENV["HOME"] + "/Library/Keychains/build.keychain-db",
-                keychain_password: ""
+                keychain_path: "#{ENV['HOME']}/Library/Keychains/build.keychain-db",
+                keychain_password: "temppass"
               )
               
               # Get provisioning profile
-              get_provisioning_profile(
+              sigh(
                 api_key: api_key,
                 app_identifier: "com.masjidmobile.app",
-                ignore_profiles_with_different_name: true,
-                filename: "App_Store_Profile.mobileprovision"
+                readonly: false
               )
             end
             
@@ -126,15 +124,16 @@ jobs:
               api_key = app_store_connect_api_key(
                 key_id: ENV["APP_STORE_API_KEY_ID"],
                 issuer_id: ENV["APP_STORE_API_ISSUER_ID"],
-                key_filepath: ENV["HOME"] + "/.private_keys/AuthKey_" + ENV["APP_STORE_API_KEY_ID"] + ".p8"
+                key_filepath: "#{ENV['HOME']}/.private_keys/AuthKey_#{ENV['APP_STORE_API_KEY_ID']}.p8",
+                duration: 1200,
+                in_house: false
               )
               
-              # Update code signing settings
               update_code_signing_settings(
                 use_automatic_signing: false,
                 team_id: ENV["APPLE_TEAM_ID"],
                 code_sign_identity: "Apple Distribution",
-                profile_name: lane_context[SharedValues::SIGH_NAME] || "com.masjidmobile.app AppStore"
+                profile_name: lane_context[SharedValues::SIGH_NAME]
               )
               
               build_app(
@@ -142,29 +141,50 @@ jobs:
                 scheme: "App",
                 configuration: "Release",
                 export_method: "app-store",
-                output_directory: ENV["RUNNER_TEMP"] + "/output",
+                output_directory: "#{ENV['RUNNER_TEMP']}/output",
                 output_name: "App.ipa",
                 clean: true,
                 export_options: {
+                  signingStyle: "manual",
                   provisioningProfiles: {
-                    "com.masjidmobile.app" => lane_context[SharedValues::SIGH_NAME] || "com.masjidmobile.app AppStore"
+                    "com.masjidmobile.app" => lane_context[SharedValues::SIGH_NAME]
                   }
                 }
               )
             end
             
-            desc "Full flow: certs and build"
-            lane :full_build do
-              certs
-              build
+            desc "Upload to App Store"
+            lane :upload do
+              api_key = app_store_connect_api_key(
+                key_id: ENV["APP_STORE_API_KEY_ID"],
+                issuer_id: ENV["APP_STORE_API_ISSUER_ID"],
+                key_filepath: "#{ENV['HOME']}/.private_keys/AuthKey_#{ENV['APP_STORE_API_KEY_ID']}.p8",
+                duration: 1200,
+                in_house: false
+              )
+              
+              upload_to_app_store(
+                api_key: api_key,
+                ipa: "#{ENV['RUNNER_TEMP']}/output/App.ipa",
+                skip_screenshots: true,
+                skip_metadata: true,
+                force: true,
+                precheck_include_in_app_purchases: false
+              )
             end
           end
           FASTFILE
-          
-          # Run fastlane to get certificates
-          fastlane certs
 
-      - name: Build IPA with Fastlane
+      - name: Get Certificates and Profiles
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_API_KEY_ID: ${{ secrets.APP_STORE_API_KEY_ID }}
+          APP_STORE_API_ISSUER_ID: ${{ secrets.APP_STORE_API_ISSUER_ID }}
+        run: |
+          cd ios/App
+          fastlane setup_signing
+
+      - name: Build IPA
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_API_KEY_ID: ${{ secrets.APP_STORE_API_KEY_ID }}
@@ -173,7 +193,7 @@ jobs:
           cd ios/App
           fastlane build
           
-          echo "Build complete. Output:"
+          echo "Build complete:"
           ls -la $RUNNER_TEMP/output/
 
       - name: Upload IPA artifact
@@ -190,27 +210,4 @@ jobs:
           APP_STORE_API_ISSUER_ID: ${{ secrets.APP_STORE_API_ISSUER_ID }}
         run: |
           cd ios/App
-          
-          # Create upload lane
-          cat >> fastlane/Fastfile << 'UPLOAD'
-          
-            desc "Upload to App Store"
-            lane :upload do
-              api_key = app_store_connect_api_key(
-                key_id: ENV["APP_STORE_API_KEY_ID"],
-                issuer_id: ENV["APP_STORE_API_ISSUER_ID"],
-                key_filepath: ENV["HOME"] + "/.private_keys/AuthKey_" + ENV["APP_STORE_API_KEY_ID"] + ".p8"
-              )
-              
-              upload_to_app_store(
-                api_key: api_key,
-                ipa: ENV["RUNNER_TEMP"] + "/output/App.ipa",
-                skip_screenshots: true,
-                skip_metadata: true,
-                force: true,
-                precheck_include_in_app_purchases: false
-              )
-            end
-          UPLOAD
-          
           fastlane upload
