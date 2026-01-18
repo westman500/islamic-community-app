@@ -33,6 +33,40 @@ subprojects {
                     targetCompatibility JavaVersion.VERSION_17
                 }
             }
+            // Force Java 17 toolchain for all subprojects
+            project.tasks.withType(JavaCompile) {
+                options.fork = true
+                options.forkOptions.javaHome = file(System.getenv('JAVA_HOME'))
+            }
+        }
+        // Disable toolchain auto-download and force local Java
+        project.plugins.withType(JavaPlugin) {
+            project.java {
+                toolchain {
+                    languageVersion = JavaLanguageVersion.of(17)
+                }
+            }
+        }
+        // Force Kotlin JVM target to match Java 17
+        project.plugins.withId('org.jetbrains.kotlin.android') {
+            project.kotlin {
+                jvmToolchain(17)
+            }
+        }
+        project.plugins.withId('kotlin-android') {
+            project.kotlin {
+                jvmToolchain(17)
+            }
+        }
+        try {
+            def kotlinCompileClass = Class.forName('org.jetbrains.kotlin.gradle.tasks.KotlinCompile')
+            project.tasks.withType(kotlinCompileClass).configureEach {
+                compilerOptions {
+                    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+                }
+            }
+        } catch (Exception e) {
+            // Kotlin plugin not applied to this project
         }
     }
 }

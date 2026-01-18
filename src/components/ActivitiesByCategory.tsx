@@ -82,22 +82,32 @@ export const ActivitiesByCategory: React.FC = () => {
         return
       }
 
-      // Fetch activities from database
+      // Fetch activities from database - simplified query without join
       const { data, error } = await supabase
         .from('activities')
-        .select(`
-          *,
-          organizer:profiles!organizer_id(full_name)
-        `)
+        .select('*')
         .eq('category', categoryId)
         .eq('is_active', true)
-        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching activities:', error)
+        setActivities([])
+        setLoading(false)
+        return
+      }
 
-      setActivities(data || [])
+      // Transform data to add organizer placeholder
+      const activitiesWithOrganizer = (data || []).map(activity => ({
+        ...activity,
+        organizer: { full_name: activity.organizer_name || 'Community Organizer' }
+      }))
+
+      console.log('Activities fetched for category', categoryId, ':', activitiesWithOrganizer)
+      setActivities(activitiesWithOrganizer)
     } catch (error) {
       console.error('Error fetching activities:', error)
+      setActivities([])
     } finally {
       setLoading(false)
     }
@@ -268,7 +278,7 @@ export const ActivitiesByCategory: React.FC = () => {
             <Card key={activity.id} className="shadow-md hover:shadow-lg transition-all">
               <CardHeader>
                 <CardTitle className="text-lg">{activity.title}</CardTitle>
-                <p className="text-sm text-gray-600">by {activity.organizer.full_name}</p>
+                <p className="text-sm text-gray-600">by {activity.organizer?.full_name || 'Community Organizer'}</p>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-700">{activity.description}</p>

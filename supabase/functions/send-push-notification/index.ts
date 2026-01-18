@@ -112,6 +112,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const payload: PushPayload = await req.json()
     
+    console.log('📨 Push notification request received:', JSON.stringify(payload))
+    
     const { campaignId, userId, userIds, title, body, data, targetAudience } = payload
     
     if (!title || !body) {
@@ -127,11 +129,16 @@ serve(async (req) => {
     // Get recipients based on parameters
     if (userId) {
       // Single user
-      const { data: user } = await supabase
+      console.log('🔍 Looking up single user:', userId)
+      const { data: user, error: userError } = await supabase
         .from('profiles')
         .select('id, push_token')
         .eq('id', userId)
         .single()
+      
+      if (userError) {
+        console.error('❌ Error fetching user:', userError)
+      }
       
       if (user?.push_token) {
         recipients.push(user)
@@ -139,21 +146,28 @@ serve(async (req) => {
       }
     } else if (userIds && userIds.length > 0) {
       // Multiple specific users
-      const { data: users } = await supabase
+      console.log('🔍 Looking up multiple users:', userIds.length)
+      const { data: users, error: usersError } = await supabase
         .from('profiles')
         .select('id, push_token')
         .in('id', userIds)
         .not('push_token', 'is', null)
+      
+      if (usersError) {
+        console.error('❌ Error fetching users:', usersError)
+      }
       
       if (users) {
         recipients = users.filter(u => u.push_token)
         tokens = recipients.map(u => u.push_token)
       }
     } else if (targetAudience || campaignId) {
-      // Campaign or audience-based
+      // Campaign or audience-based - get ALL users with push tokens
+      console.log('🔍 Looking up users for campaign. Target audience:', targetAudience)
+      
       let query = supabase
         .from('profiles')
-        .select('id, push_token')
+        .select('id, push_token, role, created_at, updated_at')
         .not('push_token', 'is', null)
         .neq('push_token', '')
       
@@ -161,24 +175,45 @@ serve(async (req) => {
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
         query = query.gte('created_at', sevenDaysAgo.toISOString())
+        console.log('📅 Filtering for new users since:', sevenDaysAgo.toISOString())
       } else if (targetAudience === 'scholars') {
         query = query.in('role', ['scholar', 'imam'])
+        console.log('👨‍🏫 Filtering for scholars/imams only')
       } else if (targetAudience === 'active_users') {
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
         query = query.gte('updated_at', thirtyDaysAgo.toISOString())
+        console.log('📅 Filtering for active users since:', thirtyDaysAgo.toISOString())
       } else if (targetAudience === 'inactive_users') {
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
         query = query.lt('updated_at', thirtyDaysAgo.toISOString())
+        console.log('📅 Filtering for inactive users before:', thirtyDaysAgo.toISOString())
+      } else {
+        console.log('📢 Sending to ALL users with push tokens')
       }
       
-      const { data: users } = await query
+      const { data: users, error: queryError } = await query
+      
+      if (queryError) {
+        console.error('❌ Error querying users:', queryError)
+      }
+      
+      console.log('📊 Query returned', users?.length || 0, 'users')
+      
       if (users) {
         recipients = users.filter(u => u.push_token)
         tokens = recipients.map(u => u.push_token)
+        console.log('📱 After filtering, found', recipients.length, 'users with valid push tokens')
       }
     }
+
+    // Deduplicate tokens to prevent sending to the same device multiple times
+    const uniqueTokens = [...new Set(tokens)]
+    const skippedDuplicates = tokens.length - uniqueTokens.length
+    tokens = uniqueTokens
+    
+    console.log(`📱 Recipients: ${recipients.length}, Unique tokens: ${tokens.length}, Duplicates skipped: ${skippedDuplicates}`)
 
     if (tokens.length === 0) {
       return new Response(
@@ -224,7 +259,7 @@ serve(async (req) => {
                       notification: {
                         icon: 'ic_notification',
                         click_action: 'FLUTTER_NOTIFICATION_CLICK',
-                        channel_id: 'high_importance_channel'
+                        channel_id: 'masjid_notifications'
                       }
                     },
                     apns: {
@@ -251,10 +286,21 @@ serve(async (req) => {
 
             if (fcmResponse.ok) {
               successCount++
+              console.log('✅ Sent to token:', token.substring(0, 30) + '...')
             } else {
               const errorData = await fcmResponse.json()
-              console.error('FCM error for token:', token.substring(0, 20), errorData)
+              console.error('❌ FCM error for token:', token.substring(0, 30), JSON.stringify(errorData))
               failedCount++
+              
+              // If token is invalid/unregistered, remove it from database
+              if (errorData?.error?.code === 404 || 
+                  errorData?.error?.details?.some((d: any) => d.errorCode === 'UNREGISTERED')) {
+                console.log('🗑️ Removing invalid token:', token.substring(0, 30))
+                await supabase
+                  .from('profiles')
+                  .update({ push_token: null })
+                  .eq('push_token', token)
+              }
             }
           } catch (tokenError) {
             console.error('Token send error:', tokenError)
@@ -262,7 +308,7 @@ serve(async (req) => {
           }
         }
         
-        console.log(`FCM result: ${successCount} success, ${failedCount} failed`)
+        console.log(`📊 FCM result: ${successCount} success, ${failedCount} failed out of ${tokens.length} tokens`)
       } catch (fcmError) {
         console.error('FCM service account error:', fcmError)
         failedCount = tokens.length
@@ -284,7 +330,66 @@ serve(async (req) => {
     }))
 
     if (notifications.length > 0) {
-      await supabase.from('notifications').insert(notifications)
+      const { error: notifError } = await supabase.from('notifications').insert(notifications)
+      if (notifError) {
+        console.error('❌ Error storing notifications:', notifError)
+      } else {
+        console.log('✅ Stored', notifications.length, 'notifications in database')
+      }
+    }
+
+    // For campaigns, ALSO store notifications for users WITHOUT push tokens
+    // so they can see it in-app when they open the app
+    if (campaignId || targetAudience) {
+      console.log('📥 Storing in-app notifications for users without push tokens...')
+      
+      let allUsersQuery = supabase
+        .from('profiles')
+        .select('id')
+        .or('push_token.is.null,push_token.eq.')
+      
+      // Apply same audience filters
+      if (targetAudience === 'new_users') {
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        allUsersQuery = allUsersQuery.gte('created_at', sevenDaysAgo.toISOString())
+      } else if (targetAudience === 'scholars') {
+        allUsersQuery = allUsersQuery.in('role', ['scholar', 'imam'])
+      } else if (targetAudience === 'active_users') {
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        allUsersQuery = allUsersQuery.gte('updated_at', thirtyDaysAgo.toISOString())
+      } else if (targetAudience === 'inactive_users') {
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        allUsersQuery = allUsersQuery.lt('updated_at', thirtyDaysAgo.toISOString())
+      }
+      
+      const { data: usersWithoutToken } = await allUsersQuery
+      
+      if (usersWithoutToken && usersWithoutToken.length > 0) {
+        // Filter out users we already notified
+        const alreadyNotifiedIds = new Set(recipients.map(r => r.id))
+        const newRecipients = usersWithoutToken.filter(u => !alreadyNotifiedIds.has(u.id))
+        
+        if (newRecipients.length > 0) {
+          const additionalNotifications = newRecipients.map(u => ({
+            user_id: u.id,
+            type: 'marketing',
+            title,
+            message: body,
+            data: { campaign_id: campaignId, ...data },
+            read: false
+          }))
+          
+          const { error: addNotifError } = await supabase.from('notifications').insert(additionalNotifications)
+          if (addNotifError) {
+            console.error('❌ Error storing additional notifications:', addNotifError)
+          } else {
+            console.log('✅ Stored', additionalNotifications.length, 'additional in-app notifications')
+          }
+        }
+      }
     }
 
     // Update campaign if provided

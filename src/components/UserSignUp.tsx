@@ -5,10 +5,14 @@ import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
 import { setEmeraldStatusBar } from '../utils/statusBar'
+import { Eye, EyeOff } from 'lucide-react'
+import { Capacitor } from '@capacitor/core'
 
 export const UserSignUp: React.FC = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [fullName, setFullName] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState<'user' | 'imam' | 'scholar'>('user')
@@ -59,24 +63,35 @@ export const UserSignUp: React.FC = () => {
     setLoading(true)
 
     try {
+      console.log('📝 Starting signup for:', email)
       await signUp(email, password, role, fullName)
-      // Small delay to ensure session is established
-      setTimeout(() => {
-        navigate('/dashboard')
-        setLoading(false)
-      }, 500)
+      console.log('✅ Signup successful, navigating to dashboard...')
+      // Signup successful - navigate to dashboard immediately
+      navigate('/dashboard', { replace: true })
     } catch (err: any) {
-      if (err.message === 'CONFIRMATION_REQUIRED') {
-        setSuccess('Account created successfully! Please check your email to verify your account before signing in.')
-      } else {
-        setError(err.message || 'Failed to create account')
-      }
+      console.error('❌ Signup error:', err)
       setLoading(false)
+      if (err.message === 'CONFIRMATION_REQUIRED') {
+        // Email confirmation is enabled in Supabase - show message
+        setSuccess('Account created! Please check your email to confirm, then sign in.')
+        setTimeout(() => navigate('/signin'), 2500)
+      } else if (err.message?.includes('already registered') || err.message?.includes('already exists')) {
+        setError('This email is already registered. Please sign in instead.')
+      } else {
+        setError(err.message || 'Failed to create account. Please try again.')
+      }
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white overflow-y-auto">
+    <>
+      {/* Green background for status bar area */}
+      <div 
+        className="fixed top-0 left-0 right-0 bg-emerald-600 z-40"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+      
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white overflow-y-auto" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="container mx-auto p-4 max-w-md py-8">
         {/* Islamic Greeting Banner */}
         <div className="mb-6 text-center">
@@ -147,28 +162,48 @@ export const UserSignUp: React.FC = () => {
               <label htmlFor="password" className="block text-sm font-medium mb-2">
                 Password
               </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Create a password"
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium mb-2">
                 Confirm Password
               </label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your password"
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -198,13 +233,47 @@ export const UserSignUp: React.FC = () => {
               />
               <label htmlFor="terms" className="text-xs text-gray-700">
                 I agree to the{' '}
-                <a href="/privacy-policy" target="_blank" className="text-emerald-600 hover:underline font-medium">
+                <span 
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const url = 'https://petal-salto-1a6.notion.site/MASJIDMOBILE-APP-PRIVACY-POLICY-EULA-2cd859eb5c00806a9948eb3d1695f9dc'
+                    if (Capacitor.isNativePlatform()) {
+                      try {
+                        const { Browser } = await import('@capacitor/browser')
+                        await Browser.open({ url })
+                      } catch {
+                        window.open(url, '_blank')
+                      }
+                    } else {
+                      window.open(url, '_blank')
+                    }
+                  }}
+                  className="text-emerald-600 hover:underline font-medium cursor-pointer"
+                >
                   Privacy Policy
-                </a>{' '}
+                </span>{' '}
                 and{' '}
-                <a href="/terms-of-service" target="_blank" className="text-emerald-600 hover:underline font-medium">
+                <span 
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const url = 'https://petal-salto-1a6.notion.site/MASJID-PRIVACY-POLICY-TERMS-OF-SERVICE-END-USER-LICENSE-AGREEMENT-EULA-2cd859eb5c00806a9948eb3d1695f9dc'
+                    if (Capacitor.isNativePlatform()) {
+                      try {
+                        const { Browser } = await import('@capacitor/browser')
+                        await Browser.open({ url })
+                      } catch {
+                        window.open(url, '_blank')
+                      }
+                    } else {
+                      window.open(url, '_blank')
+                    }
+                  }}
+                  className="text-emerald-600 hover:underline font-medium cursor-pointer"
+                >
                   Terms of Service
-                </a>
+                </span>
               </label>
             </div>
 
@@ -230,5 +299,6 @@ export const UserSignUp: React.FC = () => {
         <div className="h-32"></div>
       </div>
     </div>
+    </>
   )
 }

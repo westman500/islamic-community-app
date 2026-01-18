@@ -8,6 +8,18 @@ export function SplashScreen() {
   const [fadeOut, setFadeOut] = useState(false)
 
   useEffect(() => {
+    // Check if we've already shown the splash this session
+    const splashShown = sessionStorage.getItem('splash-shown')
+    if (splashShown) {
+      // Skip splash and go directly to landing
+      setShow(false)
+      navigate('/landing', { replace: true })
+      return
+    }
+
+    // Mark splash as shown for this session
+    sessionStorage.setItem('splash-shown', 'true')
+
     // Set emerald status bar to match splash screen
     setEmeraldStatusBar().catch(console.error)
     
@@ -19,7 +31,7 @@ export function SplashScreen() {
     // Hide and navigate after fade completes
     const hideTimer = setTimeout(() => {
       setShow(false)
-      navigate('/landing')
+      navigate('/landing', { replace: true })
     }, 2800)
 
     return () => {
@@ -31,7 +43,18 @@ export function SplashScreen() {
   if (!show) return null
 
   return (
-    <div className={`fixed inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 flex flex-col items-center justify-center z-[9999] transition-opacity duration-800 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}>
+    <div 
+      className={`fixed inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 flex flex-col items-center justify-center z-[9999] transition-opacity duration-800 ${fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      style={{ 
+        WebkitUserSelect: 'none', 
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent'
+      }}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse"></div>
@@ -66,7 +89,7 @@ export function SplashScreen() {
             مسجد
           </h1>
           <p className="text-xl text-emerald-100 font-medium tracking-wide">
-            Islamic Community App
+            MasjidMobile
           </p>
         </div>
 

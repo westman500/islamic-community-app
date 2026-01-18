@@ -31,24 +31,24 @@ export function MobileLayout({
       
       <div className="min-h-screen bg-gray-50 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         {/* Fixed Header - stays at top on scroll */}
-        <div className="fixed top-0 left-0 right-0 text-white p-4 z-50 shadow-lg" style={{ backgroundColor: '#059669', marginTop: 'env(safe-area-inset-top)' }}>
+        <div className="fixed top-0 left-0 right-0 text-white py-2 px-3 z-50 shadow-lg" style={{ backgroundColor: '#059669', marginTop: 'env(safe-area-inset-top)' }}>
           <div className="flex items-center max-w-[1200px] mx-auto">
             {showBack && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-emerald-500 mr-2"
+                className="text-white hover:bg-emerald-500 mr-1 h-8 w-8"
                 onClick={() => navigate('/dashboard')}
               >
-                <ArrowLeft className="h-6 w-6" />
+                <ArrowLeft className="h-5 w-5" />
               </Button>
             )}
-            <h1 className="text-xl md:text-2xl font-bold text-white">{title}</h1>
+            <h1 className="text-lg md:text-xl font-bold text-white">{title}</h1>
           </div>
         </div>
 
       {/* Content - with padding for fixed header and bottom nav */}
-      <div className="flex-1 overflow-y-auto pb-20" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      <div className="flex-1 overflow-y-auto pb-20" style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         {children}
       </div>
 
@@ -118,10 +118,10 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 md:py-2 px-1 md:px-2 rounded-lg transition-all text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100"
+      className="flex flex-col items-center justify-center flex-1 min-w-0 py-1 md:py-2 px-0.5 md:px-2 rounded-lg transition-all text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100"
     >
-      <Icon className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6 flex-shrink-0" />
-      <span className="text-[10px] sm:text-[11px] md:text-xs mt-0.5 font-semibold leading-tight text-center truncate w-full">{label}</span>
+      <Icon className="h-5 w-5 md:h-6 md:w-6 flex-shrink-0" />
+      <span className="text-[9px] sm:text-[10px] md:text-xs mt-0.5 font-semibold leading-tight text-center truncate w-full">{label}</span>
     </button>
   )
 }

@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#059669" />
     <!-- CSP Temporarily disabled for debugging -->
     <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.paystack.co https://checkout.paystack.com https://*.paystack.com https://*.supabase.co https://unpkg.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://checkout.paystack.com https://paystack.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.paystack.com https://paystack.com https://*.supabase.co wss://*.supabase.co https://api.agora.io wss://*.agora.io https://nominatim.openstreetmap.org; frame-src 'self' https://checkout.paystack.com; img-src 'self' data: https: blob:;"> -->
-    <title>Masjid - Islamic Community App</title>
+    <title>MasjidMobile - Islamic Community App</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
@@ -46,15 +46,38 @@
       // Debug script to show if JavaScript is running
       console.log('🟢 index.html: JavaScript is executing');
       
-      // Show loading indicator
+      // Show loading indicator (will be replaced by React)
       const root = document.getElementById('root');
       if (root) {
-        root.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #059669; color: white; flex-direction: column; font-family: sans-serif;"><h1 style="font-size: 24px; margin-bottom: 16px;">Loading Masjid App...</h1><div style="display: flex; gap: 8px;"><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite;"></div><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite 0.2s;"></div><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite 0.4s;"></div></div><p style="margin-top: 24px; font-size: 14px; opacity: 0.8;">Initializing...</p></div><style>@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }</style>';
+        // Create a loader div that we can hide later
+        const loader = document.createElement('div');
+        loader.id = 'initial-loader';
+        loader.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #059669; color: white; flex-direction: column; font-family: sans-serif; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;"><h1 style="font-size: 24px; margin-bottom: 16px;">Loading MasjidMobile...</h1><div style="display: flex; gap: 8px;"><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite;"></div><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite 0.2s;"></div><div style="width: 12px; height: 12px; background: white; border-radius: 50%; animation: bounce 1s infinite 0.4s;"></div></div><p style="margin-top: 24px; font-size: 14px; opacity: 0.8;">Initializing...</p></div><style>@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }</style>';
+        root.appendChild(loader);
+        
+        // Hide the loader when React mounts (after 100ms delay to ensure React has taken over)
+        const checkReact = setInterval(() => {
+          // If React has rendered something, hide the loader
+          if (root.children.length > 1 || !document.getElementById('initial-loader')) {
+            const loaderEl = document.getElementById('initial-loader');
+            if (loaderEl) loaderEl.remove();
+            clearInterval(checkReact);
+          }
+        }, 100);
+        
+        // Fallback: remove loader after 5 seconds max
+        setTimeout(() => {
+          const loaderEl = document.getElementById('initial-loader');
+          if (loaderEl) loaderEl.remove();
+          clearInterval(checkReact);
+        }, 5000);
       }
       
       // Log any errors
       window.addEventListener('error', function(e) {
         console.error('🔴 Script error:', e.message, e.filename, e.lineno);
+        const loaderEl = document.getElementById('initial-loader');
+        if (loaderEl) loaderEl.remove();
         if (root) {
           root.innerHTML = '<div style="padding: 20px; background: #fee; color: #c00; font-family: monospace; white-space: pre-wrap;">ERROR: ' + e.message + '\nFile: ' + e.filename + '\nLine: ' + e.lineno + '</div>';
         }

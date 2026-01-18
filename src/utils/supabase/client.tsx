@@ -1,16 +1,116 @@
 import { createClient } from '@supabase/supabase-js'
+import { Preferences } from '@capacitor/preferences'
+import { Capacitor } from '@capacitor/core'
 
 // Supabase configuration - these are public values
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jtmmeumzjcldqukpqcfi.supabase.co'
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0bW1ldW16amNsZHF1a3BxY2ZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzMjU3NTUsImV4cCI6MjA3ODkwMTc1NX0.Bp-7JF66UIVuzKtVmilxovkEwe-TSXHMT_eqETHVPLo'
 
+// Check if we're on native platform
+const isNative = Capacitor.isNativePlatform()
+
+// In-memory cache for faster sync access
+const memoryCache: Record<string, string> = {}
+
+// Improved storage adapter that syncs to both memory and persistent storage
+const capacitorStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    // First check memory cache (fastest)
+    if (memoryCache[key]) {
+      return memoryCache[key]
+    }
+    
+    try {
+      if (isNative) {
+        const { value } = await Preferences.get({ key })
+        if (value) {
+          memoryCache[key] = value // Cache it
+          // Also sync to localStorage as backup
+          try { window.localStorage.setItem(key, value) } catch {}
+        }
+        return value
+      }
+    } catch (e) {
+      console.warn('Capacitor storage read error:', e)
+    }
+    
+    // Fallback to localStorage
+    const localValue = window.localStorage.getItem(key)
+    if (localValue) {
+      memoryCache[key] = localValue
+    }
+    return localValue
+  },
+  
+  setItem: async (key: string, value: string): Promise<void> => {
+    // Always update memory cache first
+    memoryCache[key] = value
+    
+    // Always save to localStorage (sync, reliable)
+    try {
+      window.localStorage.setItem(key, value)
+    } catch (e) {
+      console.warn('localStorage write error:', e)
+    }
+    
+    // Also save to native Preferences if available
+    if (isNative) {
+      try {
+        await Preferences.set({ key, value })
+      } catch (e) {
+        console.warn('Capacitor storage write error:', e)
+      }
+    }
+  },
+  
+  removeItem: async (key: string): Promise<void> => {
+    // Remove from memory cache
+    delete memoryCache[key]
+    
+    // Remove from localStorage
+    try {
+      window.localStorage.removeItem(key)
+    } catch (e) {
+      console.warn('localStorage remove error:', e)
+    }
+    
+    // Remove from native Preferences
+    if (isNative) {
+      try {
+        await Preferences.remove({ key })
+      } catch (e) {
+        console.warn('Capacitor storage remove error:', e)
+      }
+    }
+  },
+}
+
+// Pre-load auth from storage into memory on startup
+const preloadAuth = async () => {
+  try {
+    if (isNative) {
+      const { value } = await Preferences.get({ key: 'masjid-auth' })
+      if (value) {
+        memoryCache['masjid-auth'] = value
+        try { window.localStorage.setItem('masjid-auth', value) } catch {}
+        console.log('✅ Auth preloaded from Capacitor Preferences')
+      }
+    }
+  } catch (e) {
+    console.warn('Auth preload error:', e)
+  }
+}
+
+// Start preloading immediately
+preloadAuth()
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true, // CRITICAL: Keep session in localStorage
+    persistSession: true, // CRITICAL: Keep session
     autoRefreshToken: true, // CRITICAL: Auto-refresh before expiry
     detectSessionInUrl: true,
     storageKey: 'masjid-auth', // Custom key for our app
-    storage: window.localStorage, // Use localStorage (survives app closes)
+    storage: capacitorStorage as any, // Use Capacitor Preferences on mobile, localStorage on web
     flowType: 'pkce', // Secure authentication flow
     debug: false, // Disable debug in production
   },
@@ -19,8 +119,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'X-Client-Info': 'masjid-app'
     }
   },
-  // IMPORTANT: Ensures session is loaded synchronously on init
-  // This prevents race conditions on app startup
   realtime: {
     params: {
       eventsPerSecond: 10

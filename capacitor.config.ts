@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.masjidmobile.app',
-  appName: 'Masjid - Islamic Community',
+  appName: 'MasjidMobile',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
@@ -36,9 +36,7 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'LIGHT',
       backgroundColor: '#059669',
-      overlaysWebView: false,
-      iosStyle: 'LIGHT',
-      androidStatusBarColor: '#059669'
+      overlaysWebView: false
     },
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"]

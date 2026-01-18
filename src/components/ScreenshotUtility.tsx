@@ -215,7 +215,7 @@ export const ScreenshotUtility: React.FC = () => {
 
   const isCaptured = (name: string) => capturedScreens.has(`${name}-${selectedSize}`)
   
-  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(true)
 
   return (
     <Card className={`screenshot-utility-card fixed right-4 shadow-xl z-50 bg-white/95 backdrop-blur transition-all ${isMinimized ? 'w-12' : 'w-96'}`} style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>

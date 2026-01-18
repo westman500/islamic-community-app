@@ -1,6 +1,34 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase, type Profile, type UserRole } from '../utils/supabase/client'
+import { Preferences } from '@capacitor/preferences'
+import { Capacitor } from '@capacitor/core'
+
+// Helper functions for cross-platform storage
+const isNative = Capacitor.isNativePlatform()
+
+const setStorageItem = async (key: string, value: string) => {
+  if (isNative) {
+    await Preferences.set({ key, value })
+  }
+  // Always also use localStorage as backup
+  localStorage.setItem(key, value)
+}
+
+const getStorageItem = async (key: string): Promise<string | null> => {
+  if (isNative) {
+    const { value } = await Preferences.get({ key })
+    if (value) return value
+  }
+  return localStorage.getItem(key)
+}
+
+const removeStorageItem = async (key: string) => {
+  if (isNative) {
+    await Preferences.remove({ key })
+  }
+  localStorage.removeItem(key)
+}
 
 interface AuthContextType {
   user: User | null
@@ -31,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('🔐 AuthContext: Initializing authentication...')
       
       try {
-        // STEP 1: Try to get existing session from Supabase
+        // STEP 1: Try to get existing session from Supabase (uses Capacitor Preferences on native)
         const { data: { session } } = await supabase.auth.getSession()
         
         if (!isMounted) return
@@ -40,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('✅ Active session found:', session.user.email)
           setSession(session)
           setUser(session.user)
-          localStorage.setItem('masjid-last-activity', new Date().toISOString())
+          await setStorageItem('masjid-last-activity', new Date().toISOString())
           await fetchProfile(session.user.id)
           setLoading(false)
           setInitialized(true)
@@ -56,7 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         for (const key of possibleKeys) {
           try {
-            const storedAuth = localStorage.getItem(key)
+            // Try both native and localStorage
+            const storedAuth = await getStorageItem(key)
             if (!storedAuth) continue
             
             const parsed = JSON.parse(storedAuth)
@@ -75,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.log('✅ Session restored successfully!')
                 setSession(data.session)
                 setUser(data.session.user)
-                localStorage.setItem('masjid-last-activity', new Date().toISOString())
+                await setStorageItem('masjid-last-activity', new Date().toISOString())
                 await fetchProfile(data.session.user.id)
                 recovered = true
                 break
@@ -111,8 +140,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Check and enforce 30-day inactivity logout
-    const checkSessionExpiry = () => {
-      const lastActivity = localStorage.getItem('masjid-last-activity')
+    const checkSessionExpiry = async () => {
+      const lastActivity = await getStorageItem('masjid-last-activity')
       if (lastActivity) {
         const lastActivityDate = new Date(lastActivity)
         const thirtyDaysAgo = new Date()
@@ -121,12 +150,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (lastActivityDate < thirtyDaysAgo) {
           console.log('Session expired due to 30 days inactivity, signing out...')
           supabase.auth.signOut()
-          localStorage.removeItem('masjid-last-activity')
+          await removeStorageItem('masjid-last-activity')
           return false
         }
       }
       // Update last activity timestamp
-      localStorage.setItem('masjid-last-activity', new Date().toISOString())
+      await setStorageItem('masjid-last-activity', new Date().toISOString())
       return true
     }
     
@@ -134,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleVisibilityChange = async () => {
       if (!document.hidden) {
         console.log('📱 App became visible, checking session...')
-        localStorage.setItem('masjid-last-activity', new Date().toISOString())
+        await setStorageItem('masjid-last-activity', new Date().toISOString())
         
         // Refresh session if user has been away for a while
         try {
@@ -170,9 +199,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.addEventListener('visibilitychange', handleVisibilityChange)
     
     // Track app pause/resume events (for Capacitor)
-    const handleAppStateChange = () => {
+    const handleAppStateChange = async () => {
       console.log('App state changed, preserving session')
-      localStorage.setItem('masjid-last-activity', new Date().toISOString())
+      await setStorageItem('masjid-last-activity', new Date().toISOString())
     }
     
     window.addEventListener('pause', handleAppStateChange)
@@ -181,8 +210,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data } = await supabase.auth.getSession()
         if (data.session) {
-          localStorage.setItem('supabase.last_session_user', data.session.user.id)
-          localStorage.setItem('masjid-last-activity', new Date().toISOString())
+          await setStorageItem('supabase.last_session_user', data.session.user.id)
+          await setStorageItem('masjid-last-activity', new Date().toISOString())
         }
       } catch {}
     })
@@ -200,10 +229,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (session) {
               setSession(session)
               setUser(session.user)
-              localStorage.setItem('masjid-last-activity', new Date().toISOString())
+              await setStorageItem('masjid-last-activity', new Date().toISOString())
               
               // Check session expiry
-              if (!checkSessionExpiry()) {
+              const isValid = await checkSessionExpiry()
+              if (!isValid) {
                 console.warn('⚠️ Session expired due to inactivity')
                 return
               }
@@ -221,7 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(null)
             setProfile(null)
             setLoading(false)
-            localStorage.removeItem('masjid-last-activity')
+            await removeStorageItem('masjid-last-activity')
             break
             
           case 'USER_UPDATED':
@@ -326,6 +356,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (data) {
         console.log('Profile fetched successfully:', data.email)
+        
+        // Check if full_name is missing or default value, try to fix from auth metadata
+        if (!data.full_name || data.full_name === '' || data.full_name === 'User') {
+          console.log('⚠️ Profile has missing/default full_name, attempting to fix...')
+          
+          try {
+            const { data: { user: currentUser } } = await supabase.auth.getUser()
+            
+            if (currentUser) {
+              const metaFullName = currentUser.user_metadata?.full_name || 
+                                   currentUser.user_metadata?.fullName ||
+                                   currentUser.user_metadata?.name
+              
+              if (metaFullName && metaFullName.trim() !== '') {
+                console.log('📝 Found full_name in metadata:', metaFullName)
+                
+                // Update the profile in database
+                const { error: updateError } = await supabase
+                  .from('profiles')
+                  .update({ 
+                    full_name: metaFullName.trim(),
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', userId)
+                
+                if (!updateError) {
+                  console.log('✅ Profile full_name updated successfully')
+                  data.full_name = metaFullName.trim()
+                } else {
+                  console.warn('⚠️ Failed to update full_name:', updateError)
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('⚠️ Error fixing full_name:', err)
+          }
+        }
+        
         setProfile(data)
         setLoading(false)
         setInitialized(true)
@@ -372,11 +440,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     
     if (error) {
-      console.error('❌ SignIn: Authentication failed', error)
-      if (error.message.includes('Email not confirmed')) {
-        throw new Error('Please verify your email address. Check your inbox for the confirmation link.')
-      } else if (error.message.includes('Invalid login credentials')) {
+      console.error('❌ SignIn: Authentication failed', error.message)
+      
+      // Handle specific error cases
+      if (error.message.includes('Invalid login credentials')) {
         throw new Error('Invalid email or password. Please check your credentials and try again.')
+      } else if (error.message.includes('Email not confirmed')) {
+        // User exists but email not confirmed - this shouldn't happen after running our fix
+        console.log('⚠️ Email not confirmed error - user should run FIX_AUTO_CONFIRM_USERS.sql')
+        throw new Error('Email not confirmed. Please contact support or try signing up again.')
       } else {
         throw new Error(error.message)
       }
@@ -391,19 +463,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // CRITICAL: Update session immediately and persist activity
     setSession(data.session)
     setUser(data.user)
-    localStorage.setItem('masjid-last-activity', new Date().toISOString())
+    await setStorageItem('masjid-last-activity', new Date().toISOString())
     
-    // Ensure session is stored properly
+    // Ensure session is stored properly using Capacitor Preferences
     if (data.session) {
       try {
-        // Force storage update to ensure persistence
-        localStorage.setItem('masjid-auth', JSON.stringify({
+        // Force storage update to ensure persistence on both native and web
+        const sessionData = JSON.stringify({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
           expires_at: data.session.expires_at,
           user: data.session.user
-        }))
-        console.log('✅ Session persisted to localStorage')
+        })
+        await setStorageItem('masjid-auth', sessionData)
+        console.log('✅ Session persisted to storage')
       } catch (storageError) {
         console.warn('⚠️ Failed to persist session:', storageError)
       }
@@ -422,6 +495,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signUp = async (email: string, password: string, role: UserRole, fullName: string) => {
+    console.log('🚀 SignUp: Starting for', email)
+    
+    // First, try to sign up
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -430,9 +506,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           full_name: fullName,
           role,
         },
-        emailRedirectTo: `${window.location.origin}/dashboard`,
       },
     })
+
+    console.log('📝 SignUp response:', { user: data?.user?.id, session: !!data?.session, error: error?.message })
 
     if (error) {
       if (error.message.includes('User already registered')) {
@@ -442,39 +519,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // If there's a session, user is auto-confirmed (likely in development)
-    // If no session but user exists, email confirmation is required
-    if (data.user && !data.session) {
-      throw new Error('CONFIRMATION_REQUIRED')
-    }
-
-    // If we have a session, the profile should be created by the trigger
-    // but let's verify it exists
-    if (data.session && data.user) {
-      // Wait a moment for the trigger to create the profile
-      await new Promise(resolve => setTimeout(resolve, 1000))
+    // User created successfully
+    if (data.user) {
+      console.log('✅ User created:', data.user.id)
       
-      // Check if profile was created by trigger
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .single()
-
-      // If trigger didn't create profile, create it manually
-      if (!existingProfile) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          role,
-        })
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError)
+      // If we got a session, user is already logged in (email confirmation disabled)
+      if (data.session) {
+        console.log('🎉 Got session directly from signup!')
+        setSession(data.session)
+        setUser(data.session.user)
+        await setStorageItem('masjid-last-activity', new Date().toISOString())
+        
+        // Wait for trigger to create profile
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        await fetchProfile(data.session.user.id)
+        console.log('✅ SignUp complete with session')
+        return // Success - user is logged in
+      }
+      
+      // No session from signup - immediately try to sign in
+      console.log('⚠️ No session from signup, attempting immediate sign in...')
+      
+      // Small delay to ensure user is fully created
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      
+      console.log('🔐 Sign in attempt:', { session: !!signInData?.session, error: signInError?.message })
+      
+      if (signInData?.session) {
+        console.log('🎉 Sign in successful after signup!')
+        setSession(signInData.session)
+        setUser(signInData.session.user)
+        await setStorageItem('masjid-last-activity', new Date().toISOString())
+        await new Promise(resolve => setTimeout(resolve, 500))
+        await fetchProfile(signInData.session.user.id)
+        console.log('✅ SignUp + SignIn complete')
+        return // Success - user is logged in
+      }
+      
+      // If we still can't sign in, something is wrong
+      if (signInError) {
+        console.error('❌ Sign in failed after signup:', signInError.message)
+        // Check if it's email confirmation issue
+        if (signInError.message.includes('Email not confirmed')) {
+          throw new Error('CONFIRMATION_REQUIRED')
         }
+        throw new Error(signInError.message)
       }
     }
+    
+    throw new Error('Signup failed. Please try again.')
   }
 
   const signOut = async () => {

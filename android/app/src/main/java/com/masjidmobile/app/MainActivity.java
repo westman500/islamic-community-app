@@ -1,7 +1,10 @@
 package com.masjidmobile.app;
 
 import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
@@ -71,6 +74,9 @@ public class MainActivity extends BridgeActivity {
         EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
         
+        // Create notification channel for push notifications
+        createNotificationChannel();
+        
         // Explicitly hide action bar and title
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
@@ -81,6 +87,27 @@ public class MainActivity extends BridgeActivity {
             startLiveStreaming();
         } else {
             requestPermissions();
+        }
+    }
+    
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is not in the Support Library.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "Masjid Notifications";
+            String description = "Notifications from Masjid Mobile app";
+            int importance = NotificationManager.IMPORTANCE_HIGH;
+            NotificationChannel channel = new NotificationChannel("masjid_notifications", name, importance);
+            channel.setDescription(description);
+            channel.enableLights(true);
+            channel.enableVibration(true);
+            
+            // Register the channel with the system
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+                Log.d(TAG, "Notification channel 'masjid_notifications' created");
+            }
         }
     }
     
@@ -214,7 +241,16 @@ public class MainActivity extends BridgeActivity {
     }
     
     private String[] getRequiredPermissions() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ (API 33+) requires POST_NOTIFICATIONS permission
+            return new String[]{
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.CAMERA,
+                Manifest.permission.READ_PHONE_STATE,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.POST_NOTIFICATIONS
+            };
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             return new String[]{
                 Manifest.permission.RECORD_AUDIO,
                 Manifest.permission.CAMERA,

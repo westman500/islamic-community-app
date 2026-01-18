@@ -527,18 +527,22 @@ export const ProfileSettings: React.FC = () => {
         style={{ height: 'env(safe-area-inset-top)' }}
       />
       
-    <div className="w-full max-w-4xl mx-auto p-4 space-y-6" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-      <div className="flex items-center gap-4 mb-6">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => navigate(-1)}
-          className="rounded-full"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-3xl font-bold">Profile Settings</h1>
+      {/* Emerald Header */}
+      <div className="fixed top-0 left-0 right-0 bg-emerald-600 text-white p-4 z-50 shadow-lg" style={{ marginTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="rounded-full text-white hover:bg-emerald-700"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Profile Settings</h1>
+        </div>
       </div>
+      
+      <div className="w-full max-w-4xl mx-auto p-4 space-y-6" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))' }}>
 
       {/* Basic Information */}
       <Card>

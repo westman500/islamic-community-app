@@ -88,9 +88,13 @@ export const ActivitiesAndRestaurants: React.FC = () => {
     switch (category) {
       case 'education': return <BookOpen className="h-4 w-4" />
       case 'charity': return <Heart className="h-4 w-4" />
-      case 'community': return <Users className="h-4 w-4" />
-      case 'worship': return <Building className="h-4 w-4" />
-      case 'youth': return <Users className="h-4 w-4" />
+      case 'social': return <Users className="h-4 w-4" />
+      case 'prayers': return <Building className="h-4 w-4" />
+      case 'family': return <Users className="h-4 w-4" />
+      case 'sports': return <Calendar className="h-4 w-4" />
+      case 'business': return <Building className="h-4 w-4" />
+      case 'arts': return <BookOpen className="h-4 w-4" />
+      case 'library': return <BookOpen className="h-4 w-4" />
       default: return <Calendar className="h-4 w-4" />
     }
   }
@@ -99,10 +103,16 @@ export const ActivitiesAndRestaurants: React.FC = () => {
     ? activities 
     : activities.filter(a => a.category === selectedCategory)
 
-  const categories = ['all', 'education', 'charity', 'community', 'worship', 'youth']
+  const categories = ['all', 'education', 'prayers', 'sports', 'social', 'charity', 'business', 'family', 'arts', 'library']
 
   return (
     <MobileLayout title="Community">
+      {loading ? (
+        <div className="p-4 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading activities...</p>
+        </div>
+      ) : (
       <div className="p-4 space-y-4">
         {/* Tabs */}
         <div className="flex gap-2">
@@ -186,7 +196,16 @@ export const ActivitiesAndRestaurants: React.FC = () => {
                       )}
                     </div>
 
-                    <Button className="w-full">
+                    <Button 
+                      className="w-full"
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        // TODO: Implement registration
+                        alert('Registration coming soon!')
+                      }}
+                    >
                       Register Now
                     </Button>
                   </CardContent>
@@ -261,10 +280,27 @@ export const ActivitiesAndRestaurants: React.FC = () => {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button className="flex-1" variant="outline">
+                    <Button 
+                      className="flex-1" 
+                      variant="outline"
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        alert('Menu coming soon!')
+                      }}
+                    >
                       View Menu
                     </Button>
-                    <Button className="flex-1">
+                    <Button 
+                      className="flex-1"
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        alert('Ordering coming soon!')
+                      }}
+                    >
                       Order Now
                     </Button>
                   </div>
@@ -283,16 +319,8 @@ export const ActivitiesAndRestaurants: React.FC = () => {
             )}
           </div>
         )}
-
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Loading...</p>
-            </div>
-          </div>
-        )}
       </div>
+      )}
     </MobileLayout>
   )
 }

@@ -10,11 +10,12 @@ interface PrayerTime {
 
 export const CompactPrayerTimes: React.FC = () => {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([])
-
+  const [location, setLocation] = useState<string>('')
   const [currentPrayer, setCurrentPrayer] = useState<string>('')
   const [nextPrayer, setNextPrayer] = useState<string>('')
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  void location // suppress unused warning
 
   useEffect(() => {
     fetchPrayerTimes()
@@ -166,15 +167,15 @@ export const CompactPrayerTimes: React.FC = () => {
         /* Carousel Container - Seamless auto-sliding */
         <div className="relative overflow-hidden h-20">
           <div 
-            className="flex transition-transform duration-700 ease-in-out"
+            className="flex transition-transform duration-700 ease-in-out h-full"
             style={{ transform: `translateX(-${currentSlide * 100}%)` }}
           >
             {allPrayers.map((prayer, index) => (
               <div
                 key={index}
-                className="min-w-full flex items-center justify-center"
+                className="min-w-full flex items-center justify-center h-full"
               >
-                <div className={`text-center p-2 rounded-lg w-full ${
+                <div className={`text-center p-2 rounded-lg w-full h-full flex flex-col justify-center ${
                   prayer.name === "Jumu'ah"
                     ? 'bg-green-500/30 border border-green-300'
                     : isPrayerNext(prayer.name)

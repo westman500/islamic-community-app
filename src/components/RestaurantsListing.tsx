@@ -38,9 +38,16 @@ export const RestaurantsListing: React.FC = () => {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+    <>
+      {/* Green background for status bar area */}
+      <div 
+        className="fixed top-0 left-0 right-0 bg-emerald-600 z-40"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+      
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
       {/* Fixed Header */}
-      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 z-50 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="fixed top-0 left-0 right-0 bg-emerald-600 text-white p-4 z-50 shadow-lg" style={{ marginTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-[1200px] mx-auto">
           <div className="flex items-center mb-3">
             <Button
@@ -181,5 +188,6 @@ export const RestaurantsListing: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   )
 }

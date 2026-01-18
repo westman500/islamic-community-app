@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { MobileLayout } from './MobileLayout'
 import { useNavigate } from 'react-router-dom'
 import { BarChart3, DollarSign, Users, Calendar, TrendingUp, Clock, MessageCircle } from 'lucide-react'
+import { CompactPrayerTimes } from './CompactPrayerTimes'
 
 export const ScholarDashboard: React.FC = () => {
   const { profile } = useAuth()
@@ -83,64 +84,77 @@ export const ScholarDashboard: React.FC = () => {
 
   return (
     <MobileLayout title="Scholar Analytics">
-      <div className="h-full overflow-hidden flex flex-col p-4 space-y-3">
-        {/* Welcome Section */}
-        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 border-none shadow-lg text-white flex-shrink-0">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <img 
-                src="/masjid-logo-dashboard.png" 
-                alt="Masjid Logo" 
-                className="h-10 w-auto"
-                crossOrigin="anonymous"
-              />
-              <div>
-                <h2 className="text-lg font-bold">Welcome, {profile?.full_name}</h2>
-                <p className="text-emerald-100 text-[10px] mt-0.5">
-                  Scholar Dashboard
-                </p>
-              </div>
+      <div className="fixed inset-0 flex flex-col bg-gray-50 overflow-hidden" style={{ top: 'calc(3.5rem + env(safe-area-inset-top))', bottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}>
+        {/* Fixed Header - Welcome + Prayer Times + Quick Actions */}
+        <div className="flex-shrink-0 bg-gray-50 px-3 pb-1">
+          {/* Compact Welcome Section */}
+          <div className="flex items-center gap-2">
+            <img 
+              src="/masjid-logo-dashboard.png" 
+              alt="Masjid Logo" 
+              className="h-6 w-auto"
+              crossOrigin="anonymous"
+            />
+            <div>
+              <h2 className="text-xs font-bold text-gray-900">Welcome, {profile?.full_name}</h2>
+              <p className="text-[9px] text-gray-600">Scholar Dashboard</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-2 flex-shrink-0">
-          <Button 
-            onClick={() => navigate('/scholar-consultations')}
-            className="bg-emerald-600 hover:bg-emerald-700 h-auto py-2.5"
-          >
-            <div className="flex flex-col items-center gap-0.5">
-              <MessageCircle className="w-4 h-4" />
-              <span className="text-[10px] leading-tight">My Consultations</span>
-            </div>
-          </Button>
-          <Button 
-            onClick={() => navigate('/wallet')}
-            variant="outline"
-            className="h-auto py-2.5"
-          >
-            <div className="flex flex-col items-center gap-0.5">
-              <DollarSign className="w-4 h-4" />
-              <span className="text-[10px] leading-tight">Wallet</span>
-            </div>
-          </Button>
+          {/* Fixed Prayer Times */}
+          <div className="mt-0.5 mb-0.5">
+            <CompactPrayerTimes />
+          </div>
+
+          {/* Fixed Quick Actions - 4 columns */}
+          <div className="grid grid-cols-4 gap-1.5">
+            <Button 
+              onClick={() => navigate('/scholar-consultations')}
+              className="bg-emerald-600 hover:bg-emerald-700 h-8 text-[10px] font-semibold px-2"
+            >
+              <MessageCircle className="w-3 h-3 mr-1" />
+              Consult
+            </Button>
+            <Button 
+              onClick={() => navigate('/wallet')}
+              variant="outline"
+              className="h-8 text-[10px] font-semibold border px-2"
+            >
+              <DollarSign className="w-3 h-3 mr-1" />
+              Wallet
+            </Button>
+            <Button 
+              onClick={() => navigate('/start-stream')}
+              className="bg-red-500 hover:bg-red-600 h-8 text-[10px] font-semibold px-2"
+            >
+              <BarChart3 className="w-3 h-3 mr-1" />
+              Live
+            </Button>
+            <Button 
+              onClick={() => navigate('/manage-consultations')}
+              variant="outline"
+              className="h-8 text-[10px] font-semibold border px-2"
+            >
+              <Calendar className="w-3 h-3 mr-1" />
+              Manage
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Grid - No Scroll, Compact */}
-        <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
-          <div className="grid grid-cols-3 gap-2 mb-2">
+        {/* Stats Grid - Fixed below, no scroll */}
+        <div className="flex-1 px-3 pt-2 overflow-hidden">
+          <div className="grid grid-cols-3 gap-1.5 mb-2">
             {statCards.map((stat, index) => {
               const Icon = stat.icon
               return (
                 <Card key={index} className={`${stat.color} border-none shadow-sm`}>
-                  <CardContent className="p-2">
+                  <CardContent className="p-1.5">
                     <div className="flex flex-col items-center">
-                      <div className={`p-1 rounded-lg bg-white mb-1`}>
+                      <div className={`p-0.5 rounded bg-white mb-0.5`}>
                         <Icon className={`h-3 w-3 ${stat.iconColor}`} />
                       </div>
-                      <p className="text-base font-bold text-gray-900">{stat.value}</p>
-                      <p className="text-[9px] font-semibold text-gray-700 text-center leading-tight">{stat.title}</p>
+                      <p className="text-sm font-bold text-gray-900">{stat.value}</p>
+                      <p className="text-[8px] font-semibold text-gray-700 text-center leading-tight">{stat.title}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -148,37 +162,37 @@ export const ScholarDashboard: React.FC = () => {
             })}
           </div>
 
-          {/* Recent Activity */}
-          <Card className="flex-shrink-0">
-            <CardHeader className="pb-1 pt-2">
-              <CardTitle className="text-xs">Recent Activity</CardTitle>
+          {/* Recent Activity - Compact */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-0.5 pt-1.5 px-2">
+              <CardTitle className="text-[10px]">Recent Activity</CardTitle>
             </CardHeader>
-            <CardContent className="pb-2">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between p-1.5 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-1.5">
-                    <div className="p-1 bg-green-100 rounded-full">
-                      <DollarSign className="h-2.5 w-2.5 text-green-600" />
+            <CardContent className="pb-1.5 px-2">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between p-1 bg-gray-50 rounded">
+                  <div className="flex items-center gap-1">
+                    <div className="p-0.5 bg-green-100 rounded-full">
+                      <DollarSign className="h-2 w-2 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold">Consultation Payment</p>
-                      <p className="text-[8px] text-gray-600">2 hours ago</p>
+                      <p className="text-[9px] font-semibold">Consultation Payment</p>
+                      <p className="text-[7px] text-gray-600">2 hours ago</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-green-600">+$50</span>
+                  <span className="text-[9px] font-bold text-green-600">+$50</span>
                 </div>
 
-                <div className="flex items-center justify-between p-1.5 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-1.5">
-                    <div className="p-1 bg-violet-100 rounded-full">
-                      <Calendar className="h-2.5 w-2.5 text-violet-600" />
+                <div className="flex items-center justify-between p-1 bg-gray-50 rounded">
+                  <div className="flex items-center gap-1">
+                    <div className="p-0.5 bg-violet-100 rounded-full">
+                      <Calendar className="h-2 w-2 text-violet-600" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold">New Booking</p>
-                      <p className="text-[8px] text-gray-600">5 hours ago</p>
+                      <p className="text-[9px] font-semibold">New Booking</p>
+                      <p className="text-[7px] text-gray-600">5 hours ago</p>
                     </div>
                   </div>
-                  <span className="text-[8px] text-gray-600">Tomorrow 2PM</span>
+                  <span className="text-[7px] text-gray-600">Tomorrow 2PM</span>
                 </div>
               </div>
             </CardContent>

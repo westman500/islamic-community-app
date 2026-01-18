@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { Building2, BookOpen, Users, Coins, Calendar, MessageCircle, Globe } from 'lucide-react'
 import { Button } from './ui/button'
@@ -47,37 +47,47 @@ export function LandingPage() {
   ]
 
   return (
+    <>
+      {/* White background for status bar area on landing page */}
+      <div 
+        className="fixed top-0 left-0 right-0 bg-white z-40"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+      
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
-      {/* Header - Emerald background to match status bar */}
-      <header className="bg-emerald-600 shadow-lg sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
+      {/* Header - Fixed at top */}
+      <header className="fixed left-0 right-0 bg-white shadow-lg z-50 border-b border-gray-100" style={{ top: 'env(safe-area-inset-top)' }}>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 sm:gap-3">
             <img 
               src="/masjid-logo.png" 
               alt="Masjid" 
-              className="h-12 w-auto"
+              className="h-10 sm:h-12 w-auto"
               style={{
-                filter: 'drop-shadow(0 2px 8px rgba(255, 255, 255, 0.3))'
+                filter: 'drop-shadow(0 2px 8px rgba(5, 150, 105, 0.3))'
               }}
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2">
             <Button 
               variant="ghost" 
               onClick={() => navigate('/signin')}
-              className="text-white hover:text-white hover:bg-emerald-700"
+              className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 text-sm sm:text-base px-2 sm:px-4 h-9 sm:h-10"
             >
               Sign In
             </Button>
             <Button 
               onClick={() => navigate('/signup')}
-              className="bg-white hover:bg-gray-100 text-emerald-700 font-semibold"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm sm:text-base px-3 sm:px-4 h-9 sm:h-10"
             >
               Get Started
             </Button>
           </div>
         </div>
       </header>
+
+      {/* Spacer for fixed header */}
+      <div className="h-16 sm:h-20"></div>
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
@@ -105,12 +115,12 @@ export function LandingPage() {
         </p>
         
         <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-          Your Islamic Community Hub
+          Welcome to MasjidMobile
         </h2>
         
         <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
           Connect with scholars, read Quran, track prayer times, and strengthen your faith 
-          with our comprehensive Islamic mobile platform.
+          with MasjidMobile - your comprehensive Islamic platform.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -197,14 +207,14 @@ export function LandingPage() {
               <h4 className="font-semibold text-white mb-4">Quick Links</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <a href="/privacy-policy" className="hover:text-emerald-400 transition-colors">
+                  <Link to="/privacy-policy" className="hover:text-emerald-400 transition-colors">
                     Privacy Policy
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a href="/terms-of-service" className="hover:text-emerald-400 transition-colors">
+                  <Link to="/terms-of-service" className="hover:text-emerald-400 transition-colors">
                     Terms of Service
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -221,5 +231,6 @@ export function LandingPage() {
         </div>
       </footer>
     </div>
+    </>
   )
 }

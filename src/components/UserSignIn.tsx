@@ -6,10 +6,19 @@ import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase/client'
 import { setEmeraldStatusBar } from '../utils/statusBar'
+import { Eye, EyeOff, Fingerprint } from 'lucide-react'
+import { 
+  isBiometricAvailable, 
+  isBiometricEnabled, 
+  getBiometricCredentials, 
+  promptEnableBiometric,
+  getBiometricEmail 
+} from '../utils/biometricAuth'
 
 export const UserSignIn: React.FC = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -18,16 +27,36 @@ export const UserSignIn: React.FC = () => {
   const [resetEmail, setResetEmail] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetMessage, setResetMessage] = useState('')
+  const [biometricAvailable, setBiometricAvailable] = useState(false)
+  const [biometricType, setBiometricType] = useState('')
+  const [biometricEnabled, setBiometricEnabled] = useState(false)
   const { signIn } = useAuth()
   const navigate = useNavigate()
 
-  // Clear any stale loading states on mount
+  // Clear any stale loading states on mount and check biometric
   React.useEffect(() => {
     setLoading(false)
     setError('')
     
     // Set emerald status bar
     setEmeraldStatusBar().catch(console.error)
+    
+    // Check biometric availability
+    const checkBiometric = async () => {
+      const { available, biometryType } = await isBiometricAvailable()
+      setBiometricAvailable(available)
+      setBiometricType(biometryType)
+      setBiometricEnabled(isBiometricEnabled())
+      
+      // If biometric is enabled, pre-fill email
+      if (available && isBiometricEnabled()) {
+        const savedEmail = getBiometricEmail()
+        if (savedEmail) {
+          setEmail(savedEmail)
+        }
+      }
+    }
+    checkBiometric()
     
     // Load remembered credentials
     const rememberedEmail = localStorage.getItem('rememberedEmail')
@@ -62,23 +91,50 @@ export const UserSignIn: React.FC = () => {
     })
   }
 
+  // Handle biometric login
+  const handleBiometricLogin = async () => {
+    setError('')
+    setLoading(true)
+
+    try {
+      const credentials = await getBiometricCredentials()
+      
+      if (credentials) {
+        console.log('Biometric verified, signing in...')
+        await signIn(credentials.email, credentials.password)
+        
+        // Wait for profile to load
+        await new Promise(resolve => setTimeout(resolve, 500))
+        setLoading(false)
+        navigate('/dashboard', { replace: true })
+      } else {
+        setLoading(false)
+        // User cancelled or verification failed
+      }
+    } catch (err: any) {
+      console.error('Biometric login error:', err)
+      setError(err.message || 'Biometric login failed')
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('UserSignIn: Form submitted')
+    console.log('🔐 UserSignIn: Form submitted for', email)
     setError('')
     setLoading(true)
 
     // Safety timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
-      console.warn('Sign-in timeout reached, resetting loading state')
+      console.warn('⚠️ Sign-in timeout reached, resetting loading state')
       setLoading(false)
-      setError('Sign-in is taking too long. Please refresh and try again.')
+      setError('Sign-in is taking too long. Please check your internet and try again.')
     }, 15000) // 15 second timeout
 
     try {
-      console.log('UserSignIn: Calling signIn...')
+      console.log('📡 UserSignIn: Calling signIn...')
       await signIn(email, password)
-      console.log('UserSignIn: signIn completed successfully')
+      console.log('✅ UserSignIn: signIn completed successfully')
       
       // Save credentials if "Remember Me" is checked
       if (rememberMe) {
@@ -89,20 +145,21 @@ export const UserSignIn: React.FC = () => {
         localStorage.removeItem('rememberedPassword')
       }
       
-      // Wait a bit for profile to load before navigating
-      console.log('UserSignIn: Waiting for profile to load...')
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Save credentials for biometric login if available
+      if (biometricAvailable) {
+        await promptEnableBiometric(email, password)
+      }
       
       clearTimeout(timeoutId)
       setLoading(false)
       
-      console.log('UserSignIn: Navigating to dashboard...')
+      console.log('🚀 UserSignIn: Navigating to dashboard...')
       // Navigate after successful sign-in
       navigate('/dashboard', { replace: true })
     } catch (err: any) {
-      console.error('UserSignIn: Sign in error:', err)
+      console.error('❌ UserSignIn: Sign in error:', err.message)
       clearTimeout(timeoutId)
-      setError(err.message || 'Failed to sign in')
+      setError(err.message || 'Failed to sign in. Please try again.')
       setLoading(false)
     }
   }
@@ -133,8 +190,25 @@ export const UserSignIn: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white overflow-y-auto">
-      <div className="container mx-auto p-4 max-w-md py-8">
+    <>
+      {/* Green background for status bar area */}
+      <div 
+        className="fixed top-0 left-0 right-0 bg-emerald-600 z-40"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+      
+    <div 
+      className="fixed inset-0 bg-gradient-to-b from-emerald-50 to-white overflow-hidden flex items-center justify-center" 
+      style={{ 
+        paddingTop: 'env(safe-area-inset-top)',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'manipulation'
+      }}
+    >
+      <div className="container mx-auto p-4 max-w-md">
         {/* Islamic Greeting Banner */}
         <div className="mb-6 text-center">
           <div className="flex justify-center mb-3">
@@ -166,6 +240,7 @@ export const UserSignIn: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
+                  style={{ touchAction: 'manipulation' }}
                 />
               </div>
 
@@ -173,14 +248,25 @@ export const UserSignIn: React.FC = () => {
                 <label htmlFor="password" className="block text-sm font-medium mb-2">
                   Password
                 </label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    className="pr-10"
+                    style={{ touchAction: 'manipulation' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between">
@@ -270,6 +356,27 @@ export const UserSignIn: React.FC = () => {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
 
+            {/* Biometric Login Button */}
+            {biometricAvailable && biometricEnabled && (
+              <Button 
+                type="button"
+                onClick={handleBiometricLogin}
+                variant="outline"
+                className="w-full h-12 text-base font-semibold border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50" 
+                disabled={loading}
+              >
+                <Fingerprint className="w-5 h-5 mr-2" />
+                {loading ? 'Verifying...' : `Sign in with ${biometricType}`}
+              </Button>
+            )}
+
+            {/* Show biometric available message if not yet enabled */}
+            {biometricAvailable && !biometricEnabled && (
+              <p className="text-center text-xs text-gray-500">
+                💡 Sign in once to enable {biometricType} login
+              </p>
+            )}
+
             <div className="text-center text-sm text-muted-foreground pt-2">
               Don't have an account?{' '}
               <a href="/signup" className="text-emerald-600 hover:underline font-medium">
@@ -284,5 +391,6 @@ export const UserSignIn: React.FC = () => {
         <div className="h-32"></div>
       </div>
     </div>
+    </>
   )
 }

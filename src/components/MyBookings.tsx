@@ -69,25 +69,48 @@ export const MyBookings: React.FC = () => {
       setLoading(true)
       console.log('Fetching consultation bookings for user:', profile.id)
 
-      // Fetch consultation bookings
+      // Fetch consultation bookings - simplified query
       const { data: consultationData, error: consultationError } = await supabase
         .from('consultation_bookings')
-        .select(`
-          *,
-          scholar:profiles!scholar_id(full_name, specializations)
-        `)
+        .select('*')
         .eq('user_id', profile.id)
         .order('created_at', { ascending: false })
 
       if (consultationError) {
         console.error('Error fetching consultation bookings:', consultationError)
-        throw consultationError
+        setConsultations([])
+        setLoading(false)
+        return
       }
 
-      console.log('Fetched consultations:', consultationData?.length || 0)
-      setConsultations(consultationData || [])
+      // Fetch scholar profiles separately to avoid join issues
+      const bookingsWithScholars = await Promise.all(
+        (consultationData || []).map(async (booking) => {
+          try {
+            const { data: scholarData } = await supabase
+              .from('profiles')
+              .select('full_name, specializations')
+              .eq('id', booking.scholar_id)
+              .single()
+            
+            return {
+              ...booking,
+              scholar: scholarData || { full_name: 'Scholar', specializations: [] }
+            }
+          } catch {
+            return {
+              ...booking,
+              scholar: { full_name: 'Scholar', specializations: [] }
+            }
+          }
+        })
+      )
+
+      console.log('Fetched consultations:', bookingsWithScholars.length)
+      setConsultations(bookingsWithScholars)
     } catch (error) {
       console.error('Error fetching bookings:', error)
+      setConsultations([])
     } finally {
       setLoading(false)
     }
