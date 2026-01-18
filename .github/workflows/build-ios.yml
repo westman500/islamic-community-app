@@ -44,7 +44,7 @@ jobs:
           pod install --repo-update
 
       - name: Sync Capacitor
-        run: npx cap sync ios --no-deps
+        run: npx cap copy ios
 
       - name: Setup App Store Connect API Key
         env:
