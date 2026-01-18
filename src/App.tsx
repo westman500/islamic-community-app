@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { initPushNotifications } from './utils/pushNotifications'
+import { checkForAppUpdate } from './utils/appUpdate'
 
 // Auth components
 import { UserSignIn } from './components/UserSignIn'
@@ -44,6 +45,7 @@ import { ReviewSubmissionForm } from './components/ReviewSubmissionForm'
 import { AccountDeletion } from './components/AccountDeletion'
 import { AvailableScholars } from './components/AvailableScholars'
 import { MyBookings } from './components/MyBookings'
+import { NotificationsPanel } from './components/NotificationsPanel'
 import { ActivityCategories } from './components/ActivityCategories'
 import { ActivitiesByCategory } from './components/ActivitiesByCategory'
 import { AgoraTest } from './components/AgoraTest'
@@ -54,6 +56,7 @@ import { IslamicReels } from './components/IslamicReels'
 import { RestaurantsListing } from './components/RestaurantsListing'
 import { ActivitiesAndRestaurants } from './components/ActivitiesAndRestaurants'
 import { LandingPage } from './components/LandingPage'
+import { AdminDashboard } from './components/AdminDashboard'
 
 function App() {
   // Only show demo features (screenshot utility) in development mode on localhost
@@ -63,9 +66,16 @@ function App() {
     window.location.hostname === '127.0.0.1'
   )
 
-  // Initialize push notifications when app loads
+  // Initialize push notifications and check for app updates when app loads
   useEffect(() => {
     initPushNotifications().catch(console.error)
+    
+    // Check for app updates after a short delay (let app initialize first)
+    const updateCheckTimer = setTimeout(() => {
+      checkForAppUpdate().catch(console.error)
+    }, 3000) // 3 second delay
+    
+    return () => clearTimeout(updateCheckTimer)
   }, [])
   
   return (
@@ -186,6 +196,14 @@ function App() {
               }
             />
             <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <NotificationsPanel />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/activity-categories"
               element={
                 <ProtectedRoute>
@@ -256,6 +274,16 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['scholar', 'imam']}>
                   <ScholarAvailability />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin-only routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
                 </ProtectedRoute>
               }
             />

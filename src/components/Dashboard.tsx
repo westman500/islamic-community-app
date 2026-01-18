@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { CompactPrayerTimes } from './CompactPrayerTimes'
 import { initializeStatusBar } from '../utils/statusBar'
+import { supabase } from '../utils/supabase/client'
 
 export function Dashboard() {
   const { profile, signOut } = useAuth()
@@ -32,10 +33,55 @@ export function Dashboard() {
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   const [startY, setStartY] = React.useState(0)
   const [pullDistance, setPullDistance] = React.useState(0)
+  const [unreadNotifications, setUnreadNotifications] = React.useState(0)
   const dashboardRef = React.useRef<HTMLDivElement>(null)
 
   const isScholar = profile?.role === 'scholar' || profile?.role === 'imam'
+  const isAdmin = profile?.role === 'admin'
   const fullName = profile?.full_name || 'User'
+
+  // Fetch unread notifications count (only booking/consultation notifications)
+  React.useEffect(() => {
+    if (profile?.id) {
+      const fetchUnreadCount = async () => {
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', profile.id)
+          .eq('read', false)
+          .in('type', ['booking', 'consultation', 'consultation_reminder', 'booking_confirmed', 'booking_cancelled']) // Only count booking/consultation notifications
+        
+        setUnreadNotifications(count || 0)
+      }
+      
+      fetchUnreadCount()
+      
+      // Subscribe to new notifications (only booking/consultation)
+      const subscription = supabase
+        .channel('dashboard-notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${profile.id}`
+          },
+          (payload: any) => {
+            // Only increment count for booking/consultation notifications
+            const type = payload.new?.type
+            if (type === 'booking' || type === 'consultation' || type === 'consultation_reminder' || type === 'booking_confirmed' || type === 'booking_cancelled') {
+              setUnreadNotifications(prev => prev + 1)
+            }
+          }
+        )
+        .subscribe()
+
+      return () => {
+        subscription.unsubscribe()
+      }
+    }
+  }, [profile?.id])
 
   const handleSignOut = async () => {
     try {
@@ -242,6 +288,19 @@ export function Dashboard() {
     }
   ]
 
+  const adminFeatures = [
+    {
+      title: 'Admin Dashboard',
+      description: 'Platform Management',
+      detail: 'Manage users, send campaigns, track analytics, and view activities',
+      icon: Users,
+      color: 'bg-purple-50',
+      iconColor: 'text-purple-600',
+      buttonColor: 'bg-purple-500 hover:bg-purple-600',
+      path: '/admin'
+    }
+  ]
+
   const premiumFeatures = [
     {
       title: 'Access premium features and content',
@@ -262,7 +321,7 @@ export function Dashboard() {
     }
   ]
 
-  const features = isScholar ? scholarFeatures : userFeatures
+  const features = isAdmin ? adminFeatures : (isScholar ? scholarFeatures : userFeatures)
 
   return (
     <>
@@ -277,47 +336,59 @@ export function Dashboard() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
       {/* Sticky Header - Fixed at top */}
-      <div className="sticky top-0 left-0 right-0 text-white p-4 md:p-6 shadow-lg z-50" style={{ backgroundColor: '#059669' }}>
+      <div className="sticky top-0 left-0 right-0 text-white py-2 px-3 md:px-4 shadow-lg z-50" style={{ backgroundColor: '#059669' }}>
         <div className="max-w-[1200px] mx-auto">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <div className="relative">
-                <div className="absolute inset-0 bg-white/20 rounded-lg blur-md"></div>
                 <img 
                   src="/masjid-logo-dashboard.png" 
                   alt="Masjid Logo" 
-                  className="h-20 w-20 sm:h-24 sm:w-24 md:h-32 md:w-32 object-contain relative z-10"
-                  style={{ filter: 'drop-shadow(0 4px 12px rgba(255, 255, 255, 0.7))' }}
+                  className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 object-contain relative z-10"
                   crossOrigin="anonymous"
                 />
               </div>
               <div>
-                <p className="text-xs text-emerald-100">{getIslamicGreeting()}</p>
-                <p className="text-white text-sm font-semibold">{`As-salamu alaykum, ${fullName}`}</p>
+                <p className="text-[10px] text-emerald-100">{getIslamicGreeting()}</p>
+                <p className="text-white text-xs font-semibold">{`As-salamu alaykum, ${fullName}`}</p>
               </div>
             </div>
-            <div className="flex flex-col items-end space-y-2">
-              <div className="flex items-center space-x-2">
+            <div className="flex flex-col items-end space-y-1">
+              <div className="flex items-center space-x-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-emerald-500 rounded-full"
+                  className="text-white hover:bg-emerald-500 rounded-full h-8 w-8 relative"
+                  onClick={() => navigate('/notifications')}
+                  title="Notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                      {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-emerald-500 rounded-full h-8 w-8"
                   onClick={() => navigate('/profile-settings')}
                   title="Settings"
                 >
-                  <Settings className="h-6 w-6" />
+                  <Settings className="h-5 w-5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-red-500 rounded-full"
+                  className="text-white hover:bg-red-500 rounded-full h-8 w-8"
                   onClick={handleSignOut}
                   title="Sign Out"
                 >
-                  <LogOut className="h-6 w-6" />
+                  <LogOut className="h-5 w-5" />
                 </Button>
               </div>
-              <p className="text-sm font-bold text-white">{formatTime()}</p>
+              <p className="text-xs font-bold text-white">{formatTime()}</p>
             </div>
           </div>
         </div>
@@ -326,7 +397,7 @@ export function Dashboard() {
       <div 
         ref={dashboardRef}
         className="flex-1 overflow-y-auto max-w-[1200px] mx-auto w-full"
-        style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+        style={{ paddingTop: '0', paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -358,22 +429,22 @@ export function Dashboard() {
       )}
       
 
-        <div className="p-4 space-y-6">
+        <div className="p-3 space-y-3">
           {/* Compact Prayer Times - New Component */}
           <CompactPrayerTimes />
 
         {/* Premium Features (Top Banner Style) */}
         {!isScholar && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
             {premiumFeatures.map((feature, index) => (
               <Card key={index} className={`${feature.color} border-none shadow-md`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-700 font-medium">{feature.title}</p>
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm text-gray-700 font-medium truncate">{feature.title}</p>
                     </div>
                     <Button 
-                      className={`${feature.buttonColor} text-white ml-4`}
+                      className={`${feature.buttonColor} text-white text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-10 flex-shrink-0`}
                       onClick={() => feature.path && navigate(feature.path)}
                     >
                       {feature.buttonText}
@@ -386,21 +457,21 @@ export function Dashboard() {
         )}
 
         {/* Common Islamic Features */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           {commonFeatures.map((feature) => {
             const Icon = feature.icon
             return (
               <Card key={feature.title} className={`${feature.color} border-none shadow-md hover:shadow-lg transition-all`}>
-                <CardContent className="p-3">
-                  <div className="flex flex-col items-center text-center space-y-2">
-                    <div className={`p-3 rounded-xl shadow-md ${feature.color}`}>
-                      <Icon className={`h-8 w-8 ${feature.iconColor} drop-shadow-md`} />
+                <CardContent className="p-2 sm:p-3">
+                  <div className="flex flex-col items-center text-center space-y-1.5 sm:space-y-2">
+                    <div className={`p-2 sm:p-3 rounded-xl shadow-md ${feature.color}`}>
+                      <Icon className={`h-6 w-6 sm:h-8 sm:w-8 ${feature.iconColor} drop-shadow-md`} />
                     </div>
-                    <h3 className={`text-xs font-bold ${feature.iconColor}`}>
+                    <h3 className={`text-[10px] sm:text-xs font-bold ${feature.iconColor} leading-tight`}>
                       {feature.title}
                     </h3>
                     <Button 
-                      className={`w-full ${feature.buttonColor} text-white text-xs h-8 shadow-md hover:shadow-lg`}
+                      className={`w-full ${feature.buttonColor} text-white text-[10px] sm:text-xs h-7 sm:h-8 shadow-md hover:shadow-lg`}
                       onClick={() => navigate(feature.path)}
                     >
                       Open
@@ -413,21 +484,21 @@ export function Dashboard() {
         </div>
 
         {/* Role-specific Features */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           {features.map((feature) => {
             const Icon = feature.icon
             return (
               <Card key={feature.title} className={`${feature.color} border-none shadow-md hover:shadow-lg transition-all`}>
-                <CardContent className="p-2.5">
-                  <div className="flex flex-col items-center text-center space-y-1.5">
-                    <div className={`p-2.5 rounded-xl shadow-md ${feature.color}`}>
-                      <Icon className={`h-7 w-7 ${feature.iconColor} drop-shadow-md`} />
+                <CardContent className="p-2 sm:p-2.5">
+                  <div className="flex flex-col items-center text-center space-y-1 sm:space-y-1.5">
+                    <div className={`p-2 sm:p-2.5 rounded-xl shadow-md ${feature.color}`}>
+                      <Icon className={`h-6 w-6 sm:h-7 sm:w-7 ${feature.iconColor} drop-shadow-md`} />
                     </div>
-                    <h3 className={`text-[11px] font-bold ${feature.iconColor} leading-tight`}>
+                    <h3 className={`text-[10px] sm:text-[11px] font-bold ${feature.iconColor} leading-tight`}>
                       {feature.title}
                     </h3>
                     <Button 
-                      className={`w-full ${feature.buttonColor} text-white text-[11px] h-7 shadow-md hover:shadow-lg`}
+                      className={`w-full ${feature.buttonColor} text-white text-[10px] sm:text-[11px] h-6 sm:h-7 shadow-md hover:shadow-lg`}
                       onClick={() => navigate(feature.path)}
                     >
                       Open
