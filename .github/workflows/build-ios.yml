@@ -104,11 +104,12 @@ jobs:
                 in_house: false
               )
               
-              # Get distribution certificate
+              # Get distribution certificate - force will revoke existing if at limit
               cert(
                 api_key: api_key,
                 keychain_path: "#{ENV['HOME']}/Library/Keychains/build.keychain-db",
-                keychain_password: "temppass"
+                keychain_password: "temppass",
+                force: true
               )
               
               # Get provisioning profile
